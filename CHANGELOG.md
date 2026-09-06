@@ -15,6 +15,10 @@ issues each entry cites.
 
 - **The repository no longer names the editor whose reading metrics the interface follows.** The comments of the stylesheet and of the Markdown readers, `docs/knowledge-base.md`, `docs/software-vision.md` §13.2, `CLAUDE.md` and the entry of 0.3.0 now speak of the desktop vault editors as a family, which is what the decision was always about: the metrics are shared by the tools that read a folder of Markdown files, and naming one of them read as a dependency the product does not have. The content of the example vaults is untouched, because it is vault content and not repository documentation, and `.obsidian/` stays in `.gitignore`, in `.dockerignore` and in the ignore list of `build-vaults.mjs`, because there it is the name of a directory on disk and not a citation.
 
+### Fixed
+
+- **A frontmatter list with one item is classified as a list, so an attribute no longer changes kind when a second value arrives.** `tags: [contracts]` was read as an `enum` and `tags: [contracts, budget]` as a `list`, because the classification was decided by how many values an entry happened to hold rather than by the form the author wrote. The same attribute therefore had two kinds across the notes of one vault, settled by a fact about whichever note was being read, and everything downstream that reads the kind became inconsistent for a reason invisible from the note. The frontmatter reader now carries the written form out with the values, and RN-DSC-020 — which has always said the classification is by shape — is what the code obeys. The reading surface already drew a list of one as a list, and is now pinned to the same cases so the two agree by rule instead of by coincidence. (#70)
+
 ## [0.4.1] - 2026-09-04
 
 ### Fixed

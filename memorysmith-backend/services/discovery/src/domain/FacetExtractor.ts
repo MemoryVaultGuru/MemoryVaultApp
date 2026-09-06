@@ -12,6 +12,10 @@
  * through use is dropped by the cardinality ceiling (RN-DSC-024), which is why
  * `title` and `source` never become statistics without anyone maintaining an
  * exclusion list.
+ *
+ * The shape is the FORM THE AUTHOR WROTE, and never how many values that form
+ * happens to hold: `tags: [contracts]` is a list of one item, and adding a
+ * second value to an attribute must not change what the attribute is.
  */
 
 export type FacetKind = 'date' | 'boolean' | 'enum' | 'list';
@@ -35,13 +39,25 @@ export function extractFrontmatter(markdown: string): string | null {
   return match?.[1] ?? null;
 }
 
+/** How the author wrote the value, which is what decides the kind. */
+type WrittenForm = 'scalar' | 'list';
+
+interface Entry {
+  readonly written: WrittenForm;
+  readonly values: string[];
+}
+
 /**
  * A deliberately small YAML reader: scalars, inline lists and dash lists, and
  * nothing else. Anything more would be interpreting the vault, which is not
  * the backend's business.
+ *
+ * It carries the written form out alongside the values, because flattening
+ * both into an array is what made a list of one item indistinguishable from a
+ * scalar, and those are not the same attribute.
  */
-function parseFrontmatter(block: string): Record<string, string[]> {
-  const entries: Record<string, string[]> = {};
+function parseFrontmatter(block: string): Record<string, Entry> {
+  const entries: Record<string, Entry> = {};
   const lines = block.split(/\r?\n/);
   let currentKey: string | null = null;
 
@@ -50,7 +66,10 @@ function parseFrontmatter(block: string): Record<string, string[]> {
 
     const listItem = /^\s*-\s+(.*)$/.exec(line);
     if (listItem && currentKey) {
-      entries[currentKey] = [...(entries[currentKey] ?? []), unquote(listItem[1] ?? '')];
+      entries[currentKey] = {
+        written: 'list',
+        values: [...(entries[currentKey]?.values ?? []), unquote(listItem[1] ?? '')],
+      };
       continue;
     }
 
@@ -61,15 +80,20 @@ function parseFrontmatter(block: string): Record<string, string[]> {
     currentKey = key;
 
     if (raw.length === 0) {
-      entries[key] = [];
+      // `key:` on its own is either an empty value or the head of a dash list.
+      // The lines that follow decide, and until one arrives it holds nothing.
+      entries[key] = { written: 'scalar', values: [] };
     } else if (raw.startsWith('[') && raw.endsWith(']')) {
-      entries[key] = raw
-        .slice(1, -1)
-        .split(',')
-        .map((each) => unquote(each.trim()))
-        .filter((each) => each.length > 0);
+      entries[key] = {
+        written: 'list',
+        values: raw
+          .slice(1, -1)
+          .split(',')
+          .map((each) => unquote(each.trim()))
+          .filter((each) => each.length > 0),
+      };
     } else {
-      entries[key] = [unquote(raw)];
+      entries[key] = { written: 'scalar', values: [unquote(raw)] };
     }
   }
   return entries;
@@ -79,9 +103,14 @@ function unquote(value: string): string {
   return value.replace(/^["']|["']$/g, '').trim();
 }
 
-function kindOf(values: string[]): FacetKind | null {
+/**
+ * The kind, decided by the form the author wrote (RN-DSC-020). Deciding it by
+ * the number of values gave one attribute two kinds across the notes of a
+ * single vault, settled by a fact about whichever note was being read.
+ */
+function kindOf({ written, values }: Entry): FacetKind | null {
   if (values.length === 0) return null;
-  if (values.length > 1) {
+  if (written === 'list') {
     return values.every((value) => value.length <= MAX_ENUM_LENGTH) ? 'list' : null;
   }
   const [value] = values as [string];
@@ -104,13 +133,13 @@ export function extractFacets(markdown: string): FacetSnapshot {
   if (!block) return {};
 
   const snapshot: FacetSnapshot = {};
-  for (const [facet, values] of Object.entries(parseFrontmatter(block))) {
-    const kind = kindOf(values);
+  for (const [facet, entry] of Object.entries(parseFrontmatter(block))) {
+    const kind = kindOf(entry);
     if (!kind) continue; // free text and empties are described, not counted
     snapshot[facet] = {
       facet,
       kind,
-      values: values.map((value) => canonical(kind, value)),
+      values: entry.values.map((value) => canonical(kind, value)),
     };
   }
   return snapshot;
