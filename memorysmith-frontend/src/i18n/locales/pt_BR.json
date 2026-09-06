@@ -23,7 +23,6 @@
     "tryAgain": "Tentar de novo",
     "handingOver": "Levando você à página de entrada...",
     "handoverFailed": "A entrada não foi concluída. Tente de novo.",
-    "signedOut": "Você saiu da sua conta.",
     "sessionExpired": "Sua sessão expirou e foi encerrada aqui. Entrar de novo retoma exatamente de onde você parou: nada foi perdido.",
     "noneSubscription": "Esta conta ainda não alcança nenhuma assinatura. A assinatura é o que guarda os seus vaults, e enquanto não há cobrança automática ela é liberada à mão.",
     "pendingSubscription": "Sua assinatura está aguardando autorização. A liberação é manual nesta fase, e o produto abre assim que ela for aprovada.",
