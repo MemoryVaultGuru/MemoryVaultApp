@@ -11,6 +11,10 @@ issues each entry cites.
 
 ## [Unreleased]
 
+### Added
+
+- **Entering a vault resumes at the note you were reading.** Every visit started at the tree, and getting back to the note open in the previous session meant walking the folder structure again, every time. The last note opened is now remembered per vault, and arriving at the vault goes straight to it. It is remembered in the browser and nowhere else: which note somebody read last is a convenience of that machine, not a fact of the product, and storing it on the server would be a write on every note opened — on the hottest path of the reading surface, against the quota, carrying an authorship that reading does not have. It resumes on arrival and not on request, so the vault name in the sidebar still reaches the Vault Context, and a note that has since been deleted, renamed or moved is forgotten in silence and lands on the tree instead of on a not-found line. (#56, #72)
+
 ### Changed
 
 - **The repository no longer names the editor whose reading metrics the interface follows.** The comments of the stylesheet and of the Markdown readers, `docs/knowledge-base.md`, `docs/software-vision.md` §13.2, `CLAUDE.md` and the entry of 0.3.0 now speak of the desktop vault editors as a family, which is what the decision was always about: the metrics are shared by the tools that read a folder of Markdown files, and naming one of them read as a dependency the product does not have. The content of the example vaults is untouched, because it is vault content and not repository documentation, and `.obsidian/` stays in `.gitignore`, in `.dockerignore` and in the ignore list of `build-vaults.mjs`, because there it is the name of a directory on disk and not a citation.

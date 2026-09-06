@@ -4,7 +4,7 @@ import { LoginPage } from '../features/auth/LoginPage';
 import { AuthCallbackPage } from '../features/auth/AuthCallbackPage';
 import { GuidancePanel } from '../features/guidance/GuidancePanel';
 import { FolderRoute } from '../features/structure/FolderRoute';
-import { VaultContextPage } from '../features/structure/VaultContextPage';
+import { ResumeReading } from '../features/structure/ResumeReading';
 import { TemplatesPage } from '../features/structure/TemplatesPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { GraphPage } from '../features/graph/GraphPage';
@@ -28,7 +28,7 @@ export const router = createBrowserRouter([
                 path: '/vaults/:vaultSlug',
                 element: <VaultLayout />,
                 children: [
-                  { index: true, element: <VaultContextPage /> },
+                  { index: true, element: <ResumeReading /> },
                   { path: 'guidance', element: <GuidancePanel /> },
                   { path: 'templates', element: <TemplatesPage /> },
                   { path: 'graph', element: <GraphPage /> },
