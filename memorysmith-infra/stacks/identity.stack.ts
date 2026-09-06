@@ -33,6 +33,84 @@ export interface IdentityStackProps extends StackProps {
   hostedZone: IHostedZone;
 }
 
+/**
+ * The three messages the pool can send, in the product's own words.
+ *
+ * They used to be the provider's factory text, and what arrived was
+ * `Your username is x and temporary password is y.` — no sentence of ours, no
+ * explanation of what this is, in English whatever the account speaks, from a
+ * company nobody has heard of. It is the screen BEFORE the sign-in page,
+ * which is fully dressed in the brand, and it was the seam showing at the
+ * worst possible moment.
+ *
+ * **Three messages, two templates.** Cognito uses the verification template
+ * for the confirmation code AND for the forgot-password code, so that text has
+ * to serve both errands. It is written to say what the code is for without
+ * claiming which of the two it is.
+ *
+ * **Both languages, in one message.** The pool holds one template and knows
+ * nothing about the locale of an account, and the product speaks two. Saying
+ * everything twice is not elegant and it is honest: the alternative is a
+ * `CustomMessage` trigger that reads the account and answers in its language,
+ * which is more moving parts and belongs with the sender (#57).
+ *
+ * **Plain text, deliberately.** The sending account is the Cognito default —
+ * no custom sender and a ceiling of 50 messages a day — and a message showing
+ * `<p>` tags is worse than one that never tried. The visual identity needs
+ * HTML and a hosted asset, and therefore needs SES first, so it waits with the
+ * address in #57.
+ */
+const INVITATION: cognito.UserInvitationConfig = {
+  emailSubject: 'Sua conta no MemorySmith · Your MemorySmith account',
+  emailBody: [
+    'Sua conta no MemorySmith foi criada.',
+    '',
+    'Usuário: {username}',
+    'Senha provisória: {####}',
+    '',
+    'Entre em https://memorysmith.app e escolha uma senha sua no primeiro',
+    'acesso. A senha acima vale uma vez só.',
+    '',
+    'O MemorySmith guarda bases de conhecimento em Markdown e as serve a',
+    'ferramentas de IA. Se você não esperava esta mensagem, ignore-a: sem esse',
+    'primeiro acesso, a conta não faz nada.',
+    '',
+    '—',
+    '',
+    'Your MemorySmith account has been created.',
+    '',
+    'Username: {username}',
+    'Temporary password: {####}',
+    '',
+    'Sign in at https://memorysmith.app and choose a password of your own on',
+    'the first visit. The one above works once.',
+    '',
+    'MemorySmith keeps knowledge vaults in Markdown and serves them to AI',
+    'tools. If you were not expecting this message, ignore it: without that',
+    'first sign-in, the account does nothing.',
+  ].join('\n'),
+};
+
+const VERIFICATION: cognito.UserVerificationConfig = {
+  emailStyle: cognito.VerificationEmailStyle.CODE,
+  emailSubject: 'Seu código do MemorySmith · Your MemorySmith code',
+  emailBody: [
+    'Seu código do MemorySmith é {####}.',
+    '',
+    'Ele foi pedido em https://memorysmith.app, para confirmar seu endereço ou',
+    'para definir uma nova senha. Se não foi você, ignore esta mensagem: sem o',
+    'código, nada acontece.',
+    '',
+    '—',
+    '',
+    'Your MemorySmith code is {####}.',
+    '',
+    'It was requested at https://memorysmith.app, to confirm your address or to',
+    'set a new password. If it was not you, ignore this message: without the',
+    'code, nothing happens.',
+  ].join('\n'),
+};
+
 export class IdentityStack extends Stack {
   readonly userPool: cognito.UserPool;
   readonly userPoolDomain: cognito.UserPoolDomain;
@@ -92,6 +170,8 @@ export class IdentityStack extends Stack {
         requireSymbols: false,
       },
       mfa: cognito.Mfa.OPTIONAL,
+      userInvitation: INVITATION,
+      userVerification: VERIFICATION,
     });
     // Access-token claim customization requires the V2_0 trigger event.
     this.userPool.addTrigger(
