@@ -43,7 +43,7 @@ export function WritableContent({
     void client.invalidateQueries({ queryKey: invalidates });
   }, [client, invalidates]);
 
-  const { text, toggle, failed } = useGroupedWrite({ raw, baseRevision, write, onConflict });
+  const { text, toggle, failure } = useGroupedWrite({ raw, baseRevision, write, onConflict });
 
   const onToggleTask = useCallback(
     (ordinal: number) => {
@@ -94,7 +94,7 @@ export function WritableContent({
 
   return (
     <>
-      {failed && <p className="status write-failed">{t('note.writeFailed')}</p>}
+      {failure && <p className="status write-failed">{t(failure)}</p>}
       {segments.map((segment, index) => {
         if (!('rendered' in segment)) {
           return (

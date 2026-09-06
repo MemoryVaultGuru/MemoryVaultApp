@@ -11,6 +11,11 @@ issues each entry cites.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Ticking a task box now writes.** It answered *"someone wrote here first, and the content was reloaded"* on a note nobody else had touched. The API returns a note's `revision` as a `ContentRef` — an object — and the interface had retyped that response by hand as a `string`, so the whole object was echoed back as `baseRevision`, where the API requires a version. Every write was refused at validation and never reached the conflict check. It survived because the note was the one surface nobody had exercised: the box itself did not work from 0.4.0 until it was fixed in 0.5.0, so the write behind it had never run. The guidance and the template read the version and always worked. **The origin is fixed with the symptom:** the response is typed by the DTO the API publishes, so the next divergence between the interface's assumption and the contract is a build error rather than a screen that fails. (#75)
+- **A write that fails says what failed.** One sentence was rendered for every failure — the conflict one — so a refused request, a session that had ended and a real conflict all announced that somebody had written first, which was wrong for two of the three. A message that invents a cause is worse than one that admits it does not know: it sends the reader looking for a person who was never there. The conflict sentence is now used only for a conflict, and everything else says what it was. (#75)
+
 ## [0.5.0] - 2026-09-06
 
 ### Added
