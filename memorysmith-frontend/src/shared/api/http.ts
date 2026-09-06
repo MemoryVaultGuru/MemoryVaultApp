@@ -10,6 +10,13 @@ import { readTokens, refresh, type AuthConfig } from '../auth/oauth';
 export interface HttpConfig {
   readonly origin: string;
   readonly auth: AuthConfig;
+  /**
+   * Called once for every request that cannot authenticate: no usable token
+   * here, or a `401` from the API. It is the ONE place that reacts to a dead
+   * session, so no screen has to (RN-SUB-022). Optional, because the
+   * prototype configures no backend at all.
+   */
+  readonly onUnauthenticated?: () => void;
 }
 
 let config: HttpConfig | null = null;
@@ -39,7 +46,7 @@ export async function request<T>(
   if (!config) throw new ApiError('INTERNAL', 'The API client was not configured', 0);
 
   const token = await bearer();
-  if (!token) throw new ApiError('UNAUTHENTICATED', 'Sign in to continue', 401);
+  if (!token) throw unauthenticated(new ApiError('UNAUTHENTICATED', 'Sign in to continue', 401));
 
   let response: Response;
   try {
@@ -61,13 +68,28 @@ export async function request<T>(
 
   if (init.accept === 'text') {
     const text = await response.text();
-    if (!response.ok) throw apiErrorFrom(response.status, safeJson(text));
+    if (!response.ok) throw unauthenticated(apiErrorFrom(response.status, safeJson(text)));
     return text as T;
   }
 
   const payload = await response.json().catch(() => null);
-  if (!response.ok) throw apiErrorFrom(response.status, payload);
+  if (!response.ok) throw unauthenticated(apiErrorFrom(response.status, payload));
   return payload as T;
+}
+
+/**
+ * Passes an error through, ending the session first when it is the one error
+ * no screen can recover from.
+ *
+ * It returns the error rather than throwing it so the call sites keep reading
+ * as `throw`, and every path out of this module goes through here: a token
+ * that cannot be renewed and a `401` from the API are the same fact, and
+ * reacting to only one of them is how a browser keeps believing in a session
+ * the server has already refused.
+ */
+function unauthenticated(error: ApiError): ApiError {
+  if (error.code === 'UNAUTHENTICATED') config?.onUnauthenticated?.();
+  return error;
 }
 
 function safeJson(text: string): unknown {

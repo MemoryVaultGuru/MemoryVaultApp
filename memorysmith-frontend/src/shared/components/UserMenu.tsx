@@ -12,7 +12,7 @@ import {
 } from '../auth/session';
 import { signOut as endHostedSession } from '../auth/oauth';
 import { gravatarDisplayName } from '../auth/gravatar';
-import { markSignedOut } from '../../features/auth/LoginPage';
+import { clearHandover } from '../../features/auth/LoginPage';
 import { Avatar } from './Avatar';
 import { StorageBar } from './StorageBar';
 import { MonitorIcon, MoonIcon, SunIcon } from './icons';
@@ -103,11 +103,15 @@ export function UserMenu() {
    * the pending navigation. The logout was never reached and the person came
    * back signed in.
    *
-   * So the order is the whole fix: mark the intent, then leave. The tokens are
-   * cleared inside the redirect, and the page is going away anyway.
+   * So the order is the whole fix: lower the guard, then leave. The tokens
+   * are cleared inside the redirect, and the page is going away anyway.
+   *
+   * Lowering the handover guard is what makes signing out start a fresh
+   * attempt: the sign-in screen hands the browser to the provider without
+   * asking, and it may only do that on a first arrival.
    */
   function handleSignOut() {
-    markSignedOut();
+    clearHandover();
     endHostedSession(authConfig());
   }
 

@@ -106,8 +106,7 @@ export async function refresh(config: AuthConfig): Promise<Tokens | null> {
   });
   if (!response.ok) return null;
 
-  const refreshed = store(await response.json());
-  return { ...refreshed, refreshToken: refreshed.refreshToken ?? current.refreshToken };
+  return store(await response.json());
 }
 
 export function readTokens(): Tokens | null {
@@ -124,6 +123,17 @@ export function clearTokens(): void {
   localStorage.removeItem(TOKENS_KEY);
 }
 
+/**
+ * Persists what the token endpoint answered, KEEPING the refresh token when
+ * the answer carries none.
+ *
+ * Cognito returns `refresh_token` on the authorization-code exchange and never
+ * on a refresh, so a missing field means "the one you hold is still yours",
+ * not "your credential was revoked". Writing `null` over it turned the first
+ * silent refresh into the last one: the access token lives an hour, the
+ * refresh token thirty days, and the second hour found nothing to refresh
+ * with.
+ */
 function store(payload: unknown): Tokens {
   const body = payload as {
     access_token: string;
@@ -134,7 +144,7 @@ function store(payload: unknown): Tokens {
   const tokens: Tokens = {
     accessToken: body.access_token,
     idToken: body.id_token,
-    refreshToken: body.refresh_token ?? null,
+    refreshToken: body.refresh_token ?? readTokens()?.refreshToken ?? null,
     expiresAt: Date.now() + body.expires_in * 1000,
   };
   localStorage.setItem(TOKENS_KEY, JSON.stringify(tokens));

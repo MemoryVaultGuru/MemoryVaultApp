@@ -4,6 +4,7 @@ import { usePreferences, resolveTheme } from '../shared/store/preferences';
 import { useLiveSession, authConfig, type WithoutSubscription } from '../shared/auth/session';
 import { readTokens, signOut as endHostedSession } from '../shared/auth/oauth';
 import { markWithoutSubscription } from '../features/auth/LoginPage';
+import { AppSkeleton } from '../shared/components/skeletons';
 
 // Applies the effective theme (light/dark/system) to the document root and
 // re-applies it when the OS preference changes while in system mode.
@@ -50,7 +51,7 @@ export function RequireSession() {
   // to wait. This guard renders BEFORE the effect that starts the load, so
   // reading "no session" here would mean "not asked yet", and redirecting on
   // it sends every page load and every deep link back to sign-in.
-  if (!loaded) return <div className="loading-screen" />;
+  if (!loaded) return <AppSkeleton />;
   if (!live) return <Navigate to="/login" replace />;
 
   if (live.subscriptionState !== 'active') {
@@ -73,5 +74,5 @@ function SignOutWithoutSubscription({ state }: { state: WithoutSubscription }) {
     endHostedSession(authConfig());
   }, [state]);
 
-  return <div className="loading-screen" />;
+  return <AppSkeleton />;
 }

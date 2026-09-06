@@ -97,6 +97,32 @@ describe('FacetExtractor: classification by the shape of the value', () => {
     expect(facets['tags']?.values).toEqual(['alpha', 'beta']);
   });
 
+  it('classifies an inline list of one item as a list', () => {
+    const facets = extractFacets('---\ntags: [contracts]\n---');
+    expect(facets['tags']?.kind).toBe('list');
+    expect(facets['tags']?.values).toEqual(['contracts']);
+  });
+
+  it('classifies a dash list of one item as a list', () => {
+    const facets = extractFacets('---\ntags:\n  - contracts\n---');
+    expect(facets['tags']?.kind).toBe('list');
+  });
+
+  it('keeps a scalar an enum, because the written form decides and not the count', () => {
+    expect(extractFacets('---\ntags: contracts\n---')['tags']?.kind).toBe('enum');
+  });
+
+  it('does not change the kind of an attribute when a second value arrives', () => {
+    const one = extractFacets('---\ntags: [contracts]\n---')['tags']?.kind;
+    const two = extractFacets('---\ntags: [contracts, budget]\n---')['tags']?.kind;
+    expect(one).toBe(two);
+  });
+
+  it('still discards a list whose items are prose', () => {
+    const long = 'x'.repeat(41);
+    expect(extractFacets(`---\nnotes: [${long}]\n---`)['notes']).toBeUndefined();
+  });
+
   it('computes the delta between two portraits', () => {
     const before = extractFacets('---\nmaturity: seed\n---');
     const after = extractFacets('---\nmaturity: evergreen\n---');
@@ -463,6 +489,25 @@ describe('Discovery queries', () => {
     expect(found.ok).toBe(true);
     if (!found.ok) return;
     expect(found.value[0]?.noteId).toBe('n2');
+  });
+
+  it('refuses an interval over an attribute this vault does not hold as a date', async () => {
+    /**
+     * Whether an attribute is a date is a fact about the VAULT, so it cannot
+     * be decided while parsing and it is decided here, once, with the vault in
+     * hand (RN-DSC-034). It is refused rather than answered empty: an empty
+     * result reads as "there is nothing filed under that", and this means "the
+     * question has no answer", which is the difference between fixing the
+     * query and doubting the vault.
+     */
+    const refused = await new SearchNotes(deps).execute({
+      vaultId: VAULT,
+      query: 'maturity:>=evergreen',
+    });
+
+    expect(refused.ok).toBe(false);
+    if (refused.ok) return;
+    expect(refused.error.message).toContain('maturity');
   });
 
   it('matches the text as written, punctuation included', async () => {

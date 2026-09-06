@@ -9,6 +9,10 @@ import { GraphIcon, MenuIcon, PanelLeftCloseIcon } from '../../shared/components
 import { SearchBox } from '../search/SearchBox';
 import { ExportVaultButton } from '../portability/ExportVaultButton';
 import { FolderTree } from './FolderTree';
+import { FolderTreeSkeleton, NoteSkeleton } from '../../shared/components/skeletons';
+import { SkeletonBar } from '../../shared/components/Skeleton';
+import { queryState } from '../../shared/api/query-state';
+import { messageKeyOf } from '../../shared/api/error-mapper';
 
 export interface VaultOutletContext {
   structure: VaultStructure;
@@ -49,13 +53,24 @@ export function VaultLayout() {
     };
   }, [navOpen]);
 
-  const { data, isPending, isError } = useQuery({
+  const query = useQuery({
     queryKey: ['vault-structure', vaultSlug],
     queryFn: () => getVaultStructure(vaultSlug),
   });
+  const { data } = query;
 
-  if (isPending) return <p className="status">{t('common.loading')}</p>;
-  if (isError || !data) return <p className="status">{t('common.notFound')}</p>;
+  if (queryState(query) === 'error') {
+    return <p className="status">{t(messageKeyOf(query.error))}</p>;
+  }
+
+  /**
+   * The frame of this screen is known before the request leaves, so it is
+   * drawn immediately and never withheld: the sidebar, the brand, the search
+   * box, the navigation and the content column are all here from the first
+   * paint, and only the parts the query fills are placeholders. Withholding
+   * the whole layout for a structure query was the largest single wait in the
+   * product, and it made the frame arrive with a jump every time.
+   */
 
   return (
     <div className={`vault-layout${navOpen ? ' nav-open' : ''}`}>
@@ -69,7 +84,7 @@ export function VaultLayout() {
         onClick={() => setNavOpen(true)}
       >
         <MenuIcon />
-        <span>{data.vault.name}</span>
+        <span>{data ? data.vault.name : <SkeletonBar width="8rem" height="1rem" />}</span>
       </button>
       <div
         className="vault-nav-scrim"
@@ -102,9 +117,13 @@ export function VaultLayout() {
           className="vault-title-link"
           title={t('structure.heading')}
         >
-          <h2>{data.vault.name}</h2>
+          <h2>{data ? data.vault.name : <SkeletonBar width="10rem" height="1.4rem" />}</h2>
         </Link>
-        <SearchBox vaultSlug={vaultSlug} structure={data} />
+        {data ? (
+          <SearchBox vaultSlug={vaultSlug} structure={data} />
+        ) : (
+          <SkeletonBar height="2.2rem" />
+        )}
         <nav className="vault-nav">
           <NavLink to={`/vaults/${vaultSlug}/graph`} className="vault-nav-link">
             <GraphIcon /> {t('graph.navLabel')}
@@ -112,10 +131,18 @@ export function VaultLayout() {
           <ExportVaultButton vaultSlug={vaultSlug} />
         </nav>
         <p className="sidebar-caption">{t('structure.content')}</p>
-        <FolderTree vaultSlug={vaultSlug} folders={data.folders} />
+        {data ? (
+          <FolderTree vaultSlug={vaultSlug} folders={data.folders} />
+        ) : (
+          <FolderTreeSkeleton />
+        )}
       </aside>
       <section className="vault-content">
-        <Outlet context={{ structure: data } satisfies VaultOutletContext} />
+        {data ? (
+          <Outlet context={{ structure: data } satisfies VaultOutletContext} />
+        ) : (
+          <NoteSkeleton />
+        )}
       </section>
     </div>
   );

@@ -3,6 +3,9 @@ import { useQueries } from '@tanstack/react-query';
 import { Link, useLocation, useOutletContext, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { canWrite, getTemplate, putTemplate } from '../../shared/api/source';
+import { messageKeyOf } from '../../shared/api/error-mapper';
+import { queryState } from '../../shared/api/query-state';
+import { TemplateSkeleton } from '../../shared/components/skeletons';
 import { WritableContent } from '../../shared/components/WritableContent';
 import type { FolderNode } from '../../shared/types/api';
 import { templateAnchor } from './StructureOutline';
@@ -56,7 +59,13 @@ export function TemplatesPage() {
 
       {templated.length === 0 && <p>{t('structure.noTemplates')}</p>}
       {templated.map(({ folder, path }, index) => {
-        const template = queries[index]?.data;
+        const query = queries[index];
+        const template = query?.data;
+        // A card whose template failed to load says so. Falling through to
+        // "Loading…" would leave one box of the page waiting forever, and the
+        // others answering, which reads as a slow template rather than a
+        // failed one.
+        const failed = query ? queryState(query) === 'error' : false;
         const anchor = templateAnchor(folder);
         return (
           <details
@@ -85,8 +94,10 @@ export function TemplatesPage() {
                 }
                 invalidates={['template', vaultSlug, folder.id]}
               />
+            ) : failed ? (
+              <p className="status">{t(messageKeyOf(query?.error))}</p>
             ) : (
-              <p className="status">{t('common.loading')}</p>
+              <TemplateSkeleton />
             )}
           </details>
         );

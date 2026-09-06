@@ -1,4 +1,10 @@
 {
+  "reserved": {
+    "aliases": "Aliases",
+    "tags": "Tags",
+    "created": "Created",
+    "updated": "Updated"
+  },
   "app": {
     "title": "MemorySmith",
     "tagline": "Structured knowledge, natively readable and writable by humans and agents.",
@@ -23,7 +29,7 @@
     "tryAgain": "Try again",
     "handingOver": "Taking you to the sign-in page...",
     "handoverFailed": "The sign-in did not complete. Try again.",
-    "signedOut": "You have signed out.",
+    "sessionExpired": "Your session expired and was ended here. Signing in again picks up exactly where you left off: nothing was lost.",
     "noneSubscription": "This account reaches no subscription yet. A subscription is what holds your vaults, and it is granted by hand while there is no automatic billing.",
     "pendingSubscription": "Your subscription is waiting for approval. Approval is manual at this stage, and the product opens as soon as it is granted.",
     "blockedSubscription": "This subscription is not active at the moment. Nothing was lost: the data stays exactly where it is and becomes reachable again once access is restored."

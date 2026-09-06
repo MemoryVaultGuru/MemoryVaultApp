@@ -83,7 +83,7 @@ function path(): string {
     '',
     'The vault context also gives you the identifier of each folder, next to its',
     'name, and that is the argument every folder tool takes. You never have to have',
-    'created a folder to write in it (RN-AGT-020).',
+    'created a folder to write in it.',
     '',
     'The server does NOT validate what you write against any of them. It stores the',
     'Markdown you send, whatever it is. Following the guidance and the template is',

@@ -19,7 +19,14 @@
  * on the help itself.
  */
 
-import { RECOGNISED_NOTATION, type RecognisedNotation } from '@memorysmith/contracts';
+import {
+  MARKDOWN_PROFILE_BASE,
+  MARKDOWN_PROFILE_NAME,
+  MARKDOWN_PROFILE_URL,
+  MARKDOWN_PROFILE_VERSION,
+  RECOGNISED_NOTATION,
+  type RecognisedNotation,
+} from '@memorysmith/contracts';
 
 export interface Skill {
   /** Stable identifier, and the argument `get_skill` takes. */
@@ -124,14 +131,132 @@ avoiding the decision the owner already gave you.
  */
 function notationTable(): string {
   const row = (entry: RecognisedNotation): string =>
-    `| \`${entry.syntax}\` | ${entry.recognised ? 'yes' : '**no**'} | ${entry.effect} |`;
+    `| \`${entry.syntax}\` | ${entry.ring} | ${entry.recognised ? 'yes' : '**no**'} | ${entry.effect} |`;
 
   return [
-    '| Form | Read? | What happens |',
-    '| --- | --- | --- |',
+    '| Form | Ring | Read? | What happens |',
+    '| --- | --- | --- | --- |',
     ...RECOGNISED_NOTATION.map(row),
   ].join('\n');
 }
+
+/**
+ * The three rings, named with the versions this build implements.
+ *
+ * It comes first in the skill, because "which Markdown is this" is the
+ * question underneath every other one an agent has about writing here, and
+ * answering it with a specification and a version is a different answer from
+ * a list of forms (RN-AGT-022). It is generated from the profile, so it cannot
+ * cite a version this build does not carry.
+ */
+function rings(): string {
+  const base = MARKDOWN_PROFILE_BASE.map(
+    (spec) => `- **${spec.name} ${spec.version}** — ${spec.url}`,
+  );
+
+  return [
+    `This product implements the **${MARKDOWN_PROFILE_NAME} ${MARKDOWN_PROFILE_VERSION}**, a`,
+    `published specification: ${MARKDOWN_PROFILE_URL}`,
+    '',
+    'It has three rings, and which one a form belongs to tells you how much you',
+    'can rely on it elsewhere:',
+    '',
+    ...base,
+    '- **The vault ring**, specified by the profile above: the wikilink, the embed,',
+    '  the frontmatter vocabulary, the callout. This is the part no base',
+    '  specification covers and that every tool means something slightly different',
+    '  by, which is why it is written down.',
+    '',
+    'Every form in the table below belongs to one of those rings, and the table is',
+    'generated from the profile itself: it cannot describe a notation this build',
+    'does not implement.',
+  ].join('\n');
+}
+
+const CONVERT_INLINE_TAGS = `# Bringing a vault that used inline tags
+
+A vault written in an editor that reads \`#subject\` in the body as metadata
+arrives here intact. Nothing breaks and no note is refused. But the curation
+those tags carried is **lost**: here they are ordinary text, countable by
+nobody, and the person who spent a year filing notes with them has a vault that
+looks the same and answers nothing.
+
+That is the declared cost of a decision, and it is paid at the door by whoever
+is arriving. This is how you offer to pay it for them.
+
+## Why the product does not do this itself
+
+You are reading a method and not calling a tool, and that is deliberate.
+
+Reading \`#subject\` for meaning would make the server a third reader of the
+content of a note, which is exactly what this product refuses: the frontmatter
+and the link are the only two things it reads, and everything else in a note is
+text it stores and never interprets. Adding a parser here to pay for a
+notation the profile rejects would spend the guarantee to buy back the cost of
+having made it.
+
+**And \`#\` is treacherous.** In one survey of 1,562 notes, one of the three
+inline matches was a hex colour. A false positive is cheap here **only because
+a person reads your proposal before anything is written** — that is the whole
+reason this is safe, so it is the one thing you may never skip.
+
+## What is not a tag
+
+Before you propose anything, rule these out. Every one of them is written by
+somebody every day:
+
+| Looks like a tag | Is | How to tell |
+|---|---|---|
+| \`# Heading\` | a heading | \`#\` at the start of a line, followed by a space |
+| \`#ff0000\` | a colour | all hex digits, three or six of them |
+| \`C#\`, \`F#\` | a language | the \`#\` is at the END of a word |
+| \`#1\`, \`#42\` | an issue or a number | all digits |
+| \`https://x.org/a#section\` | a URL fragment | the \`#\` is inside a link |
+| \`#tag\` inside \`\\\`code\\\`\` or a fence | an example | it is code |
+
+What is left is a \`#\` preceded by whitespace or line start, followed by a
+letter, running to whitespace or punctuation. Nested forms like
+\`#area/subject\` are one tag, not two.
+
+## The method
+
+1. **Find the candidates.** \`search_notes\` reads the body, so a query for the
+   marker narrows the vault to the notes worth reading. Read them with
+   \`read_note\`.
+2. **Read the guidance first.** The vault may already say what its frontmatter
+   vocabulary is. A tag that contradicts it is a question for the owner, not a
+   write.
+3. **Propose, per note, in full.** Show the note, the tags you found, and the
+   \`tags:\` you would write. If the vault already has a \`tags:\` on that note,
+   show the MERGED list: you are adding to curation, never replacing it.
+   List separately anything you rejected and why, because a rejection you got
+   wrong is invisible unless you say it out loud.
+4. **Wait.** Not "proceeding unless told otherwise". Acceptance is a person
+   saying yes to what they read.
+5. **Write one note at a time**, with \`update_note\`, carrying the
+   \`baseRevision\` the read returned. Each note is an ordinary authored write:
+   it lands in the history under the person who accepted it, with a revision of
+   its own, and \`note_history\` shows it like any other. There is no migration
+   mode and no silent pass.
+6. **Leave the body alone.** The \`#subject\` stays exactly where it was
+   written. You are adding the subject somewhere it counts, not editing
+   somebody's prose, and leaving it makes the whole thing reversible by
+   deleting one line of frontmatter.
+
+## What to say when it is done
+
+Say how many notes you wrote, how many you proposed and they declined, and what
+you found and did not propose. A conversion nobody can audit afterwards is a
+migration, which is the thing this is not.
+
+## What not to do
+
+- Do not run it over a vault without being asked to.
+- Do not write a note the person did not see.
+- Do not "finish the rest the same way" after one acceptance. Each note is a
+  note somebody wrote.
+- Do not remove the inline tags. They are the author's bytes.
+`;
 
 const WRITE_NOTES = `# Writing a note this product can read
 
@@ -141,6 +266,10 @@ convention means belongs to the vault, not to the server.
 
 There are exactly two places where the product DOES read your content, and this
 is the whole list. Everything else you write is text, and nothing more.
+
+## Which Markdown this is
+
+${rings()}
 
 ## The notation
 
@@ -196,6 +325,11 @@ export const SKILLS: readonly Skill[] = [
     name: 'write-notes',
     task: 'Write a note this product can read: the notation it interprets, and the notation it does not',
     body: WRITE_NOTES,
+  },
+  {
+    name: 'convert-inline-tags',
+    task: 'Bring a vault that used inline #tags: propose the equivalent frontmatter, note by note',
+    body: CONVERT_INLINE_TAGS,
   },
 ];
 

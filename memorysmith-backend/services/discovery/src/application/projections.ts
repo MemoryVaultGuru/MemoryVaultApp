@@ -129,6 +129,14 @@ export class ProjectNote {
           facet.values.map(normalize),
         ]),
       ),
+      // The reserved `aliases`, indexed as other spellings of the title
+      // (RN-DSC-032). It is the one reserved key with an effect of its own:
+      // the other three are named so every vault spells them alike, and this
+      // one changes what the search finds.
+      aliases: (facets?.['aliases']?.values ?? []).map(normalize),
+      facetKinds: Object.fromEntries(
+        Object.entries(facets ?? {}).map(([name, facet]) => [normalize(name), facet.kind]),
+      ),
     });
   }
 

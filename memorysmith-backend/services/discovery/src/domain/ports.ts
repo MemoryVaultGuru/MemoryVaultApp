@@ -125,6 +125,15 @@ export interface IndexedNote {
   readonly normalized: string;
   readonly original: string;
   readonly facets: Record<string, string[]>;
+  /**
+   * The other spellings of the title, from the reserved `aliases` key
+   * (RN-DSC-032). Optional because an index written before this existed
+   * answers without it, and a search must not stop working while the
+   * projection is being rebuilt.
+   */
+  readonly aliases?: string[];
+  /** The kind of each facet, so a date can be matched by prefix. */
+  readonly facetKinds?: Record<string, string>;
 }
 
 /**

@@ -58,6 +58,35 @@ export function WritableContent({
   const split = text.startsWith('---') ? text.indexOf('\n---', 3) + 4 : 0;
   const body = text.slice(split);
 
+  const segments = splitEmbeds(body).map((segment) =>
+    segment.kind === 'text'
+      ? {
+          ...segment,
+          rendered: resolveWikilinks(segment.text, (slug) => resolveNoteUrl(vaultSlug, slug)),
+        }
+      : segment,
+  );
+
+  /**
+   * Whether a click can be mapped back to the bytes at all.
+   *
+   * The ordinal is counted over the text the PARSER saw, which is the one with
+   * the wikilinks already resolved, and it is applied to the text a write
+   * sends, which is the original. Those two agree on how many boxes there are
+   * and in what order, almost always — and `- [[x]]` is where they do not,
+   * because resolving it produces `- [x](/url)`, which is a task box to any
+   * GFM reader. Counting on one side and writing on the other would then
+   * toggle a different item, silently, which is the worst defect this surface
+   * can have. When the two disagree the boxes are read-only: not writing is
+   * always better than writing the wrong one.
+   */
+  const mappable =
+    taskBoxes(body).length ===
+    segments.reduce(
+      (total, segment) => total + ('rendered' in segment ? taskBoxes(segment.rendered).length : 0),
+      0,
+    );
+
   // The ordinal a click carries is of the WHOLE document, and each rendered
   // run only knows its own. The count carried across the runs is what bridges
   // the two, and it has to include anything above the body.
@@ -66,8 +95,8 @@ export function WritableContent({
   return (
     <>
       {failed && <p className="status write-failed">{t('note.writeFailed')}</p>}
-      {splitEmbeds(body).map((segment, index) => {
-        if (segment.kind !== 'text') {
+      {segments.map((segment, index) => {
+        if (!('rendered' in segment)) {
           return (
             <Transclusion
               key={index}
@@ -79,16 +108,19 @@ export function WritableContent({
         }
 
         const base = seen;
-        seen += taskBoxes(segment.text).length;
-        const rendered = resolveWikilinks(segment.text, (slug) => resolveNoteUrl(vaultSlug, slug));
+        seen += taskBoxes(segment.rendered).length;
 
         return (
           <Markdown
             key={index}
+            // The text the ordinal is counted over, stated rather than left to
+            // a default: it is the one the parser reports offsets into, and
+            // `mappable` above is what makes it safe to write back through.
+            source={segment.rendered}
             onToggleTask={(ordinal) => onToggleTask(base + ordinal)}
-            writable={writable}
+            writable={writable && mappable}
           >
-            {rendered}
+            {segment.rendered}
           </Markdown>
         );
       })}

@@ -397,8 +397,18 @@ Writing those trees **through the API**, and not straight into DynamoDB and S3, 
 | `pesquisa-mercado` | Interview notes and research syntheses | 3 |
 | `fermentacao` | Fermentation recipes and logs | 3 |
 | `jurisprudencia-tributaria` | Rulings recorded with their thesis and grounding | 3 |
+| `continuity-engineering` | **A demonstration of the Markdown Profile, in en-US**: recovery objectives, the runbooks that restore them and the exercises that measured them | 4 |
+| `enologia` | **A demonstration of the Markdown Profile, in pt-BR**: grape varieties, vinification protocols and the record of each harvest | 4 |
 
 The first three are real vaults in use, and they show the product at the size where it becomes interesting. The five small ones exist to give the onboarding a few-seconds option, when what is wanted is a live environment and not six hundred notes.
+
+**The last two exist for a different reason.** `continuity-engineering` and `enologia` are the only place the [MemorySmith Markdown Profile](https://github.com/memorysmithapp/markdown-profile) can be *read* rather than proved: a conformance suite shows that the notation is implemented, and these show it doing its work — a callout that is drawn, an alias that finds a note by its acronym, an embed that expands to a single identified block, a formula, a checklist that writes back.
+
+They are **not translations of each other**. The same notations carried by different subject matter, so the pair reads as two vaults and not as one typed twice — and so it can show the thing a single vault cannot: the four reserved keys (`aliases`, `tags`, `created`, `updated`) are written in en-US in **both**, while everything around them, `regiao` and `tipo` and `colhida_em`, is in the language of whoever keeps the vault. That is the language decision of the profile shown instead of stated, and the same evidence that the backend does not interpret content (PP4).
+
+They also carry the half of the profile no other vault will ever show: **the rejections**, each one written where somebody would have reached for it, beside the sentence saying what happens instead. An inline `#tag` that files nothing, a `title:` that renames nothing, a summary in the frontmatter that is discarded, HTML that is not rendered, a subscript that has no notation here.
+
+A test guards them in both directions: every entry of the declared notation appears in each vault, and neither vault demonstrates a notation the profile does not declare. Without it they would be the first thing to age when the notation changes, and they would age while teaching the wrong version to precisely the person who is learning.
 
 In the frontmatter, all of them apply the standard vocabulary of the product: `maturity` (`seed`, `growing`, `evergreen`), reassessed on every write, and `reviewed`, which marks whether the current revision has been through human review. It is that vocabulary the Overview and the search by attribute use on the screens.
 
@@ -407,7 +417,7 @@ In the frontmatter, all of them apply the standard vocabulary of the product: `m
 The material producing those trees lives in [`deploy-aws/vault-sources/`](deploy-aws/vault-sources/):
 
 - `authoring/`: the authored texts per vault, that is the `guidance.md` that becomes the `GUIDANCE.md` of the root and the `templates/*.md` that become the `TEMPLATE.md` of the folders.
-- `fictional/`: the sources of the five small vaults, which live in the repository itself.
+- `fictional/`: the sources of the seven small vaults, which live in the repository itself.
 - `build-vaults.mjs`: the translator. It reads the source vaults, applies the folder mapping and generates the output in `deploy-aws/vaults/`.
 
 The three real vaults are **not** part of the repository: they live on the machine of the author, and what is committed is the output. The output is not edited by hand; changes are made in `authoring/` or at the source, followed by a regeneration:

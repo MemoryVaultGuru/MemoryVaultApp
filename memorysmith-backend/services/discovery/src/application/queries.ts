@@ -20,6 +20,7 @@ import {
 } from '../domain/ports.js';
 import {
   QuerySyntaxError,
+  comparedFacets,
   excerptAround,
   firstTerm,
   matches,
@@ -41,7 +42,13 @@ function candidateOf(note: IndexedNote): Candidate {
     folder: note.folderName,
     content: note.normalized,
     sections: note.sections,
+    // Both default rather than being required: an index written before these
+    // were carried answers without them, and a search that stops working
+    // while a projection is rebuilt is worse than one that finds a little
+    // less for a few minutes.
+    aliases: note.aliases ?? [],
     facets: note.facets,
+    facetKinds: note.facetKinds ?? {},
   };
 }
 
@@ -162,6 +169,34 @@ export class SearchNotes {
     }
 
     const notes = await this.deps.content.scanVault(input.vaultId);
+
+    /**
+     * An interval only means something over a date, and whether an attribute
+     * IS a date is a fact about this vault rather than about the query string
+     * — so it is checked here, once, with the vault in hand (RN-DSC-034).
+     *
+     * It is refused rather than answered empty. An empty result reads as
+     * "there is nothing filed under that", and `maturity:>=evergreen` does
+     * not mean that: it means the question has no answer, and being told so
+     * is the difference between fixing the query and doubting the vault.
+     */
+    const dated = new Set(
+      notes.flatMap((note) =>
+        Object.entries(note.facetKinds ?? {})
+          .filter(([, kind]) => kind === 'date')
+          .map(([facet]) => facet),
+      ),
+    );
+    const undatable = [...new Set(comparedFacets(tree))].filter((facet) => !dated.has(facet));
+    if (undatable.length > 0) {
+      return err(
+        DomainError.validation(
+          `An interval only works over a date. In this vault, ${undatable.join(' and ')} ` +
+            `${undatable.length === 1 ? 'is' : 'are'} not one.`,
+        ),
+      );
+    }
+
     const needle = firstTerm(tree);
 
     const hits = notes

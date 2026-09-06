@@ -1,28 +1,57 @@
 /**
- * The notation the product reads inside the body of a note.
+ * The notation the product reads inside the body of a note, IMPORTED rather
+ * than declared.
  *
- * It is declared here, and not inside a service, because two contexts need the
- * same list and they may never import each other: Discovery READS this
- * notation, in its two sanctioned extractors, and Agent Access TEACHES it, in
- * the skill that tells an agent how to write a note that this product
- * understands (RN-AGT-017).
+ * It used to be written here, and it is not any more. The notation is now a
+ * published specification with a version of its own — the MemorySmith Markdown
+ * Profile — carrying the same list as prose (`SPEC.md`), as data
+ * (`profile.json`) and as an executable suite (`tests/conformance.json`). The
+ * product does not declare the notation; it **implements a version of it**,
+ * and says which.
  *
- * That is the whole point of the list existing as data. A skill describing a
- * notation the extractor stopped recognising is worse than no skill: it sends
- * the agent to write something that quietly does nothing. With the list here,
- * Discovery tests that every example is read as declared, and Agent Access
- * builds the skill from the same entries, so the two cannot drift.
+ * That is the whole reason this file shrank. A specification and an
+ * implementation that keep separate copies of the same list drift apart on the
+ * first cycle, and the drift is silent — which is exactly the failure the
+ * profile exists to prevent one layer up, for the vaults. Keeping a private
+ * transcription here would have been that same mistake, made by us.
+ *
+ * The version is pinned in `pnpm-workspace.yaml`, in one place, and a bump is
+ * a deliberate commit whose proof is the conformance suite going green.
+ *
+ * It is re-exported from this package, and not read directly by whoever needs
+ * it, because two contexts need the same list and may never import each other:
+ * Discovery READS this notation, in its two sanctioned extractors, and Agent
+ * Access TEACHES it, in the skill that tells an agent how to write a note this
+ * product understands (RN-AGT-017, RN-AGT-022).
  *
  * `recognised: false` entries are as important as the others. Most of what an
  * agent gets wrong is not a notation it typed badly, it is a notation it
  * believed in: an absolute link it expected to become an edge, a sentence in
- * the frontmatter it expected to become a facet.
+ * the frontmatter it expected to become a facet, an inline `#tag` it expected
+ * to organise something.
  */
+
+import profile from '@memorysmith/markdown-profile/profile.json' with { type: 'json' };
+import conformance from '@memorysmith/markdown-profile/conformance.json' with { type: 'json' };
+
+/**
+ * Which ring the notation belongs to. `vault` is what this profile specifies;
+ * `extended` is GFM and CommonMark, inherited and not ours to define.
+ */
+export type NotationRing = 'vault' | 'extended';
+
+/**
+ * Who decides this notation. The first two are the sanctioned extractors of
+ * `architecture-guide.md` §11.3; the third is the reading surface, which is
+ * behaviour of the interface and is proved by a test of its own kind — a
+ * rendering assertion cannot live in a JSON file (RN-AGT-023).
+ */
+export type NotationReader = 'links' | 'frontmatter' | 'reading-surface';
 
 export interface RecognisedNotation {
   readonly id: string;
-  /** Which sanctioned extractor decides this one. */
-  readonly reader: 'links' | 'frontmatter';
+  readonly ring: NotationRing;
+  readonly reader: NotationReader;
   /** The form, as an agent would type it. */
   readonly syntax: string;
   /** A body that exercises the form, used verbatim by the conformance test. */
@@ -31,118 +60,41 @@ export interface RecognisedNotation {
   readonly effect: string;
   /** False when the point of the entry is that NOTHING happens. */
   readonly recognised: boolean;
+  /** The section of `SPEC.md` that specifies it. */
+  readonly spec?: string;
 }
 
-export const RECOGNISED_NOTATION: readonly RecognisedNotation[] = [
-  {
-    id: 'wikilink',
-    reader: 'links',
-    syntax: '[[Target note]]',
-    example: 'See [[Lei 14.133]] for the general rule.',
-    effect:
-      'Becomes an edge in the graph and a backlink on the target. The target is resolved by ' +
-      'slug within this vault, never across vaults. If it does not exist yet, it becomes a ' +
-      'pending link and shows up in the health report, which is expected while a vault is ' +
-      'being written.',
-    recognised: true,
-  },
-  {
-    id: 'wikilink-alias',
-    reader: 'links',
-    syntax: '[[Target note|what the reader sees]]',
-    example: 'See [[Lei 14.133|the procurement act]] for the general rule.',
-    effect: 'Same edge as the plain form. The alias changes the text, never the target.',
-    recognised: true,
-  },
-  {
-    id: 'wikilink-anchor',
-    reader: 'links',
-    syntax: '[[Target note#Section]]',
-    example: 'See [[Lei 14.133#Article 75]] for the exception.',
-    effect:
-      'Same edge as the plain form: the anchor is kept for display and dropped when the ' +
-      'target is resolved. Two links to different sections of one note are two links to the ' +
-      'same note.',
-    recognised: true,
-  },
-  {
-    id: 'embed',
-    reader: 'links',
-    syntax: '![[Target note]]  ·  ![[Target note#Section]]',
-    example: 'The rule is stated in full here:\n\n![[Lei 14.133#Article 75]]\n',
-    effect:
-      'The wikilink prefixed by `!` is an embed: the reading surface shows the content of the ' +
-      'target in place, and the graph gets exactly the same edge as a plain link. Use it when ' +
-      'the target is part of what you are asserting, not merely worth seeing. Tools never ' +
-      'expand it: read_note returns the `![[...]]` you wrote.',
-    recognised: true,
-  },
-  {
-    id: 'markdown-relative-link',
-    reader: 'links',
-    syntax: '[what the reader sees](target-note.md)',
-    example: 'See [the procurement act](lei-14133.md) for the general rule.',
-    effect:
-      'Becomes the same edge as a wikilink. The target is reduced to its basename without ' +
-      'extension and resolved by slug, so a path with folders in it resolves to the note, ' +
-      'not to the path.',
-    recognised: true,
-  },
-  {
-    id: 'external-link',
-    reader: 'links',
-    syntax: '[what the reader sees](https://example.org/page)',
-    example: 'See [the official text](https://example.org/lei-14133) for the general rule.',
-    effect:
-      'NEVER becomes an edge. Anything with a scheme or a host is external, and the graph is ' +
-      'about notes of this vault. Use it freely for sources; do not use it expecting a ' +
-      'connection.',
-    recognised: false,
-  },
-  {
-    id: 'frontmatter-enum',
-    reader: 'frontmatter',
-    syntax: 'key: short-value',
-    example: '---\nmaturity: evergreen\n---\n\nBody.',
-    effect:
-      'Becomes a facet you can filter and count by, and a search filter written as ' +
-      '`maturity:evergreen`. The vocabulary is yours: no key is special to the server.',
-    recognised: true,
-  },
-  {
-    id: 'frontmatter-list',
-    reader: 'frontmatter',
-    syntax: 'key: [one, two]  ·  or a dash list under the key',
-    example: '---\ntags: [contracts, procurement]\n---\n\nBody.',
-    effect: 'Becomes a facet with several values, each one filterable on its own.',
-    recognised: true,
-  },
-  {
-    id: 'frontmatter-boolean',
-    reader: 'frontmatter',
-    syntax: 'key: true  ·  key: false',
-    example: '---\nreviewed: false\n---\n\nBody.',
-    effect: 'Becomes a boolean facet, which is what makes "what has nobody reviewed" answerable.',
-    recognised: true,
-  },
-  {
-    id: 'frontmatter-date',
-    reader: 'frontmatter',
-    syntax: 'key: 2026-09-03',
-    example: '---\nreviewed_at: 2026-09-03\n---\n\nBody.',
-    effect: 'Becomes a date facet. An ISO date is recognised as a date; other formats are not.',
-    recognised: true,
-  },
-  {
-    id: 'frontmatter-prose',
-    reader: 'frontmatter',
-    syntax: 'key: a whole sentence, longer than forty characters',
-    example:
-      '---\nsummary: This note explains the general rule of direct contracting and its ' +
-      'exceptions.\n---\n\nBody.',
-    effect:
-      'Is read and DISCARDED. Above forty characters a value is prose, not a category, and a ' +
-      'facet of unique sentences would be a list of everything. Put prose in the body.',
-    recognised: false,
-  },
-];
+/** One case of the published suite. Absent expectations assert nothing. */
+export interface ConformanceCase {
+  readonly id: string;
+  readonly notation: string;
+  readonly markdown: string;
+  readonly links?: ReadonlyArray<{ readonly slug: string; readonly anchor: string | null }>;
+  readonly facets?: Readonly<Record<string, { readonly kind: string; readonly values: string[] }>>;
+}
+
+/** The version of the profile this build implements. Cited, never guessed. */
+export const MARKDOWN_PROFILE_VERSION: string = profile.version;
+
+/** The name and the address of the specification, for what the product serves. */
+export const MARKDOWN_PROFILE_URL: string = profile.url;
+export const MARKDOWN_PROFILE_NAME: string = profile.profile;
+
+/** The specifications this profile builds on, in order. */
+export const MARKDOWN_PROFILE_BASE: ReadonlyArray<{
+  readonly id: string;
+  readonly name: string;
+  readonly version: string;
+  readonly url: string;
+}> = profile.base;
+
+export const RECOGNISED_NOTATION: readonly RecognisedNotation[] =
+  profile.notations as readonly RecognisedNotation[];
+
+/**
+ * The published cases, run by the conformance tests of both implementations.
+ * They are the suite of the specification and not a copy of it: a case the
+ * extractors or the reading surface fail breaks the build.
+ */
+export const CONFORMANCE_CASES: readonly ConformanceCase[] =
+  conformance.cases as readonly ConformanceCase[];

@@ -2,9 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getNote, resolveNoteUrl } from '../api/source';
-import { demoteEmbeds, sectionOf } from '../api/transclusion';
+import { demoteEmbeds, blockOf, isBlockAnchor, sectionOf } from '../api/transclusion';
 import { slugify } from '../api/markdown';
 import { Markdown } from './Markdown';
+import { TransclusionSkeleton } from './skeletons';
 
 /**
  * One transcluded block: the content of another note, shown in place.
@@ -45,10 +46,17 @@ export function Transclusion({
     );
   }
 
-  if (isPending) return <p className="status">{t('common.loading')}</p>;
+  if (isPending) return <TransclusionSkeleton />;
 
   const whole = data.body;
-  const cut = anchor ? sectionOf(whole, anchor) : whole;
+  // `#^id` addresses a BLOCK and `#Section` a heading. The two are told apart
+  // by the marker and not by trying one and falling back to the other, or a
+  // section named `^x` and a block called `x` would answer for each other.
+  const cut = !anchor
+    ? whole
+    : isBlockAnchor(anchor)
+      ? blockOf(whole, anchor.slice(1))
+      : sectionOf(whole, anchor);
 
   return (
     <figure className="embed">

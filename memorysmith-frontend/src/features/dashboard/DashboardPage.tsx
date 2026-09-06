@@ -4,6 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { listVaults } from '../../shared/api/source';
 import { LiveDashboard } from './LiveDashboard';
 import { CardCarousel } from '../../shared/components/CardCarousel';
+import { VaultCatalogueSkeleton } from '../../shared/components/skeletons';
+import { messageKeyOf } from '../../shared/api/error-mapper';
+import { queryState } from '../../shared/api/query-state';
 
 /**
  * The locale drives the format, never a literal in the code: the same instant
@@ -22,11 +25,15 @@ function formatDate(iso: string, locale: string): string {
 export function DashboardPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === 'pt_BR' ? 'pt-BR' : 'en-US';
-  const { data: vaults } = useQuery({ queryKey: ['vaults'], queryFn: listVaults });
+  const query = useQuery({ queryKey: ['vaults'], queryFn: listVaults });
+  const vaults = query.data;
+  const state = queryState(query);
 
   return (
     <section className="page dashboard">
       <h2 className="dashboard-section-heading">{t('dashboard.selectVault')}</h2>
+      {state === 'error' && <p className="status">{t(messageKeyOf(query.error))}</p>}
+      {state === 'pending' && <VaultCatalogueSkeleton />}
       <CardCarousel prevLabel={t('dashboard.prevVaults')} nextLabel={t('dashboard.nextVaults')}>
         {vaults?.map((vault) => (
           <Link key={vault.id} to={`/vaults/${vault.slug}`} className="vault-card">

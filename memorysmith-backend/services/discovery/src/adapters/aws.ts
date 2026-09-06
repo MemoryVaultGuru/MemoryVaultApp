@@ -703,6 +703,8 @@ export class DynamoContentIndex implements ContentIndex {
           normalized: note.normalized,
           original: note.original,
           facets: note.facets,
+          aliases: note.aliases ?? [],
+          facetKinds: note.facetKinds ?? {},
         },
       }),
     );
@@ -744,6 +746,10 @@ export class DynamoContentIndex implements ContentIndex {
           normalized: String(item['normalized'] ?? ''),
           original: String(item['original'] ?? ''),
           facets: (item['facets'] as Record<string, string[]>) ?? {},
+          // Absent on an item written before these were carried: the
+          // search answers without them until the projection is rebuilt.
+          aliases: (item['aliases'] as string[]) ?? [],
+          facetKinds: (item['facetKinds'] as Record<string, string>) ?? {},
         });
       }
       startKey = response.LastEvaluatedKey;

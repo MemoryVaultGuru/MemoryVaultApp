@@ -257,6 +257,8 @@ memorysmith-frontend/
 
 The mapping from error to message lives in `shared/api/error-mapper.ts` and covers the whole taxonomy of §15. In particular, `FORBIDDEN` arrives as a `404` (§14.2) and the UI shows "not found": the interface may not be more informative than the API, or the leak the `404` prevents comes back through the screen.
 
+**The token lifecycle has exactly two rules, and both are enforced in one place each.** `shared/auth/oauth.ts` is the only module that speaks to the identity provider, and what it persists after a token exchange **keeps the refresh token when the answer carries none**: Cognito returns `refresh_token` on the authorization-code exchange and never on a refresh, so a missing field means the held credential is still valid and not that it was revoked. `shared/api/http.ts` is the only module that reacts to a session that cannot authenticate: a token that cannot be renewed and a `401` from the API are the same fact, and both call the `onUnauthenticated` handler the bootstrap wires to `app/session-expiry.ts`, which discards the credential, empties the session store and returns the browser to the sign-in screen with the reason (RN-SUB-022). **No screen carries any part of that**, and no screen may present a query that has failed as a query still loading: `shared/api/query-state.ts` separates the three states, because `isLoading || !data` collapses two of them whenever retries are off.
+
 ### 5.4 `memorysmith-infra/`
 
 ```
@@ -565,6 +567,8 @@ The trigger also injects the `subscription_status` claim, read from the `META` i
 
 For the MCP connector, the `subscription_id` enters the access token at the moment of consent and does not change for the life of that token (RN-SUB-014). One connector, one subscription.
 
+**The two lifetimes, and what ends a session.** The access token lives one hour and the refresh token thirty days, so a browser left open renews silently many times over the life of one sign-in. What the SPA does with those exchanges is in §5.3, and the rule that governs it is RN-SUB-022: the session ends when the credential can no longer be renewed, and it ends **once**, in one place, rather than being noticed by whichever screen happens to ask first. The connector does not share that path — the CIMD proxy passes the refresh through with rotation (§13.3), and its session is the token, not a browser.
+
 ---
 
 ## 9. Persistence: DynamoDB + S3
@@ -772,6 +776,34 @@ None of that happens in the aggregate: whoever talks to the `ContentStore` is th
 
 Three projections over the same events. All of them **derived** (PE5): deleting and rebuilding from zero is a supported operation, and it is the recovery plan for all three. The business rules are in `software-vision.md` §10.
 
+### 11.0 The notation, imported rather than declared
+
+**The list of what the product reads is not written in this repository.** It is the [MemorySmith Markdown Profile](https://github.com/memorysmithapp/markdown-profile), a specification with a version of its own, carrying the same notation as prose (`SPEC.md`), as data (`profile.json`) and as an executable suite (`tests/conformance.json`). This build implements a version of it and says which (RN-AGT-022).
+
+**How it enters the build.** It is an ordinary dependency, pinned to a git tag, and the version is declared **once**, in the `catalog:` of `pnpm-workspace.yaml`. Two packages consume it from there — `packages/contracts`, which re-exports it, and `memorysmith-frontend`, whose reading surface is proved against the same cases — and a catalog is what keeps them from pinning two versions of one specification. A bump is a deliberate commit whose proof is the suite going green.
+
+`RECOGNISED_NOTATION` in `packages/contracts` is now a **projection of `profile.json`**, not a list beside it, and it lives there for the reason it always did: two contexts need it and may never import each other. Discovery reads the notation, in its two sanctioned extractors; Agent Access teaches it, in the skill, citing the version.
+
+**Three layers, and each one is proved by a test of its own kind (RN-AGT-023):**
+
+| Layer | Where it lives | What proves it |
+|---|---|---|
+| **Storage** | The bytes, untouched | Nothing to prove: the product does not interpret content (PP4) |
+| **The two extractors** | `services/discovery`, §11.1 and §11.3 | `test/notation-conformance.test.ts`, running the **published cases**: a case the extractors fail breaks the build |
+| **The reading surface** | `memorysmith-frontend`, the components | `shared/components/reading-surface-conformance.test.tsx`, running each `reading-surface` entry through the real renderer |
+
+**The reading surface is a stack of remark plugins, and each is a plugin rather than a pass over the string for one reason:** a `==` inside a code fence is not a highlight, and only the parser can tell the difference. `remark-callouts.ts` holds the callout; `remark-vault-ring.ts` holds marked text, comments, block identifiers and the dollar rule. Three of them are worth naming here because each carries a decision:
+
+- **`singleTilde: false` on `remark-gfm`.** GFM specifies strikethrough as `~~x~~`; GitHub also accepts one tilde, outside its own specification. Left on, it misrenders the one notation the profile declares absent — `H~2~O` written for a subscript comes out struck through, which is a worse answer than nothing.
+- **`remarkMathDollarRule`, after `remark-math`.** The library opens a formula at any `$` and closes it at the next one, so two prices in one paragraph become mathematics. The plugin gives back to the text any inline formula whose delimiters break the profile's rule, reading the source through the node's position, because the delimiters are gone from the node by then.
+- **No `rehype-raw`, and that absence is the boundary.** Raw HTML is escaped and shown as text, so a note carrying `<script>` is characters on a page. It is asserted with that payload rather than with a `<b>`.
+
+A block embed resolves through `blockOf` in `transclusion.ts`, told apart from a section anchor by the `^` marker rather than by trying one and falling back — a section named `^x` and a block called `x` would otherwise answer for each other.
+
+**The slug is computed twice, and that is a boundary with a price.** `packages/kernel/src/slug.ts` produces it for storage and for the link extractor; `memorysmith-frontend/src/shared/api/markdown.ts` produces it again to turn a wikilink into a URL, because the frontend takes types from `@memorysmith/contracts` and nothing else from the backend (§5.1), and sharing six lines is not worth dragging the kernel into the browser bundle. The price is that two copies of one rule drift in silence, and they did: the interface was missing the digit-separator step of the profile's §3.3, so `[[Lei 14.133]]` addressed `lei-14-133`, found no note, and drew a real edge as a pending link. **Neither implementation is pinned to the other; both are pinned to the published conformance cases**, which is the only arrangement where the drift is a failing build instead of a screen that lies.
+
+The split is not tidiness. A rendering assertion cannot live in a JSON file — what a callout looks like is not something a suite can state — so those entries come from the profile and the expectation is written once, beside the components, and a declared entry with no expectation fails the test rather than being discovered later in a browser. That test earned its place on its first run, the same way the published suite did against the extractors.
+
 ### 11.1 The link graph
 
 `LinkExtractor` (§6.6) runs on every `NoteCreated` and `NoteUpdated`. The target is reduced to the **basename without extension** and normalised into a `Slug`; resolution happens within the scope of the vault (RN-DSC-001 to RN-DSC-006).
@@ -830,6 +862,12 @@ The third item is the decisive one: the search **looked** like it worked because
 The third projection, the one that serves the curation panel. The business rules are in `software-vision.md` §10.3.
 
 `FacetExtractor` runs on every `NoteCreated`, `NoteUpdated`, `NoteDeleted` and `NoteRestored`: it loads the blob through the `ContentRef` of the event, reads **only the frontmatter block** and classifies each key-value pair by the **shape of the value**: a date, a boolean, a short enumerable value and a list of short values are aggregatable; free text is discarded (RN-DSC-020). There is no key list in the code and no per-vault configuration: the vocabulary belongs to the Guidance, and `maturity` and `reviewed`, the standard facets of the product, are to the extractor attributes like any other. It is the second sanctioned reader of content, next to `LinkExtractor`, and like it, it lives outside the core (PP4).
+
+**The shape rule is a published contract, not a code comment.** What decides the kind is the **form the author wrote**, and never how many values that form happens to hold: a bracketed or dash list is a list at any length, and a scalar is an enum. `parseFrontmatter` therefore carries the written form out alongside the values, because flattening both into an array is what made a list of one item indistinguishable from a scalar — and adding a second value to an attribute must not change what the attribute is (RN-DSC-020).
+
+**The first operator of the query language is in `SearchQuery.ts`, and its shape is a precedent** (RN-DSC-034). The comparison is the node — `{ kind: 'compare', facet, op, value }` — and the range is desugared into two of them **at parse time**, so everything past the parser sees one shape and there is one semantics to test. Comparison is lexicographic over the canonicalised date, cut to the length of the operand, which is what makes `created:<=2026-02` include the fifteenth of February instead of excluding most of the month. Two refusals are part of the operator rather than of the caller: a range with inverted ends is a `QuerySyntaxError` at parse time, and an interval over an attribute this vault does not hold as a date is refused in `SearchNotes`, once, against the kinds the scan already carries — because "is this attribute a date" is a fact about the vault and not about the query string.
+
+**Four keys are reserved, and reserving is declaring** (RN-DSC-030). `aliases`, `tags`, `created` and `updated` are spelled in en-US in every vault, and this extractor still treats them like any other attribute: a reserved key of the wrong shape degrades instead of failing. Two of them reach further than the counts. The kind of every facet travels into the content index, because a facet of kind `date` is matched by **prefix** in the query language and not by substring (RN-DSC-031), and the values of `aliases` travel there as other spellings of the title, answering wherever the title does (RN-DSC-032). Both fields are optional on `IndexedNote`: an item written before they existed answers without them, so a search keeps working while the projection is rebuilt rather than going silent.
 
 **Consumption:** an EventBridge rule → SQS → Lambda, with a DLQ. The queue absorbs a burst of batch ingestion, and a retry or a failure of the projector never touches the hot path of the write.
 

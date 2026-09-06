@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { NotePage } from '../note/NotePage';
 import { FolderPage } from './FolderPage';
 import { FoldersIndexPage } from './FoldersIndexPage';
-import { folderTrail } from './trail';
+import { folderTrail, noteAt } from './trail';
+import { rememberNote } from '../../shared/store/last-note';
 import type { VaultOutletContext } from './VaultLayout';
 
 // The root/* namespace holds the whole vault content, so folder and note
@@ -12,18 +14,21 @@ import type { VaultOutletContext } from './VaultLayout';
 // trailing segment is a note inside the matched folder.
 export function FolderRoute() {
   const { t } = useTranslation();
-  const { '*': splat = '' } = useParams();
+  const { '*': splat = '', vaultSlug = '' } = useParams();
   const { structure } = useOutletContext<VaultOutletContext>();
   const path = splat.replace(/\/+$/, '');
+  const noteSlug = noteAt(structure.folders, path);
+
+  // Opening a note is what "where the reading stopped" means, and only a note
+  // is remembered: a folder listing is a step on the way to one, and resuming
+  // into it would put somebody back in the middle of the navigation they were
+  // trying to skip.
+  useEffect(() => {
+    if (noteSlug) rememberNote(vaultSlug, path);
+  }, [vaultSlug, path, noteSlug]);
 
   if (!path) return <FoldersIndexPage />;
   if (folderTrail(structure.folders, path).length) return <FolderPage />;
-
-  const cut = path.lastIndexOf('/');
-  const folderPath = cut >= 0 ? path.slice(0, cut) : '';
-  const noteSlug = cut >= 0 ? path.slice(cut + 1) : path;
-  const chain = folderPath ? folderTrail(structure.folders, folderPath) : [];
-  const folder = chain[chain.length - 1];
-  if (folder?.notes.some((note) => note.slug === noteSlug)) return <NotePage noteSlug={noteSlug} />;
+  if (noteSlug) return <NotePage noteSlug={noteSlug} />;
   return <p className="status">{t('common.notFound')}</p>;
 }

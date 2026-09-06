@@ -11,6 +11,7 @@
 import { create } from 'zustand';
 import type { SessionDto } from '@memorysmith/contracts';
 import { claimsOf, readTokens, type AuthConfig } from './oauth';
+import { ApiError } from '../api/error-mapper';
 import { getSession } from '../api/backend';
 import i18n from '../../i18n';
 
@@ -119,26 +120,34 @@ export const useLiveSession = create<SessionStore>((set) => ({
         },
       });
     } catch (error) {
+      // A failure to AUTHENTICATE is not a degraded session, it is no session
+      // (RN-SUB-022). Rebuilding one out of the claims of a token the API has
+      // just refused is what let a dead session keep passing the guard: the
+      // claims still parse and still say `active` long after the token stops
+      // being accepted. Anything else — offline, a 500 — is a session we know
+      // exists and cannot describe, and that one still degrades.
+      const refused = error instanceof ApiError && error.code === 'UNAUTHENTICATED';
       set({
         loading: false,
         loaded: true,
         error: error instanceof Error ? error.message : 'unknown',
-        session: claims
-          ? {
-              userId: claims.sub,
-              email: claims.email ?? '',
-              name: claims.name ?? claims.email ?? '',
-              isPlatformAdmin: claims.groups.includes('platform-admin'),
-              subscriptionState: stateOf(claims.subscriptionStatus),
-              subscriptionType: null,
-              subscriptionQuota: null,
-              subscriptionQuotaBytes: null,
-              usedBytes: null,
-              subscriptionStatus: null,
-              role: 'NONE',
-              subscriptions: [],
-            }
-          : null,
+        session:
+          claims && !refused
+            ? {
+                userId: claims.sub,
+                email: claims.email ?? '',
+                name: claims.name ?? claims.email ?? '',
+                isPlatformAdmin: claims.groups.includes('platform-admin'),
+                subscriptionState: stateOf(claims.subscriptionStatus),
+                subscriptionType: null,
+                subscriptionQuota: null,
+                subscriptionQuotaBytes: null,
+                usedBytes: null,
+                subscriptionStatus: null,
+                role: 'NONE',
+                subscriptions: [],
+              }
+            : null,
       });
     }
   },

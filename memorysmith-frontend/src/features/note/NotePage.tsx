@@ -4,9 +4,10 @@ import { useOutletContext, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getNote } from '../../shared/api/source';
 import { WritableContent } from '../../shared/components/WritableContent';
+import { NoteSkeleton } from '../../shared/components/skeletons';
 import { canWrite, updateNote } from '../../shared/api/source';
 
-import { PropertyValue, propertyType } from '../../shared/components/PropertyValue';
+import { PropertyValue, propertyLabel, propertyType } from '../../shared/components/PropertyValue';
 import { CheckIcon, CopyIcon } from '../../shared/components/icons';
 import { folderTrailForNote } from '../structure/trail';
 import { VaultBreadcrumb, folderCrumbs } from '../structure/VaultBreadcrumb';
@@ -49,7 +50,7 @@ export function NotePage({ noteSlug }: { noteSlug: string }) {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  if (isPending) return <p className="status">{t('common.loading')}</p>;
+  if (isPending) return <NoteSkeleton />;
   if (isError || !data) return <p className="status">{t('common.notFound')}</p>;
 
   const properties = Object.entries(data.frontmatter).filter(([, value]) => value !== '');
@@ -89,7 +90,7 @@ export function NotePage({ noteSlug }: { noteSlug: string }) {
                 data-property-type={propertyType(value, lists.has(key))}
                 key={key}
               >
-                <span className="metadata-property-key">{key}</span>
+                <span className="metadata-property-key">{propertyLabel(key, t)}</span>
                 <span className="metadata-property-value">
                   <PropertyValue value={value} list={lists.has(key)} vaultSlug={vaultSlug} />
                 </span>
