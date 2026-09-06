@@ -1,6 +1,6 @@
 {
   "name": "@memorysmith/svc-portability",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "private": true,
   "type": "module",
   "description": "Portability bounded context: export of a vault as a readable folder of Markdown files. Zero lock-in is a requirement, not a courtesy.",

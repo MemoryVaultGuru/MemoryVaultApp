@@ -30,6 +30,15 @@ export interface RevisionChain {
 export function revisionChain(
   write: (input: { raw: string; baseRevision: string | null }) => Promise<string>,
   initial: string | null,
+  /**
+   * Announced when a write LANDS, which is the same moment the revision
+   * advances — so it belongs here and not in the caller. The surface listens
+   * to drop what it is holding: with `staleTime: Infinity` a query is never
+   * refetched on its own, and only a conflict used to invalidate anything, so
+   * leaving a note after ticking a box and coming back showed the state from
+   * before the edit while the server had the new one all along.
+   */
+  onWritten: () => void = () => undefined,
 ): RevisionChain {
   let current = initial;
 
@@ -40,7 +49,10 @@ export function revisionChain(
     async write(text: string): Promise<void> {
       // The assignment happens only on success: a write that failed retired
       // nothing, and the revision in hand is still the right one to retry on.
+      // The announcement is on the same line of reasoning: nothing landed, so
+      // there is nothing for the surface to read back.
       current = await write({ raw: text, baseRevision: current });
+      onWritten();
     },
     reset(to: string | null): void {
       current = to;

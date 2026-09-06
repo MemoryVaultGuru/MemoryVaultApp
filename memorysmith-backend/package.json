@@ -1,6 +1,6 @@
 {
   "name": "@memorysmith/backend",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "private": true,
   "type": "module",
   "description": "Backend workspace root: the six bounded contexts, the shared kernel and the event contracts. Holds no code of its own; every package under packages/, services/ and apps/ extends tsconfig.base.json from here."

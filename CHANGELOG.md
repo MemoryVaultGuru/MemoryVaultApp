@@ -11,6 +11,13 @@ issues each entry cites.
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-09-06
+
+### Fixed
+
+- **Coming back to a note shows what you wrote, not what it said before.** Ticking boxes, following a link and coming back showed the state from before the edit; only a reload fixed it. The write had landed all along — the cache was holding content the application itself had just overwritten. `staleTime: Infinity` means a query is never refetched on its own, and only a conflict invalidated anything, so a successful write updated the server and nothing else. A write now invalidates what it wrote, and the staleness policy of the interface is written down instead of being a comment saying somebody else would bring one. (#79)
+- **A wikilink inside transcluded content is a link.** It reached the page with its brackets, unformatted and not navigable, because the transclusion rendered its content straight while every other reading surface resolves the wikilinks first. It shows worst on the link the one-level rule creates itself: an embed found inside embedded content is demoted to a wikilink, and §13.2 says that embed is drawn as **a link** to its target — raw text is not one. (#79)
+
 ## [0.5.2] - 2026-09-06
 
 ### Fixed
@@ -227,7 +234,8 @@ Search by meaning left the version, with the whole vector index: the explanation
 
 - The HMAC key signing the `state` of the CIMD proxy moved from a Lambda environment variable to Secrets Manager, read at runtime. As an environment variable the value sat in clear text.
 
-[Unreleased]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.3...HEAD
+[0.5.3]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.4.1...v0.5.0

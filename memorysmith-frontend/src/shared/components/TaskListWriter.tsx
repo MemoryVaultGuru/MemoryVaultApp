@@ -33,11 +33,23 @@ export function useGroupedWrite({
   raw,
   baseRevision,
   write,
+  onWritten,
   onConflict,
 }: {
   raw: string;
   baseRevision: string | null;
   write: TaskWriter;
+  /**
+   * Called after a write LANDS, so the surface can drop what it is holding
+   * and read what the server now has.
+   *
+   * Without it the screen kept showing the content it was rendered with:
+   * `staleTime: Infinity` means a query is never refetched on its own, so
+   * leaving the note and coming back showed the state from before the edit,
+   * and only a reload — which drops the cache with the page — fixed it. The
+   * write had landed all along.
+   */
+  onWritten: () => void;
   onConflict: () => void;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -57,11 +69,32 @@ export function useGroupedWrite({
   const pending = useRef<string | null>(null);
   const committed = useRef(raw);
   /**
+   * The callbacks, held in refs and called THROUGH them.
+   *
+   * Both arrive as inline arrows, so they are new functions on every render,
+   * and the chain below is built once. Capturing the first ones directly
+   * happens to work today — they close over a vault slug and a note id that
+   * do not change while the note is mounted — and "happens to work" is the
+   * reasoning that produced the last three defects of this feature. The
+   * indirection costs a line and removes the question.
+   */
+  const writeRef = useRef(write);
+  const writtenRef = useRef(onWritten);
+  writeRef.current = write;
+  writtenRef.current = onWritten;
+
+  /**
    * The revision the next write is based on, advancing on every success.
    * Everything about why is in `revision-chain.ts`, which is also where it is
    * tested: two writes in a row is not a case a rendering test reaches.
    */
-  const chain = useRef(revisionChain(write, baseRevision));
+  const chain = useRef(
+    revisionChain(
+      (input) => writeRef.current(input),
+      baseRevision,
+      () => writtenRef.current(),
+    ),
+  );
 
   // The document was reloaded: the draft is stale and so is the revision.
   useEffect(() => {

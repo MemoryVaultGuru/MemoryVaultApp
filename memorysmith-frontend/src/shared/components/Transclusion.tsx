@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getNote, resolveNoteUrl } from '../api/source';
 import { demoteEmbeds, blockOf, isBlockAnchor, sectionOf } from '../api/transclusion';
+import { resolveWikilinks } from '../api/markdown';
 import { slugify } from '../api/markdown';
 import { Markdown } from './Markdown';
 import { TransclusionSkeleton } from './skeletons';
@@ -64,7 +65,18 @@ export function Transclusion({
         {cut === null ? (
           <p className="embed-missing">{t('note.embedSectionMissing', { section: anchor })}</p>
         ) : (
-          <Markdown>{demoteEmbeds(cut)}</Markdown>
+          /**
+           * Resolved, like every other reading surface. Without this every
+           * `[[link]]` inside transcluded content reached the page with its
+           * brackets — and the sharpest case is the one the one-level rule
+           * creates itself: `demoteEmbeds` turns an embed found in embedded
+           * content into a wikilink, and 13.2 says that embed is drawn as A
+           * LINK to its target. Raw text is not a link, so the rule was
+           * implemented halfway.
+           */
+          <Markdown>
+            {resolveWikilinks(demoteEmbeds(cut), (slug) => resolveNoteUrl(vaultSlug, slug))}
+          </Markdown>
         )}
       </div>
       <figcaption className="embed-source">
