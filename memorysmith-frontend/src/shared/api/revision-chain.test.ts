@@ -106,3 +106,54 @@ describe('a reload wins over what this session wrote', () => {
     expect(api.seen).toEqual(['rev-0', 'rev-from-somebody-else']);
   });
 });
+
+/**
+ * A landed write is announced, so the surface can drop what it holds (#79).
+ *
+ * The screen used to keep showing the content it was rendered with: with
+ * `staleTime: Infinity` a query is never refetched on its own, and only a
+ * conflict invalidated anything. Leaving a note after ticking a box and
+ * coming back showed the state from before the edit, while the server had
+ * had the new one all along.
+ *
+ * The announcement is what the surface listens to, and this is the shape of
+ * it: it happens after the write resolves, and never after one that failed.
+ */
+describe('a write that lands is announced, and one that fails is not', () => {
+  it('announces once per landed write, after it resolved', async () => {
+    const order: string[] = [];
+    const api = server();
+    const chain = revisionChain(
+      async (input) => {
+        order.push('write');
+        return api.write(input);
+      },
+      'rev-0',
+      () => order.push('announce'),
+    );
+
+    await chain.write('one');
+    await chain.write('two');
+
+    expect(order).toEqual(['write', 'announce', 'write', 'announce']);
+  });
+
+  it('does not announce a write that never landed', async () => {
+    // Nothing landed, so there is nothing for the surface to read back, and
+    // announcing would make it drop the draft in favour of stale content.
+    const announced = vi.fn();
+    const chain = revisionChain(
+      vi.fn().mockRejectedValue(new Error('refused')),
+      'rev-0',
+      announced,
+    );
+
+    await expect(chain.write('x')).rejects.toThrow('refused');
+
+    expect(announced).not.toHaveBeenCalled();
+  });
+
+  it('works without an announcement, for a caller that does not need one', () => {
+    expect(() => revisionChain(vi.fn(), 'rev-0')).not.toThrow();
+  });
+});

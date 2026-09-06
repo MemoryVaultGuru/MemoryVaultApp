@@ -39,11 +39,22 @@ export function WritableContent({
   const { t } = useTranslation();
   const client = useQueryClient();
 
-  const onConflict = useCallback(() => {
+  /**
+   * What the screen holds is no longer what the server holds, either because
+   * this write landed or because somebody else's did. Both answers are the
+   * same: read it again.
+   */
+  const reload = useCallback(() => {
     void client.invalidateQueries({ queryKey: invalidates });
   }, [client, invalidates]);
 
-  const { text, toggle, failure } = useGroupedWrite({ raw, baseRevision, write, onConflict });
+  const { text, toggle, failure } = useGroupedWrite({
+    raw,
+    baseRevision,
+    write,
+    onWritten: reload,
+    onConflict: reload,
+  });
 
   const onToggleTask = useCallback(
     (ordinal: number) => {
