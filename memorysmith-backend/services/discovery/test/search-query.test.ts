@@ -8,6 +8,7 @@ import {
   score,
   type Candidate,
 } from '../src/domain/SearchQuery.js';
+import { RESERVED_KEYS, isReserved } from '../src/domain/FacetExtractor.js';
 
 function note(overrides: Partial<Candidate> = {}): Candidate {
   return {
@@ -15,7 +16,9 @@ function note(overrides: Partial<Candidate> = {}): Candidate {
     folder: normalize('Normas'),
     content: normalize('Art. 75. A contratacao direta observa o prazo de vigencia.'),
     sections: [normalize('Vigência')],
+    aliases: [],
     facets: { maturity: ['evergreen'], reviewed: ['true'], tags: ['licitacao', 'federal'] },
+    facetKinds: { maturity: 'enum', reviewed: 'boolean', tags: 'list' },
     ...overrides,
   };
 }
@@ -213,5 +216,94 @@ describe('The excerpt shows the passage, not the beginning of the note', () => {
 describe('The query has a declared ceiling', () => {
   it('refuses a query longer than the limit instead of scanning with it', () => {
     expect(() => parseQuery('a'.repeat(501))).toThrow(QuerySyntaxError);
+  });
+});
+
+describe('The reserved vocabulary of the profile (RN-DSC-030)', () => {
+  it('reserves four keys, in en-US, and nothing else', () => {
+    expect([...RESERVED_KEYS]).toEqual(['aliases', 'tags', 'created', 'updated']);
+    expect(isReserved('tags')).toBe(true);
+    expect(isReserved('created')).toBe(true);
+  });
+
+  it('does not reserve title, which is structural and never a key', () => {
+    expect(isReserved('title')).toBe(false);
+  });
+
+  it('does not reserve a translated spelling: the label may travel, the bytes may not', () => {
+    expect(isReserved('etiquetas')).toBe(false);
+    expect(isReserved('criado')).toBe(false);
+  });
+});
+
+describe('A date facet matches by prefix, never by substring (RN-DSC-031)', () => {
+  const dated = (): Candidate =>
+    note({
+      facets: { created: ['2026-09-03'] },
+      facetKinds: { created: 'date' },
+    });
+
+  it.each(['2026', '2026-09', '2026-09-03'])('matches the granularity asked for: %s', (value) => {
+    expect(matches(parseQuery(`created:${value}`), dated())).toBe(true);
+  });
+
+  it('does not let a fragment of the middle stand for a date', () => {
+    // The whole point: substring made `created:09` mean September and also the
+    // year 2009, which is not a question anybody asked.
+    expect(matches(parseQuery('created:09'), dated())).toBe(false);
+    expect(matches(parseQuery('created:03'), dated())).toBe(false);
+  });
+
+  it('does not match a different month or a different year', () => {
+    expect(matches(parseQuery('created:2026-08'), dated())).toBe(false);
+    expect(matches(parseQuery('created:2025'), dated())).toBe(false);
+  });
+
+  it('keeps substring matching for every other kind', () => {
+    // A vault that files `norma: federal-2026` still wants `norma:federal`.
+    const other = note({ facets: { norma: ['federal-2026'] }, facetKinds: { norma: 'enum' } });
+    expect(matches(parseQuery('norma:federal'), other)).toBe(true);
+  });
+
+  it('falls back to substring when the kind is not known', () => {
+    // An index written before kinds were carried keeps answering rather than
+    // going silent while the projection is rebuilt.
+    const legacy = note({ facets: { created: ['2026-09-03'] }, facetKinds: {} });
+    expect(matches(parseQuery('created:2026'), legacy)).toBe(true);
+  });
+});
+
+describe('An alias is another name for the note (RN-DSC-032)', () => {
+  const acronym = (): Candidate =>
+    note({
+      title: normalize('Recovery Time Objective'),
+      content: normalize('The time a service may stay down.'),
+      aliases: [normalize('RTO')],
+    });
+
+  it('finds the note by an alias, with no field given', () => {
+    expect(matches(parseQuery('rto'), acronym())).toBe(true);
+  });
+
+  it('finds it under title:, because an alias is a name and not a body', () => {
+    expect(matches(parseQuery('title:rto'), acronym())).toBe(true);
+  });
+
+  it('does not find it under content:, which is the body and nothing else', () => {
+    expect(matches(parseQuery('content:rto'), acronym())).toBe(false);
+  });
+
+  it('ranks an alias hit as a title hit, not as a mention in a paragraph', () => {
+    const byAlias = score(parseQuery('rto'), acronym());
+    const mentioned = score(
+      parseQuery('rto'),
+      note({ title: normalize('Outra nota'), content: normalize('fala de rto de passagem') }),
+    );
+
+    expect(byAlias).toBeGreaterThan(mentioned);
+  });
+
+  it('finds nothing extra for a note carrying no aliases', () => {
+    expect(matches(parseQuery('rto'), note())).toBe(false);
   });
 });

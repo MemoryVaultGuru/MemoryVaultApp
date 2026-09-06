@@ -41,7 +41,13 @@ function candidateOf(note: IndexedNote): Candidate {
     folder: note.folderName,
     content: note.normalized,
     sections: note.sections,
+    // Both default rather than being required: an index written before these
+    // were carried answers without them, and a search that stops working
+    // while a projection is rebuilt is worse than one that finds a little
+    // less for a few minutes.
+    aliases: note.aliases ?? [],
     facets: note.facets,
+    facetKinds: note.facetKinds ?? {},
   };
 }
 

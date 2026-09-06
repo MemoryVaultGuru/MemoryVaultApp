@@ -23,6 +23,27 @@ interface PropertyValueProps {
  * the vocabulary of a vault belongs to its Guidance, so a list of blessed key
  * names here would be this layer deciding what `status` means.
  */
+/**
+ * The four keys the profile reserves, always written in en-US (RN-DSC-030).
+ * The list is here because this is the layer allowed to know it: the backend
+ * classifies every attribute by shape and knows no key at all.
+ */
+const RESERVED = ['aliases', 'tags', 'created', 'updated'] as const;
+
+/**
+ * How a property is LABELLED. The reserved keys may be shown translated; every
+ * other attribute keeps the name whoever wrote the note gave it, in whatever
+ * language they gave it.
+ *
+ * The translation stops at the label and never reaches the bytes. A vault
+ * written in Portuguese still stores `created`, still exports `created`, and
+ * still answers `created:2026-09` in the search — the word on screen is the
+ * only thing that changes, which is the same line PP4 draws everywhere else.
+ */
+export function propertyLabel(key: string, t: (key: string) => string): string {
+  return (RESERVED as readonly string[]).includes(key) ? t(`reserved.${key}`) : key;
+}
+
 export function propertyType(value: string, list: boolean): 'list' | 'date' | 'checkbox' | 'text' {
   if (list) return 'list';
   if (/^(true|false|yes|no)$/i.test(value.trim())) return 'checkbox';

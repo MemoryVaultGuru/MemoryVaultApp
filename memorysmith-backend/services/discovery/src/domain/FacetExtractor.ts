@@ -20,6 +20,32 @@
 
 export type FacetKind = 'date' | 'boolean' | 'enum' | 'list';
 
+/**
+ * The vocabulary the profile reserves, always in en-US (RN-DSC-030).
+ *
+ * Reserved means **declared**, not enforced. Nothing in this extractor treats
+ * these four differently: they are classified by the shape of their value like
+ * every other attribute, so `created: manually` degrades to an ordinary enum
+ * instead of being an error. What the reservation buys is a name every vault
+ * spells the same way, which is what lets a tool, an interface or an agent say
+ * something about "when this was written" without asking the vault first.
+ *
+ * The interface may translate the LABEL of one of these and never the bytes,
+ * which is the same line PP4 draws everywhere else.
+ */
+export const RESERVED_KEYS = ['aliases', 'tags', 'created', 'updated'] as const;
+export type ReservedKey = (typeof RESERVED_KEYS)[number];
+
+/**
+ * `title` is deliberately NOT reserved. The title of a note is structural, and
+ * a `title:` in the frontmatter is an ordinary attribute that the cardinality
+ * ceiling switches off on its own (RN-DSC-024) — which is exactly what should
+ * happen to a key that is different in every note.
+ */
+export function isReserved(key: string): key is ReservedKey {
+  return (RESERVED_KEYS as readonly string[]).includes(key);
+}
+
 export interface FacetValue {
   readonly facet: string;
   readonly kind: FacetKind;

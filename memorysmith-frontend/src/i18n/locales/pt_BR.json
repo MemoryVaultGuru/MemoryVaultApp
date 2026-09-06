@@ -1,4 +1,10 @@
 {
+  "reserved": {
+    "aliases": "Apelidos",
+    "tags": "Etiquetas",
+    "created": "Criado em",
+    "updated": "Atualizado em"
+  },
   "app": {
     "title": "MemorySmith",
     "tagline": "Conhecimento estruturado, que humanos e agentes leem e escrevem nativamente.",

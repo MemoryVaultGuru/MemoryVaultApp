@@ -1,4 +1,10 @@
 {
+  "reserved": {
+    "aliases": "Aliases",
+    "tags": "Tags",
+    "created": "Created",
+    "updated": "Updated"
+  },
   "app": {
     "title": "MemorySmith",
     "tagline": "Structured knowledge, natively readable and writable by humans and agents.",

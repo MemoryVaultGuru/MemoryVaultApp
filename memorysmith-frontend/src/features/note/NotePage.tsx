@@ -6,7 +6,7 @@ import { getNote } from '../../shared/api/source';
 import { WritableContent } from '../../shared/components/WritableContent';
 import { canWrite, updateNote } from '../../shared/api/source';
 
-import { PropertyValue, propertyType } from '../../shared/components/PropertyValue';
+import { PropertyValue, propertyLabel, propertyType } from '../../shared/components/PropertyValue';
 import { CheckIcon, CopyIcon } from '../../shared/components/icons';
 import { folderTrailForNote } from '../structure/trail';
 import { VaultBreadcrumb, folderCrumbs } from '../structure/VaultBreadcrumb';
@@ -89,7 +89,7 @@ export function NotePage({ noteSlug }: { noteSlug: string }) {
                 data-property-type={propertyType(value, lists.has(key))}
                 key={key}
               >
-                <span className="metadata-property-key">{key}</span>
+                <span className="metadata-property-key">{propertyLabel(key, t)}</span>
                 <span className="metadata-property-value">
                   <PropertyValue value={value} list={lists.has(key)} vaultSlug={vaultSlug} />
                 </span>

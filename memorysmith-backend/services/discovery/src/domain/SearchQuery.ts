@@ -48,8 +48,24 @@ export interface Candidate {
   readonly folder: string;
   readonly content: string;
   readonly sections: string[];
+  /**
+   * The other spellings of the title, from the reserved `aliases`
+   * (RN-DSC-032). They are searched wherever the title is, because that is
+   * what an alias is: a vault of technical terms lives on acronyms, and
+   * requiring the full title in every search is what makes people stop
+   * finding things. They do NOT resolve wikilinks — that is a different
+   * question, decided in the negative, and it stays that way.
+   */
+  readonly aliases: string[];
   /** facet name to its values, as the FACET projection holds them. */
   readonly facets: Record<string, string[]>;
+  /**
+   * The kind of each facet, as the extractor classified it. Only `date` is
+   * consulted, and only to match by prefix instead of by substring
+   * (RN-DSC-031). A missing entry means an unknown kind, which matches the
+   * old way: a projection written before the kind was carried keeps working.
+   */
+  readonly facetKinds: Record<string, string>;
 }
 
 export class QuerySyntaxError extends Error {}
@@ -275,18 +291,32 @@ export function matches(node: QueryNode, candidate: Candidate): boolean {
     case 'not':
       return !matches(node.node, candidate);
     case 'facet': {
-      const values = candidate.facets[node.facet];
-      return (values ?? []).some((value) => value.includes(node.value));
+      const values = candidate.facets[node.facet] ?? [];
+      // A date is matched by PREFIX and never by substring (RN-DSC-031).
+      // Values are canonicalised to `YYYY-MM-DD`, so a prefix is exactly the
+      // granularity somebody asked for: `2026`, `2026-09`, `2026-09-03`.
+      // Substring made `created:09` mean September and also the year 2009,
+      // which is not a question anybody asked.
+      if (candidate.facetKinds[node.facet] === 'date') {
+        return values.some((value) => value.startsWith(node.value));
+      }
+      return values.some((value) => value.includes(node.value));
     }
     case 'term': {
-      if (node.field === 'title') return candidate.title.includes(node.value);
+      // An alias is another name for the note, so it answers wherever the
+      // title does: under `title:` and under a bare term.
+      const named = (needle: string): boolean =>
+        candidate.title.includes(needle) ||
+        candidate.aliases.some((alias) => alias.includes(needle));
+
+      if (node.field === 'title') return named(node.value);
       if (node.field === 'folder') return candidate.folder.includes(node.value);
       if (node.field === 'content') return candidate.content.includes(node.value);
       if (node.field === 'section') {
         return candidate.sections.some((section) => section.includes(node.value));
       }
       return (
-        candidate.title.includes(node.value) ||
+        named(node.value) ||
         candidate.folder.includes(node.value) ||
         candidate.content.includes(node.value) ||
         candidate.sections.some((section) => section.includes(node.value))
@@ -310,8 +340,14 @@ export function score(node: QueryNode, candidate: Candidate): number {
       total += 2;
       continue;
     }
-    if (candidate.title === term.value) total += 10;
-    else if (candidate.title.includes(term.value)) total += 5;
+    // An alias ranks as the title does, because it is one: a note found by
+    // `RTO` should not sort below one that merely mentions it in a paragraph.
+    if (candidate.title === term.value || candidate.aliases.includes(term.value)) total += 10;
+    else if (
+      candidate.title.includes(term.value) ||
+      candidate.aliases.some((alias) => alias.includes(term.value))
+    )
+      total += 5;
     else if (candidate.sections.some((section) => section.includes(term.value))) total += 3;
     else if (candidate.folder.includes(term.value)) total += 2;
     else if (candidate.content.includes(term.value)) total += 1;
