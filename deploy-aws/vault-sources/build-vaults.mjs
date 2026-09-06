@@ -368,6 +368,61 @@ const VAULTS = [
       },
     ],
   },
+  // The two demonstration vaults of the Markdown Profile (#69). They are not
+  // translations of each other: the same notations carried by different
+  // subject matter, so the pair reads as two vaults and shows the reserved
+  // keys in en-US on both sides while everything around them is in the
+  // language of whoever keeps the vault. A guard test asserts both directions.
+  {
+    slug: 'continuity-engineering',
+    name: 'Continuity Engineering',
+    sourceRoot: join(FICTIONAL, 'continuity-engineering'),
+    folders: [
+      {
+        src: 'Objectives',
+        out: '01 Objectives',
+        desc: 'What each service promises to survive, agreed with whoever owns it. One objective per page, with the unit it is stated in and the review that exercised it.',
+        template: 'objective',
+      },
+      {
+        src: 'Runbooks',
+        out: '02 Runbooks',
+        desc: 'One procedure per page, written for somebody who has not read it before. Every step that needs judgement links the page with the criterion.',
+        template: 'runbook',
+      },
+      {
+        src: 'Reviews',
+        out: '03 Reviews',
+        desc: 'What an exercise actually measured. It is the only place a figure may be asserted, and it is what turns an objective from a target into a capability.',
+        template: 'review',
+      },
+    ],
+  },
+  {
+    slug: 'enologia',
+    name: 'Enologia',
+    sourceRoot: join(FICTIONAL, 'enologia'),
+    folders: [
+      {
+        src: 'Castas',
+        out: '01 Castas',
+        desc: 'O que a planta é e o que ela exige, uma casta ou uma medida por página. O que se faz com ela vive em Protocolos.',
+        template: 'casta',
+      },
+      {
+        src: 'Protocolos',
+        out: '02 Protocolos',
+        desc: 'O caminho da uva ao vinho, escrito para quem chega na safra sem ter feito a anterior. Passo que exige julgamento linka o critério.',
+        template: 'protocolo',
+      },
+      {
+        src: 'Safras',
+        out: '03 Safras',
+        desc: 'Registro e não opinião: a curva, a decisão tomada e o motivo. É onde os números entram e onde uma decisão contra o protocolo se escreve.',
+        template: 'registro',
+      },
+    ],
+  },
   {
     slug: 'jurisprudencia-tributaria',
     name: 'Jurisprudência Tributária',
