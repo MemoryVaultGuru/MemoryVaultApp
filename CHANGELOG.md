@@ -11,6 +11,8 @@ issues each entry cites.
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-09-06
+
 ### Fixed
 
 - **Ticking a second box no longer conflicts with the first.** Ticking one worked; ticking another a few seconds later answered a conflict on a note nobody else had touched. The client sent the revision it loaded with and never adopted the one its own write produced, so the second write claimed a revision the first had already retired — and the server was right to refuse it. Inside the two-second grouping window the clicks collapse into one write, which is why ticking quickly worked and ticking at an ordinary pace did not. **A conflict on a task box now means what it says:** somebody else, or an agent, wrote in that note. One person alone can no longer produce one. (#77)
@@ -225,7 +227,8 @@ Search by meaning left the version, with the whole vector index: the explanation
 
 - The HMAC key signing the `state` of the CIMD proxy moved from a Lambda environment variable to Secrets Manager, read at runtime. As an environment variable the value sat in clear text.
 
-[Unreleased]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.4.0...v0.4.1

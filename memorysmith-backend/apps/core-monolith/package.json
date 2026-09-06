@@ -1,6 +1,6 @@
 {
   "name": "@memorysmith/core-monolith",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
   "type": "module",
   "description": "The composition root of the modular monolith: the one place that wires the bounded contexts together. Moving to six deployables changes this file, not the contexts.",
