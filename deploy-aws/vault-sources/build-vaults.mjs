@@ -1,4 +1,4 @@
-// Translates local Obsidian-style vaults into MemorySmith vault trees, written
+// Translates local file-based vaults into MemorySmith vault trees, written
 // in the product's export format (software-vision.md §12): numeric prefixes
 // encode folder order, GUIDANCE.md carries the guidance and STRUCTURE.md the
 // annotated folder tree, both at the vault root, and TEMPLATE.md carries the

@@ -1,5 +1,5 @@
 /**
- * Obsidian callouts, rendered as callouts.
+ * Vault callouts, rendered as callouts.
  *
  * A callout is a blockquote whose first line is a type marker:
  *
@@ -10,8 +10,8 @@
  * backend knows about it (PP4). What used to happen here was a pass over the
  * string that swapped the marker for an emoji and left the blockquote behind,
  * which reads as a quotation with a picture in front of it. This turns it into
- * the element Obsidian draws, and the type travels to the DOM as an attribute
- * so the stylesheet can colour and ice it without a class per type.
+ * the element the vault editors draw, and the type travels to the DOM as an
+ * attribute so the stylesheet can colour and ice it without a class per type.
  *
  * It is a remark plugin rather than another pass over the string because the
  * marker has to leave the tree the renderer walks, not the text the parser
@@ -65,7 +65,7 @@ function rewrite(quote: MdastNode): void {
     {
       type: 'paragraph',
       data: { hName: 'div', hProperties: { className: ['callout-title'] } },
-      // An untitled callout is titled by its own type, as Obsidian does.
+      // An untitled callout is titled by its own type, as the editors do.
       children: title.length > 0 ? title : [{ type: 'text', value: capitalize(kind) }],
     },
     ...(body.length > 0 ? [{ type: 'paragraph', children: body }] : []),
