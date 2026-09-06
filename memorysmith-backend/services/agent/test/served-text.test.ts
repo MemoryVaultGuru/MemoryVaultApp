@@ -17,7 +17,7 @@
 import { describe, expect, it } from 'vitest';
 import { RECOGNISED_NOTATION } from '@memorysmith/contracts';
 import { TOOL_CATALOG } from '../src/mcp/catalog.js';
-import { SKILLS } from '../src/mcp/skills.js';
+import { SKILLS, skillNamed } from '../src/mcp/skills.js';
 import { whoAmI } from '../src/mcp/whoami.js';
 import type { AgentCaller, VaultListing } from '../src/mcp/gateway.js';
 
@@ -72,5 +72,57 @@ describe('the MCP surface does not cite the repository at the agent', () => {
 
   it('checks something: the list of served text is not empty', () => {
     expect(servedText().length).toBeGreaterThan(20);
+  });
+});
+
+/**
+ * The conversion a vault arriving with inline tags is offered (RN-PRT-007).
+ *
+ * It is a SKILL and not a tool, for a structural reason: reading `#subject`
+ * for meaning would make the backend a third sanctioned reader of content,
+ * against PP4 and RN-DSC-033. So what is asserted here is that the method
+ * carries the four things that make it safe, because a skill that teaches
+ * half of them is worse than none — it would put an agent halfway through a
+ * migration nobody agreed to.
+ */
+describe('the product teaches the conversion instead of performing it', () => {
+  const skill = skillNamed('convert-inline-tags');
+
+  it('exists, and whoami indexes it, because the index is derived', () => {
+    expect(skill).toBeDefined();
+    expect(whoAmI(caller, vaults)).toContain('convert-inline-tags');
+  });
+
+  it('teaches what is NOT a tag, which is where the false positives live', () => {
+    const body = skill?.body ?? '';
+    expect(body).toContain('# Heading');
+    expect(body).toContain('#ff0000');
+    expect(body).toContain('C#');
+    expect(body).toMatch(/fragment/i);
+  });
+
+  it('requires a proposal, and a person accepting it', () => {
+    const body = skill?.body ?? '';
+    expect(body).toMatch(/propose/i);
+    expect(body).toMatch(/accept/i);
+    // "Proceeding unless told otherwise" is the failure mode, and it is named.
+    expect(body).toContain('unless told otherwise');
+  });
+
+  it('requires an ordinary authored write, one note at a time', () => {
+    const body = skill?.body ?? '';
+    expect(body).toContain('update_note');
+    expect(body).toContain('baseRevision');
+    expect(body).toMatch(/one note at a time/i);
+    expect(body).toMatch(/history/i);
+  });
+
+  it('forbids rewriting the body, because the inline tag is the author bytes', () => {
+    expect(skill?.body ?? '').toMatch(/Do not remove the inline tags/i);
+  });
+
+  it('says why the product does not do it itself', () => {
+    // A method that reads as an unexplained restriction gets worked around.
+    expect(skill?.body ?? '').toMatch(/third reader/i);
   });
 });
