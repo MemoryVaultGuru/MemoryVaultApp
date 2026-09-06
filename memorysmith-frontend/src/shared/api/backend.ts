@@ -243,24 +243,27 @@ export async function putGuidance(
   vaultSlug: string,
   content: string,
   baseRevision: string | null,
-): Promise<void> {
+): Promise<string> {
   const vaultId = await vaultIdOf(vaultSlug);
-  await request(`/knowledge/vaults/${vaultId}/guidance`, {
-    method: 'PUT',
-    body: { content, baseRevision },
-  });
+  // The revision this write produced, which the next write has to name.
+  const written = await request<{ revision: { versionId: string } }>(
+    `/knowledge/vaults/${vaultId}/guidance`,
+    { method: 'PUT', body: { content, baseRevision } },
+  );
+  return written.revision.versionId;
 }
 export async function putTemplate(
   vaultSlug: string,
   folderId: string,
   content: string,
   baseRevision: string | null,
-): Promise<void> {
+): Promise<string> {
   const vaultId = await vaultIdOf(vaultSlug);
-  await request(`/knowledge/vaults/${vaultId}/folders/${folderId}/template`, {
-    method: 'PUT',
-    body: { content, baseRevision },
-  });
+  const written = await request<{ revision: { versionId: string } }>(
+    `/knowledge/vaults/${vaultId}/folders/${folderId}/template`,
+    { method: 'PUT', body: { content, baseRevision } },
+  );
+  return written.revision.versionId;
 }
 
 export async function createNote(
@@ -278,9 +281,11 @@ export async function updateNote(
   vaultSlug: string,
   noteId: string,
   input: { content: string; baseRevision: string; title?: string },
-): Promise<NoteSummaryDto> {
+): Promise<NoteDto> {
   const vaultId = await vaultIdOf(vaultSlug);
-  return request<NoteSummaryDto>(`/knowledge/vaults/${vaultId}/notes/${noteId}`, {
+  // The answer carries the revision this write produced, which is what the
+  // NEXT write has to be based on.
+  return request<NoteDto>(`/knowledge/vaults/${vaultId}/notes/${noteId}`, {
     method: 'PUT',
     body: input,
   });

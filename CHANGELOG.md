@@ -11,6 +11,14 @@ issues each entry cites.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Ticking a second box no longer conflicts with the first.** Ticking one worked; ticking another a few seconds later answered a conflict on a note nobody else had touched. The client sent the revision it loaded with and never adopted the one its own write produced, so the second write claimed a revision the first had already retired — and the server was right to refuse it. Inside the two-second grouping window the clicks collapse into one write, which is why ticking quickly worked and ticking at an ordinary pace did not. **A conflict on a task box now means what it says:** somebody else, or an agent, wrote in that note. One person alone can no longer produce one. (#77)
+
+### Changed
+
+- **The three writes of a Content Slot answer the revision they produced.** The guidance already did; the note answered a summary, which carries none, and the template answered `204` and nothing at all. So a caller had no way to learn what to base its next edit on and could only echo the revision it loaded with. The note now answers the full DTO — its content costs nothing to include, since it is what the caller just sent — and the template answers `{ revision }` like the guidance. (#77)
+
 ## [0.5.1] - 2026-09-06
 
 ### Fixed

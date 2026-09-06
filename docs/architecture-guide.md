@@ -1048,6 +1048,11 @@ svc-knowledge    GET  /vaults · POST /vaults
                  GET|PUT /vaults/:v/folders/:f/template
                  GET|POST /vaults/:v/notes · GET|PUT|DELETE /vaults/:v/notes/:n
                  GET  /vaults/:v/notes/by-slug/:slug
+                 ── the three writes of a Content Slot answer THE REVISION THEY
+                    PRODUCED, so a caller can write twice without reloading
+                    (RN-AGT-005): the guidance and the template as { revision },
+                    the note as the full DTO. Answering less made a person
+                    conflict with themselves on the second write.
                  POST /vaults/:v/notes/:n/reorder   { afterNoteId | null }
                  POST /vaults/:v/notes/:n/restore
                  POST /vaults/:v/notes/:n/move   { toVaultId?, toFolderId, onSlugConflict }

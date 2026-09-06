@@ -6,6 +6,7 @@
 
 import {
   type Authorship,
+  type ContentRef,
   DomainError,
   err,
   type FolderId,
@@ -156,7 +157,9 @@ export class PutTemplate {
     content: string;
     baseRevision: string | null;
     by: Authorship;
-  }): Promise<Result<void, DomainError>> {
+    // The reference this write produced, so the caller can base the next
+    // write on it instead of on the one it loaded with (RN-AGT-005).
+  }): Promise<Result<ContentRef, DomainError>> {
     const vault = await loadAuthorized(this.deps, input.ctx, input.vaultId, 'write');
     if (!vault.ok) return vault;
 
@@ -184,10 +187,12 @@ export class PutTemplate {
 
     const attached = vault.value.attachTemplate(input.folderId, ref, input.by);
     if (!attached.ok) return attached;
-    if (!vault.value.hasChanges) return ok();
+    // Identical bytes change nothing, and the reference is still the one the
+    // next write has to name.
+    if (!vault.value.hasChanges) return ok(ref);
 
     const saved = await this.deps.vaults.save(vault.value);
-    return saved.ok ? ok() : err(saved.error);
+    return saved.ok ? ok(ref) : err(saved.error);
   }
 }
 

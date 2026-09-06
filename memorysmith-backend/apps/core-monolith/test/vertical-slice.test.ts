@@ -127,14 +127,19 @@ describe('The authoring cycle', () => {
       ).status,
     ).toBe(200);
 
-    expect(
-      (
-        await call(`/knowledge/vaults/${vaultId}/folders/${folderId}/template`, {
-          method: 'PUT',
-          body: { content: '# {{titulo}}\n\n## Vigencia\n' },
-        })
-      ).status,
-    ).toBe(204);
+    /**
+     * The template write answers the revision it produced, like the guidance
+     * and the note. It used to answer 204 and nothing at all, so a caller that
+     * wrote twice without reloading echoed a revision its own first write had
+     * retired, and conflicted with itself (RN-AGT-005).
+     */
+    const template = await call(`/knowledge/vaults/${vaultId}/folders/${folderId}/template`, {
+      method: 'PUT',
+      body: { content: '# {{titulo}}\n\n## Vigencia\n' },
+    });
+    expect(template.status).toBe(200);
+    const written = (await template.json()) as { revision: { versionId: string } };
+    expect(written.revision.versionId).toBeTruthy();
 
     const note = await call(`/knowledge/vaults/${vaultId}/notes`, {
       method: 'POST',

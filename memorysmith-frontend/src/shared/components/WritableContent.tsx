@@ -7,7 +7,7 @@ import { taskBoxes, toggleTaskAt } from '../api/tasklist';
 import { resolveNoteUrl } from '../api/source';
 import { Markdown } from './Markdown';
 import { Transclusion } from './Transclusion';
-import { useGroupedWrite, type TaskWrite } from './TaskListWriter';
+import { useGroupedWrite, type TaskWriter } from './TaskListWriter';
 
 /**
  * A reading surface whose task boxes can be ticked, when the effective role in
@@ -33,7 +33,7 @@ export function WritableContent({
   vaultSlug: string;
   baseRevision: string | null;
   writable: boolean;
-  write: (input: TaskWrite) => Promise<unknown>;
+  write: TaskWriter;
   invalidates: unknown[];
 }) {
   const { t } = useTranslation();

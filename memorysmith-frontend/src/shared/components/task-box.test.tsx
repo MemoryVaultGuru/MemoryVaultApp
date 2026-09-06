@@ -55,7 +55,7 @@ beforeAll(async () => {
             vaultSlug="a-vault"
             baseRevision="rev-1"
             writable={writable}
-            write={() => Promise.resolve()}
+            write={() => Promise.resolve('rev-2')}
             invalidates={[]}
           />
         </MemoryRouter>

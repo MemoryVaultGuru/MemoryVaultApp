@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { messageKeyOf } from '../api/error-mapper';
+import { revisionChain } from '../api/revision-chain';
 
 /**
  * The write behind a task box: optimistic on the screen, grouped in flight.
@@ -22,6 +23,12 @@ export interface TaskWrite {
   readonly baseRevision: string | null;
 }
 
+/**
+ * A write answers the revision it produced. That is the other half of
+ * optimistic concurrency, and the half this used to be missing.
+ */
+export type TaskWriter = (input: TaskWrite) => Promise<string>;
+
 export function useGroupedWrite({
   raw,
   baseRevision,
@@ -30,7 +37,7 @@ export function useGroupedWrite({
 }: {
   raw: string;
   baseRevision: string | null;
-  write: (input: TaskWrite) => Promise<unknown>;
+  write: TaskWriter;
   onConflict: () => void;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -49,12 +56,24 @@ export function useGroupedWrite({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<string | null>(null);
   const committed = useRef(raw);
+  /**
+   * The revision the next write is based on, advancing on every success.
+   * Everything about why is in `revision-chain.ts`, which is also where it is
+   * tested: two writes in a row is not a case a rendering test reaches.
+   */
+  const chain = useRef(revisionChain(write, baseRevision));
 
-  // The server answered, or the document was reloaded: the draft is stale.
+  // The document was reloaded: the draft is stale and so is the revision.
   useEffect(() => {
     committed.current = raw;
     setDraft(null);
   }, [raw]);
+
+  // A reload brings a revision of its own, and it wins: it comes from the
+  // server, and what is held here is only what this session wrote.
+  useEffect(() => {
+    chain.current.reset(baseRevision);
+  }, [baseRevision]);
 
   const flush = useCallback(async () => {
     const next = pending.current;
@@ -67,7 +86,7 @@ export function useGroupedWrite({
     if (next === null || next === committed.current) return;
 
     try {
-      await write({ raw: next, baseRevision });
+      await chain.current.write(next);
       committed.current = next;
     } catch (error) {
       // A conflict is information, not a system error: the screen goes back to
@@ -78,7 +97,7 @@ export function useGroupedWrite({
       setFailure(conflict ? 'note.writeConflict' : messageKeyOf(error));
       if (conflict) onConflict();
     }
-  }, [baseRevision, onConflict, write]);
+  }, [onConflict]);
 
   const toggle = useCallback(
     (next: string) => {
