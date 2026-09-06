@@ -383,17 +383,21 @@ export function createKnowledgeRoutes(useCases: KnowledgeUseCases): Hono<{ Varia
       baseRevision?: string | null;
     };
 
-    return noContent(
-      c,
-      await useCases.putTemplate(request).execute({
-        ctx: request.ctx,
-        vaultId: vaultId.value,
-        folderId: folderId.value,
-        content: String(body.content ?? ''),
-        baseRevision: body.baseRevision ?? null,
-        by: request.authorship,
-      }),
-    );
+    /**
+     * Answers the revision this write produced, as the guidance route already
+     * did. It used to answer 204, so a caller that wrote twice without
+     * reloading had nothing to base the second write on and echoed a revision
+     * its own first write had retired (RN-AGT-005).
+     */
+    const written = await useCases.putTemplate(request).execute({
+      ctx: request.ctx,
+      vaultId: vaultId.value,
+      folderId: folderId.value,
+      content: String(body.content ?? ''),
+      baseRevision: body.baseRevision ?? null,
+      by: request.authorship,
+    });
+    return present(c, written, (ref) => ({ revision: ref.toJSON() }));
   });
 
   app.get('/vaults/:v/folders/:f/template', async (c) => {
@@ -495,16 +499,29 @@ export function createKnowledgeRoutes(useCases: KnowledgeUseCases): Hono<{ Varia
       baseRevision?: string;
       title?: string;
     };
+    const content = String(body.content ?? '');
     const updated = await useCases.updateNote(request).execute({
       ctx: request.ctx,
       vaultId: vaultId.value,
       noteId: noteId.value,
-      content: String(body.content ?? ''),
+      content,
       baseRevision: String(body.baseRevision ?? ''),
       title: body.title,
       by: request.authorship,
     });
-    return present(c, updated, (note) => noteToSummary(note));
+    /**
+     * The full DTO, so the answer carries THE REVISION THIS WRITE PRODUCED.
+     *
+     * It used to answer a summary, which has none, so a caller had no way to
+     * learn what to base its next edit on and could only echo the revision it
+     * loaded with. A second write then arrived claiming a revision the first
+     * one had already retired, and the person conflicted with themselves
+     * (RN-AGT-005, RN-KNW-028).
+     *
+     * The content costs nothing to include: it is what the caller just sent,
+     * so no blob is read to answer.
+     */
+    return present(c, updated, (note) => noteToDto(note, content));
   });
 
   app.post('/vaults/:v/notes/:n/reorder', async (c) => {

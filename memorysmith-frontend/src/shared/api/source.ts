@@ -100,15 +100,17 @@ export function updateNote(
   vaultSlug: string,
   noteId: string,
   input: { content: string; baseRevision: string },
-): Promise<unknown> {
-  return backend.updateNote(vaultSlug, noteId, input);
+): Promise<string> {
+  // The version the write produced. Every writer of a Content Slot answers
+  // it, so the caller can chain a second write without reloading the note.
+  return backend.updateNote(vaultSlug, noteId, input).then((note) => note.revision.versionId);
 }
 
 export function putGuidance(
   vaultSlug: string,
   content: string,
   baseRevision: string | null,
-): Promise<void> {
+): Promise<string> {
   return backend.putGuidance(vaultSlug, content, baseRevision);
 }
 
@@ -117,7 +119,7 @@ export function putTemplate(
   folderId: string,
   content: string,
   baseRevision: string | null,
-): Promise<void> {
+): Promise<string> {
   return backend.putTemplate(vaultSlug, folderId, content, baseRevision);
 }
 
