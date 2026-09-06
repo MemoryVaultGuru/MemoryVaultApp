@@ -36,6 +36,8 @@ Markdown was created by John Gruber in 2004 as a writing syntax readable in plai
 
 Everything else is a **tool convention**, not part of the format. That matters for any system processing third-party Markdown: only the standardised core is safe to interpret, and the rest may mean different things in each editor.
 
+**Those two are the whole list, and not even their authors stay inside them.** GitHub renders alerts, footnotes and mermaid diagrams, none of which are in the GFM specification it wrote; the desktop vault editors render wikilinks, embeds, callouts and block identifiers, none of which are in any specification at all. So "it works on GitHub" and "it works in my editor" are statements about one renderer, not about the format, and a system that reads third-party Markdown gets no help from either. The only way out of that is for a tool to publish what it means — as prose, as data and as an executable suite — so an author can tell what will happen before writing it. That is what the MemorySmith Markdown Profile is, and what this product implements a version of (`software-vision.md` §11, RN-AGT-022).
+
 ### 1.2 Frontmatter
 
 Frontmatter is a metadata block at the top of the file, delimited by `---`, almost always in YAML:

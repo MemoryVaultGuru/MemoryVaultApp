@@ -776,6 +776,24 @@ None of that happens in the aggregate: whoever talks to the `ContentStore` is th
 
 Three projections over the same events. All of them **derived** (PE5): deleting and rebuilding from zero is a supported operation, and it is the recovery plan for all three. The business rules are in `software-vision.md` §10.
 
+### 11.0 The notation, imported rather than declared
+
+**The list of what the product reads is not written in this repository.** It is the [MemorySmith Markdown Profile](https://github.com/memorysmithapp/markdown-profile), a specification with a version of its own, carrying the same notation as prose (`SPEC.md`), as data (`profile.json`) and as an executable suite (`tests/conformance.json`). This build implements a version of it and says which (RN-AGT-022).
+
+**How it enters the build.** It is an ordinary dependency, pinned to a git tag, and the version is declared **once**, in the `catalog:` of `pnpm-workspace.yaml`. Two packages consume it from there — `packages/contracts`, which re-exports it, and `memorysmith-frontend`, whose reading surface is proved against the same cases — and a catalog is what keeps them from pinning two versions of one specification. A bump is a deliberate commit whose proof is the suite going green.
+
+`RECOGNISED_NOTATION` in `packages/contracts` is now a **projection of `profile.json`**, not a list beside it, and it lives there for the reason it always did: two contexts need it and may never import each other. Discovery reads the notation, in its two sanctioned extractors; Agent Access teaches it, in the skill, citing the version.
+
+**Three layers, and each one is proved by a test of its own kind (RN-AGT-023):**
+
+| Layer | Where it lives | What proves it |
+|---|---|---|
+| **Storage** | The bytes, untouched | Nothing to prove: the product does not interpret content (PP4) |
+| **The two extractors** | `services/discovery`, §11.1 and §11.3 | `test/notation-conformance.test.ts`, running the **published cases**: a case the extractors fail breaks the build |
+| **The reading surface** | `memorysmith-frontend`, the components | `shared/components/reading-surface-conformance.test.tsx`, running each `reading-surface` entry through the real renderer |
+
+The split is not tidiness. A rendering assertion cannot live in a JSON file — what a callout looks like is not something a suite can state — so those entries come from the profile and the expectation is written once, beside the components, and a declared entry with no expectation fails the test rather than being discovered later in a browser. That test earned its place on its first run, the same way the published suite did against the extractors.
+
 ### 11.1 The link graph
 
 `LinkExtractor` (§6.6) runs on every `NoteCreated` and `NoteUpdated`. The target is reduced to the **basename without extension** and normalised into a `Slug`; resolution happens within the scope of the vault (RN-DSC-001 to RN-DSC-006).

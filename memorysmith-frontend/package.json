@@ -25,6 +25,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@memorysmith/markdown-profile": "catalog:",
     "@types/d3-force": "^3.0.10",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

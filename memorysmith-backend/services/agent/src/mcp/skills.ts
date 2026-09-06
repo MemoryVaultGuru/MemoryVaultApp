@@ -19,7 +19,14 @@
  * on the help itself.
  */
 
-import { RECOGNISED_NOTATION, type RecognisedNotation } from '@memorysmith/contracts';
+import {
+  MARKDOWN_PROFILE_BASE,
+  MARKDOWN_PROFILE_NAME,
+  MARKDOWN_PROFILE_URL,
+  MARKDOWN_PROFILE_VERSION,
+  RECOGNISED_NOTATION,
+  type RecognisedNotation,
+} from '@memorysmith/contracts';
 
 export interface Skill {
   /** Stable identifier, and the argument `get_skill` takes. */
@@ -124,12 +131,45 @@ avoiding the decision the owner already gave you.
  */
 function notationTable(): string {
   const row = (entry: RecognisedNotation): string =>
-    `| \`${entry.syntax}\` | ${entry.recognised ? 'yes' : '**no**'} | ${entry.effect} |`;
+    `| \`${entry.syntax}\` | ${entry.ring} | ${entry.recognised ? 'yes' : '**no**'} | ${entry.effect} |`;
 
   return [
-    '| Form | Read? | What happens |',
-    '| --- | --- | --- |',
+    '| Form | Ring | Read? | What happens |',
+    '| --- | --- | --- | --- |',
     ...RECOGNISED_NOTATION.map(row),
+  ].join('\n');
+}
+
+/**
+ * The three rings, named with the versions this build implements.
+ *
+ * It comes first in the skill, because "which Markdown is this" is the
+ * question underneath every other one an agent has about writing here, and
+ * answering it with a specification and a version is a different answer from
+ * a list of forms (RN-AGT-022). It is generated from the profile, so it cannot
+ * cite a version this build does not carry.
+ */
+function rings(): string {
+  const base = MARKDOWN_PROFILE_BASE.map(
+    (spec) => `- **${spec.name} ${spec.version}** — ${spec.url}`,
+  );
+
+  return [
+    `This product implements the **${MARKDOWN_PROFILE_NAME} ${MARKDOWN_PROFILE_VERSION}**, a`,
+    `published specification: ${MARKDOWN_PROFILE_URL}`,
+    '',
+    'It has three rings, and which one a form belongs to tells you how much you',
+    'can rely on it elsewhere:',
+    '',
+    ...base,
+    '- **The vault ring**, specified by the profile above: the wikilink, the embed,',
+    '  the frontmatter vocabulary, the callout. This is the part no base',
+    '  specification covers and that every tool means something slightly different',
+    '  by, which is why it is written down.',
+    '',
+    'Every form in the table below belongs to one of those rings, and the table is',
+    'generated from the profile itself: it cannot describe a notation this build',
+    'does not implement.',
   ].join('\n');
 }
 
@@ -141,6 +181,10 @@ convention means belongs to the vault, not to the server.
 
 There are exactly two places where the product DOES read your content, and this
 is the whole list. Everything else you write is text, and nothing more.
+
+## Which Markdown this is
+
+${rings()}
 
 ## The notation
 

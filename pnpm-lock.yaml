@@ -4,6 +4,12 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    '@memorysmith/markdown-profile':
+      specifier: github:memorysmithapp/markdown-profile#v0.1.0
+      version: 0.1.0
+
 importers:
 
   .:
@@ -82,6 +88,9 @@ importers:
 
   memorysmith-backend/packages/contracts:
     dependencies:
+      '@memorysmith/markdown-profile':
+        specifier: 'catalog:'
+        version: https://codeload.github.com/memorysmithapp/markdown-profile/tar.gz/2ccfcb353dd05bbf0ee5fd2a2011be276bbf27d6
       zod:
         specifier: ^4.0.0
         version: 4.4.3
@@ -257,6 +266,9 @@ importers:
         specifier: ^5.0.0
         version: 5.0.15(@types/react@19.2.18)(react@19.2.8)
     devDependencies:
+      '@memorysmith/markdown-profile':
+        specifier: 'catalog:'
+        version: https://codeload.github.com/memorysmithapp/markdown-profile/tar.gz/2ccfcb353dd05bbf0ee5fd2a2011be276bbf27d6
       '@types/d3-force':
         specifier: ^3.0.10
         version: 3.0.10
@@ -919,6 +931,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@memorysmith/markdown-profile@https://codeload.github.com/memorysmithapp/markdown-profile/tar.gz/2ccfcb353dd05bbf0ee5fd2a2011be276bbf27d6':
+    resolution: {gitHosted: true, integrity: sha512-bP8EUk3+cPbM6HfGXjH1sw3PZ936yg0DMu+l+YEroLz2KZTMf5/12Wec38P9SJ7AgMsw6B3LPapwrX86ccQZtw==, tarball: https://codeload.github.com/memorysmithapp/markdown-profile/tar.gz/2ccfcb353dd05bbf0ee5fd2a2011be276bbf27d6}
+    version: 0.1.0
 
   '@mermaid-js/parser@1.2.1':
     resolution: {integrity: sha512-n12NohV3mrUyUL2o93IgG/ifeW9FTyeJn3zDxkhwa8MJ9Fxg3HQMlA3RiGmD/3UnJvheztkjjQAjA2T4LmUcpw==}
@@ -3328,6 +3344,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@memorysmith/markdown-profile@https://codeload.github.com/memorysmithapp/markdown-profile/tar.gz/2ccfcb353dd05bbf0ee5fd2a2011be276bbf27d6': {}
 
   '@mermaid-js/parser@1.2.1':
     dependencies:
