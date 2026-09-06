@@ -14,6 +14,7 @@ import {
 } from 'd3-force';
 import { usePreferences } from '../../shared/store/preferences';
 import { VaultBreadcrumb } from '../structure/VaultBreadcrumb';
+import { GraphSkeleton } from '../../shared/components/skeletons';
 import { resolveNoteUrl } from '../../shared/api/source';
 import { getVaultGraph } from '../../shared/api/backend';
 import { CloseIcon, GearIcon } from '../../shared/components/icons';
@@ -172,6 +173,7 @@ export function GraphPage() {
    */
   const [controlsOpen, setControlsOpen] = useState(() => !narrowScreen());
   const [data, setData] = useState<GraphFile | null>(null);
+  const [failed, setFailed] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<{
     nodes: GraphNode[];
@@ -233,7 +235,9 @@ export function GraphPage() {
         setTruncated(graph.truncated);
       })
       .catch(() => {
-        if (live) setData({ nodes: [], edges: [] });
+        // A failure is not an empty vault. Saying so is the difference between
+        // "nobody has written anything" and "we could not read it".
+        if (live) setFailed(true);
       });
     return () => {
       live = false;
@@ -840,7 +844,8 @@ export function GraphPage() {
         <h1>{t('graph.heading')}</h1>
       </div>
       <div className="graph-canvas-wrap">
-        {!filtered && <p className="status">{t('common.loading')}</p>}
+        {failed && <p className="status">{t('errors.unexpected')}</p>}
+        {!failed && !filtered && <GraphSkeleton />}
         {filtered?.nodes.length === 0 && <p className="status">{t('graph.empty')}</p>}
         <canvas ref={canvasRef} />
         <div className="graph-overlay">

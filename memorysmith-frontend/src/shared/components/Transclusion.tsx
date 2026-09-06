@@ -5,6 +5,7 @@ import { getNote, resolveNoteUrl } from '../api/source';
 import { demoteEmbeds, sectionOf } from '../api/transclusion';
 import { slugify } from '../api/markdown';
 import { Markdown } from './Markdown';
+import { TransclusionSkeleton } from './skeletons';
 
 /**
  * One transcluded block: the content of another note, shown in place.
@@ -45,7 +46,7 @@ export function Transclusion({
     );
   }
 
-  if (isPending) return <p className="status">{t('common.loading')}</p>;
+  if (isPending) return <TransclusionSkeleton />;
 
   const whole = data.body;
   const cut = anchor ? sectionOf(whole, anchor) : whole;

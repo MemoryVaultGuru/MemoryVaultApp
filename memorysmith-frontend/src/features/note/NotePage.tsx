@@ -4,6 +4,7 @@ import { useOutletContext, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getNote } from '../../shared/api/source';
 import { WritableContent } from '../../shared/components/WritableContent';
+import { NoteSkeleton } from '../../shared/components/skeletons';
 import { canWrite, updateNote } from '../../shared/api/source';
 
 import { PropertyValue, propertyLabel, propertyType } from '../../shared/components/PropertyValue';
@@ -49,7 +50,7 @@ export function NotePage({ noteSlug }: { noteSlug: string }) {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  if (isPending) return <p className="status">{t('common.loading')}</p>;
+  if (isPending) return <NoteSkeleton />;
   if (isError || !data) return <p className="status">{t('common.notFound')}</p>;
 
   const properties = Object.entries(data.frontmatter).filter(([, value]) => value !== '');

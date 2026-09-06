@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { loadLiveStats, type LiveFacet } from '../../shared/api/live-stats';
 import { messageKeyOf } from '../../shared/api/error-mapper';
 import { queryState } from '../../shared/api/query-state';
+import { DashboardSkeleton } from '../../shared/components/skeletons';
 
 const nf = new Intl.NumberFormat();
 
@@ -64,7 +65,7 @@ export function LiveDashboard() {
   // `!data` is the same condition `pending` already carries, written again so
   // the compiler can see it. Everything below reads an answer that exists.
   const data = query.data;
-  if (state === 'pending' || !data) return <p className="status">{t('common.loading')}</p>;
+  if (state === 'pending' || !data) return <DashboardSkeleton />;
 
   const charted = data.facets.slice(0, FACETS_CHARTED);
   const notCharted = data.facets.length - charted.length;

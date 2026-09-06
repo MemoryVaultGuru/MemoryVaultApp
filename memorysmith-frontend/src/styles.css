@@ -1897,10 +1897,6 @@ a:hover {
   color: #b42318;
   font-size: 0.85rem;
 }
-.loading-screen {
-  min-height: 60vh;
-}
-
 /* ── Vault navigation drawer ────────────────────────────────────────────────
    On a wide screen the sidebar is a permanent column and these three controls
    do not exist. They come into being at the breakpoint below, where the same
@@ -2176,6 +2172,11 @@ a:hover {
   .graph-switch input::after {
     transition: none;
   }
+  /* The placeholder still holds the frame; only the sheen stops. */
+  .skeleton {
+    animation: none;
+    background-image: none;
+  }
 }
 
 /* A task box that can be ticked. Disabled is the default, and it is what a
@@ -2193,4 +2194,120 @@ a:hover {
 }
 .write-failed {
   color: var(--signal);
+}
+
+/* ── Skeletons ──────────────────────────────────────────────────────────────
+   The shape of what is coming, in the position it will occupy (§13.2).
+
+   One primitive, used by every surface: a block with an explicit size and a
+   sheen that travels across it. A skeleton that does not occupy the frame of
+   the real content trades one layout shift for two, so the sizes live with the
+   surface that composes them and never here.
+
+   It belongs to `isPending` alone. A shimmer over a request that has already
+   failed is a page that looks alive and is dead, which is the defect this
+   replaced rather than the one it introduces. */
+.skeleton {
+  display: block;
+  border-radius: 4px;
+  background-color: var(--surface-sunken, rgba(128, 128, 128, 0.16));
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-sheen 1.4s ease-in-out infinite;
+}
+
+.skeleton-round {
+  border-radius: 50%;
+}
+
+@keyframes skeleton-sheen {
+  from {
+    background-position: -120% 0;
+  }
+  to {
+    background-position: 220% 0;
+  }
+}
+
+.skeleton-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skeleton-region {
+  display: block;
+}
+
+.card-row-skeleton {
+  display: flex;
+  gap: 1rem;
+}
+
+.vault-card-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  cursor: default;
+}
+
+.chart-row-skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+}
+
+.chart-row-skeleton .chart-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tree-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+}
+
+.graph-skeleton {
+  width: 100%;
+  min-height: 24rem;
+  border-radius: 8px;
+  background-color: var(--surface-sunken, rgba(128, 128, 128, 0.12));
+}
+
+.app-skeleton {
+  min-height: 60vh;
+}
+
+.app-skeleton-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+}
+
+.app-skeleton-body {
+  padding: 2rem 1.5rem;
+  max-width: 40rem;
+}
+
+/* The visible line went away; the word has to stay for whoever hears it. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
