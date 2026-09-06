@@ -31,6 +31,15 @@ const SIGNED_OUT_KEY = 'memorysmith.signin.signedOut';
  */
 const WITHOUT_SUBSCRIPTION_KEY = 'memorysmith.signin.withoutSubscription';
 
+/**
+ * Marks that the session ended on its own: the token could no longer be
+ * renewed, or the API refused it. The person did not ask for anything, so the
+ * screen owes them the reason — being returned to sign-in in the middle of
+ * reading a note reads as a defect when nothing says what happened
+ * (RN-SUB-022).
+ */
+const EXPIRED_KEY = 'memorysmith.signin.expired';
+
 export function clearHandover(): void {
   try {
     sessionStorage.removeItem(HANDOVER_KEY);
@@ -48,6 +57,15 @@ export function markSignedOut(): void {
   }
 }
 
+export function markSessionExpired(): void {
+  try {
+    sessionStorage.setItem(EXPIRED_KEY, 'yes');
+    sessionStorage.removeItem(HANDOVER_KEY);
+  } catch {
+    // Without storage the session still ends; only the message is lost.
+  }
+}
+
 export function markWithoutSubscription(state: WithoutSubscription): void {
   try {
     sessionStorage.setItem(WITHOUT_SUBSCRIPTION_KEY, state);
@@ -62,6 +80,7 @@ export function LoginPage() {
   const started = useRef(false);
   const [handedOver, setHandedOver] = useState(false);
   const [signedOut, setSignedOut] = useState(false);
+  const [expired, setExpired] = useState(false);
   const [withoutSubscription, setWithoutSubscription] = useState<WithoutSubscription | null>(null);
 
   /**
@@ -76,14 +95,17 @@ export function LoginPage() {
 
     let already = false;
     let left = false;
+    let ended = false;
     let denied: WithoutSubscription | null = null;
     try {
       denied = sessionStorage.getItem(WITHOUT_SUBSCRIPTION_KEY) as WithoutSubscription | null;
       sessionStorage.removeItem(WITHOUT_SUBSCRIPTION_KEY);
       left = sessionStorage.getItem(SIGNED_OUT_KEY) === 'yes';
       sessionStorage.removeItem(SIGNED_OUT_KEY);
+      ended = sessionStorage.getItem(EXPIRED_KEY) === 'yes';
+      sessionStorage.removeItem(EXPIRED_KEY);
       already = sessionStorage.getItem(HANDOVER_KEY) === 'yes';
-      if (!left && !denied) sessionStorage.setItem(HANDOVER_KEY, 'yes');
+      if (!left && !denied && !ended) sessionStorage.setItem(HANDOVER_KEY, 'yes');
     } catch {
       // Storage refused: fall through and hand over anyway.
     }
@@ -93,6 +115,13 @@ export function LoginPage() {
     // trade the browser back and forth and never read the reason.
     if (denied) {
       setWithoutSubscription(denied);
+      return;
+    }
+    // A session that ended on its own owes an explanation before anything
+    // else happens. Handing over here would take the person to a credentials
+    // form they never asked for, and the reason would be lost on the way.
+    if (ended) {
+      setExpired(true);
       return;
     }
     if (left) {
@@ -120,13 +149,15 @@ export function LoginPage() {
           <p className="login-hint">
             {withoutSubscription
               ? t(`auth.${withoutSubscription}Subscription`)
-              : signedOut
-                ? t('auth.signedOut')
-                : handedOver
-                  ? t('auth.handoverFailed')
-                  : t('auth.handingOver')}
+              : expired
+                ? t('auth.sessionExpired')
+                : signedOut
+                  ? t('auth.signedOut')
+                  : handedOver
+                    ? t('auth.handoverFailed')
+                    : t('auth.handingOver')}
           </p>
-          {withoutSubscription || signedOut || handedOver ? (
+          {withoutSubscription || expired || signedOut || handedOver ? (
             <button
               type="button"
               className="button-primary"

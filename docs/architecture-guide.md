@@ -257,6 +257,8 @@ memorysmith-frontend/
 
 The mapping from error to message lives in `shared/api/error-mapper.ts` and covers the whole taxonomy of §15. In particular, `FORBIDDEN` arrives as a `404` (§14.2) and the UI shows "not found": the interface may not be more informative than the API, or the leak the `404` prevents comes back through the screen.
 
+**The token lifecycle has exactly two rules, and both are enforced in one place each.** `shared/auth/oauth.ts` is the only module that speaks to the identity provider, and what it persists after a token exchange **keeps the refresh token when the answer carries none**: Cognito returns `refresh_token` on the authorization-code exchange and never on a refresh, so a missing field means the held credential is still valid and not that it was revoked. `shared/api/http.ts` is the only module that reacts to a session that cannot authenticate: a token that cannot be renewed and a `401` from the API are the same fact, and both call the `onUnauthenticated` handler the bootstrap wires to `app/session-expiry.ts`, which discards the credential, empties the session store and returns the browser to the sign-in screen with the reason (RN-SUB-022). **No screen carries any part of that**, and no screen may present a query that has failed as a query still loading: `shared/api/query-state.ts` separates the three states, because `isLoading || !data` collapses two of them whenever retries are off.
+
 ### 5.4 `memorysmith-infra/`
 
 ```
@@ -564,6 +566,8 @@ The *pre-token-generation* trigger reads the `active_subscription` attribute of 
 The trigger also injects the `subscription_status` claim, read from the `META` item. It exists so the authorizer can refuse access to a subscription outside `trial` or `active` (RN-SUB-007) without an extra read per request. Since it ages along with the token, a suspension takes the lifetime of the token to take effect, of the same nature as the 5-minute delay of §14.2 and declared for the same reason.
 
 For the MCP connector, the `subscription_id` enters the access token at the moment of consent and does not change for the life of that token (RN-SUB-014). One connector, one subscription.
+
+**The two lifetimes, and what ends a session.** The access token lives one hour and the refresh token thirty days, so a browser left open renews silently many times over the life of one sign-in. What the SPA does with those exchanges is in §5.3, and the rule that governs it is RN-SUB-022: the session ends when the credential can no longer be renewed, and it ends **once**, in one place, rather than being noticed by whichever screen happens to ask first. The connector does not share that path — the CIMD proxy passes the refresh through with rotation (§13.3), and its session is the token, not a browser.
 
 ---
 
