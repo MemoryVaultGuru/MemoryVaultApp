@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { messageKeyOf } from '../api/error-mapper';
 import { revisionChain } from '../api/revision-chain';
+import { useWriteStatus } from '../store/write-status';
 
 /**
  * The write behind a task box: optimistic on the screen, grouped in flight.
@@ -21,6 +22,11 @@ export interface TaskWrite {
   readonly raw: string;
   /** The revision the whole group is based on. */
   readonly baseRevision: string | null;
+  /**
+   * True when the page is going away. The request has to be made in a way the
+   * browser finishes after the document is gone, or the click is lost.
+   */
+  readonly keepalive?: boolean;
 }
 
 /**
@@ -54,17 +60,17 @@ export function useGroupedWrite({
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   /**
-   * WHY the write failed, and not merely that it did.
+   * The four states go to the FRAME of the screen and not to the content.
    *
-   * This used to be a boolean, and the screen rendered one sentence for it:
-   * "someone wrote here first, and the content was reloaded". Every failure
-   * therefore asserted a cause nobody had established — a refused request, a
-   * dead session and a real conflict all told the same story, and the one it
-   * told was wrong for two of the three. A message that invents a cause is
-   * worse than one that admits it does not know: it sends the reader looking
-   * for a person who was never there.
+   * A grouped write is a property of the document — five ticks are one
+   * transaction — so its status cannot belong to a box. Rendered at the top of
+   * the content it became a paragraph of the note, scrolled away with the
+   * text, and was never seen from where the click happened. What it says is
+   * still the same discipline: a failure names the failure it was, because a
+   * message that invents a cause sends the reader looking for a person who
+   * was never there.
    */
-  const [failure, setFailure] = useState<string | null>(null);
+  const status = useWriteStatus();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<string | null>(null);
   const committed = useRef(raw);
@@ -108,47 +114,73 @@ export function useGroupedWrite({
     chain.current.reset(baseRevision);
   }, [baseRevision]);
 
-  const flush = useCallback(async () => {
-    const next = pending.current;
-    pending.current = null;
-    if (timer.current) {
-      clearTimeout(timer.current);
-      timer.current = null;
-    }
-    // Identical bytes are not a write: no revision, no event, no reindexing.
-    if (next === null || next === committed.current) return;
+  const flush = useCallback(
+    async (options: { keepalive?: boolean } = {}) => {
+      const next = pending.current;
+      pending.current = null;
+      if (timer.current) {
+        clearTimeout(timer.current);
+        timer.current = null;
+      }
+      // Identical bytes are not a write: no revision, no event, no reindexing.
+      if (next === null || next === committed.current) return;
 
-    try {
-      await chain.current.write(next);
-      committed.current = next;
-    } catch (error) {
-      // A conflict is information, not a system error: the screen goes back to
-      // what the server says and the person is told someone wrote first. Any
-      // other failure says what it was, in the words of the error taxonomy.
-      setDraft(null);
-      const conflict = (error as { code?: string })?.code === 'CONFLICT';
-      setFailure(conflict ? 'note.writeConflict' : messageKeyOf(error));
-      if (conflict) onConflict();
-    }
-  }, [onConflict]);
+      try {
+        status.saving();
+        await chain.current.write(next, options);
+        committed.current = next;
+        status.saved();
+      } catch (error) {
+        // A conflict is information, not a system error: the screen goes back to
+        // what the server says and the person is told someone wrote first. Any
+        // other failure says what it was, in the words of the error taxonomy.
+        setDraft(null);
+        const conflict = (error as { code?: string })?.code === 'CONFLICT';
+        status.failed(conflict ? 'note.writeConflict' : messageKeyOf(error));
+        if (conflict) onConflict();
+      }
+    },
+    [onConflict, status],
+  );
 
   const toggle = useCallback(
     (next: string) => {
-      setFailure(null);
+      status.changed();
       setDraft(next);
       pending.current = next;
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => void flush(), WINDOW_MS);
     },
-    [flush],
+    [flush, status],
   );
 
-  // Leaving the page before the window closes must not lose the click.
+  // Leaving the SCREEN before the window closes must not lose the click.
   useEffect(() => {
     return () => {
       if (pending.current !== null) void flush();
     };
   }, [flush]);
 
-  return { text: draft ?? raw, toggle, failure };
+  /**
+   * Leaving the PAGE must not lose it either, and that is a different event.
+   *
+   * The cleanup above runs when React unmounts the component. `F5`, closing
+   * the tab and switching to another application are none of those: the
+   * browser leaves, the effect never runs, and a click inside the two-second
+   * window is gone. That is what made reloading to check whether it saved a
+   * gamble — the very reload used to find out could be what destroyed it.
+   *
+   * `pagehide` fires on all three, including the phone case that
+   * `beforeunload` misses, and the request goes out with `keepalive` so the
+   * browser finishes it after the page is gone.
+   */
+  useEffect(() => {
+    const leaving = (): void => {
+      if (pending.current !== null) void flush({ keepalive: true });
+    };
+    window.addEventListener('pagehide', leaving);
+    return () => window.removeEventListener('pagehide', leaving);
+  }, [flush]);
+
+  return { text: draft ?? raw, toggle };
 }

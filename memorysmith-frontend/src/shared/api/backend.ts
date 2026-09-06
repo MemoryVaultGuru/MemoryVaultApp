@@ -243,12 +243,13 @@ export async function putGuidance(
   vaultSlug: string,
   content: string,
   baseRevision: string | null,
+  options: { keepalive?: boolean } = {},
 ): Promise<string> {
   const vaultId = await vaultIdOf(vaultSlug);
   // The revision this write produced, which the next write has to name.
   const written = await request<{ revision: { versionId: string } }>(
     `/knowledge/vaults/${vaultId}/guidance`,
-    { method: 'PUT', body: { content, baseRevision } },
+    { method: 'PUT', body: { content, baseRevision }, ...options },
   );
   return written.revision.versionId;
 }
@@ -257,11 +258,12 @@ export async function putTemplate(
   folderId: string,
   content: string,
   baseRevision: string | null,
+  options: { keepalive?: boolean } = {},
 ): Promise<string> {
   const vaultId = await vaultIdOf(vaultSlug);
   const written = await request<{ revision: { versionId: string } }>(
     `/knowledge/vaults/${vaultId}/folders/${folderId}/template`,
-    { method: 'PUT', body: { content, baseRevision } },
+    { method: 'PUT', body: { content, baseRevision }, ...options },
   );
   return written.revision.versionId;
 }
@@ -281,6 +283,7 @@ export async function updateNote(
   vaultSlug: string,
   noteId: string,
   input: { content: string; baseRevision: string; title?: string },
+  options: { keepalive?: boolean } = {},
 ): Promise<NoteDto> {
   const vaultId = await vaultIdOf(vaultSlug);
   // The answer carries the revision this write produced, which is what the
@@ -288,6 +291,7 @@ export async function updateNote(
   return request<NoteDto>(`/knowledge/vaults/${vaultId}/notes/${noteId}`, {
     method: 'PUT',
     body: input,
+    ...options,
   });
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "@memorysmith/svc-audit",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
   "type": "module",
   "description": "Audit bounded context: the append-only trail. Consumer of every event of the bus, and the one service whose immutability is enforced by IAM rather than by code.",

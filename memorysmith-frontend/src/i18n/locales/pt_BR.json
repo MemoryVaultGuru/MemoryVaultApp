@@ -1,4 +1,9 @@
 {
+  "write": {
+    "unsaved": "Alterações não salvas",
+    "saving": "Salvando…",
+    "saved": "Salvo"
+  },
   "reserved": {
     "aliases": "Apelidos",
     "tags": "Etiquetas",

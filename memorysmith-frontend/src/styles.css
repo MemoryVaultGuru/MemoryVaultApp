@@ -2311,3 +2311,77 @@ a:hover {
   white-space: nowrap;
   border: 0;
 }
+
+/* ── What happened to the write ─────────────────────────────────────────────
+   In the header, because the header is already fixed: visible from any scroll
+   position, covering no line of the note, needing no overlay. It used to be a
+   paragraph at the top of the content, which scrolled away with the text and
+   was never seen from where the box was clicked (§13.2).
+
+   The slot is always in the tree so `aria-live` can announce into it, and it
+   reserves no width while idle: a reading surface stays a reading surface. */
+.write-status {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.write-status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--text-soft);
+  flex: none;
+}
+
+/* Orange is capture, and an unsent change is exactly that. */
+.write-status[data-state='unsaved'] .write-status-dot {
+  background: var(--accent-capture, #ff8a2b);
+}
+
+.write-status[data-state='saving'] .write-status-dot {
+  background: var(--accent-capture, #ff8a2b);
+  animation: write-status-pulse 1.1s ease-in-out infinite;
+}
+
+/* Green is connection, and a landed write is the one moment it is earned. */
+.write-status[data-state='saved'] .write-status-dot {
+  background: var(--accent-node, #16a34a);
+}
+
+.write-status[data-state='failed'] {
+  color: var(--danger, #b42318);
+}
+
+.write-status[data-state='failed'] .write-status-dot {
+  background: var(--danger, #b42318);
+}
+
+@keyframes write-status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* The message is the signal; the pulse is decoration and goes first. */
+@media (prefers-reduced-motion: reduce) {
+  .write-status[data-state='saving'] .write-status-dot {
+    animation: none;
+  }
+}
+
+/* On a narrow screen the header is tight, and the state is carried by the dot
+   alone rather than pushing the brand or the menu off the row. */
+@media (max-width: 40rem) {
+  .write-status-text {
+    display: none;
+  }
+}

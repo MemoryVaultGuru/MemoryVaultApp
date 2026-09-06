@@ -157,3 +157,46 @@ describe('a write that lands is announced, and one that fails is not', () => {
     expect(() => revisionChain(vi.fn(), 'rev-0')).not.toThrow();
   });
 });
+
+/**
+ * A write made on the way out (#81).
+ *
+ * The pending flush ran in the cleanup of a React effect, and `F5`, a closed
+ * tab and a switched-away app are none of those: the browser leaves, the
+ * effect never runs, and the click is gone. Which made reloading to check
+ * whether it saved a gamble — the reload used to find out could be what
+ * destroyed it.
+ */
+describe('a write on the way out is made so the browser can finish it', () => {
+  it('carries keepalive through to the request', async () => {
+    const sent: Array<Record<string, unknown>> = [];
+    const chain = revisionChain(async (input) => {
+      sent.push({ ...input });
+      return 'rev-1';
+    }, 'rev-0');
+
+    await chain.write('leaving now', { keepalive: true });
+
+    expect(sent[0]).toMatchObject({ baseRevision: 'rev-0', keepalive: true });
+  });
+
+  it('does not set it on an ordinary write', async () => {
+    const sent: Array<Record<string, unknown>> = [];
+    const chain = revisionChain(async (input) => {
+      sent.push({ ...input });
+      return 'rev-1';
+    }, 'rev-0');
+
+    await chain.write('an ordinary tick');
+
+    expect(sent[0]).not.toHaveProperty('keepalive');
+  });
+
+  it('still advances the revision, so a write on the way out is a write', async () => {
+    const chain = revisionChain(async () => 'rev-1', 'rev-0');
+
+    await chain.write('leaving', { keepalive: true });
+
+    expect(chain.current).toBe('rev-1');
+  });
+});

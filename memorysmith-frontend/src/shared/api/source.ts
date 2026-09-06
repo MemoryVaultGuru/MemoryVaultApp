@@ -100,18 +100,22 @@ export function updateNote(
   vaultSlug: string,
   noteId: string,
   input: { content: string; baseRevision: string },
+  options: { keepalive?: boolean } = {},
 ): Promise<string> {
   // The version the write produced. Every writer of a Content Slot answers
   // it, so the caller can chain a second write without reloading the note.
-  return backend.updateNote(vaultSlug, noteId, input).then((note) => note.revision.versionId);
+  return backend
+    .updateNote(vaultSlug, noteId, input, options)
+    .then((note) => note.revision.versionId);
 }
 
 export function putGuidance(
   vaultSlug: string,
   content: string,
   baseRevision: string | null,
+  options: { keepalive?: boolean } = {},
 ): Promise<string> {
-  return backend.putGuidance(vaultSlug, content, baseRevision);
+  return backend.putGuidance(vaultSlug, content, baseRevision, options);
 }
 
 export function putTemplate(
@@ -119,8 +123,9 @@ export function putTemplate(
   folderId: string,
   content: string,
   baseRevision: string | null,
+  options: { keepalive?: boolean } = {},
 ): Promise<string> {
-  return backend.putTemplate(vaultSlug, folderId, content, baseRevision);
+  return backend.putTemplate(vaultSlug, folderId, content, baseRevision, options);
 }
 
 /**

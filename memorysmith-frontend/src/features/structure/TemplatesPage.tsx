@@ -89,8 +89,10 @@ export function TemplatesPage() {
                 vaultSlug={vaultSlug}
                 baseRevision={template.revision}
                 writable={canWrite(structure.effectiveRole)}
-                write={({ raw, baseRevision }) =>
-                  putTemplate(vaultSlug, folder.id, raw, baseRevision)
+                write={({ raw, baseRevision, keepalive }) =>
+                  putTemplate(vaultSlug, folder.id, raw, baseRevision, {
+                    keepalive: keepalive ?? false,
+                  })
                 }
                 invalidates={['template', vaultSlug, folder.id]}
               />

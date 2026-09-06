@@ -41,7 +41,17 @@ async function bearer(): Promise<string | null> {
 
 export async function request<T>(
   path: string,
-  init: { method?: string; body?: unknown; accept?: 'json' | 'text' } = {},
+  init: {
+    method?: string;
+    body?: unknown;
+    accept?: 'json' | 'text';
+    /**
+     * Let the browser finish this request after the page is gone. It is for
+     * a write made on the way out — a reload, a closed tab, an app switched
+     * away from — where the ordinary request would simply be dropped.
+     */
+    keepalive?: boolean;
+  } = {},
 ): Promise<T> {
   if (!config) throw new ApiError('INTERNAL', 'The API client was not configured', 0);
 
@@ -57,6 +67,7 @@ export async function request<T>(
         ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
       },
       ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
+      ...(init.keepalive ? { keepalive: true } : {}),
     });
   } catch {
     // A failed fetch is the network, not the API: saying so is the difference

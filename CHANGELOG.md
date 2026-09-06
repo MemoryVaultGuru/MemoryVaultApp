@@ -11,6 +11,13 @@ issues each entry cites.
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-09-06
+
+### Fixed
+
+- **A write says what happened to it, where it can be seen.** After ticking a box there was no sign of anything: the clicks group for two seconds and then a request goes out, and the only way to learn whether it saved was to reload. The one message that did exist rendered at the top of the content, so in a note of any length it scrolled away with the text and was never seen from where the box was clicked — a grouped write is a property of the **document**, not of a box, so its status now lives in the header, visible from any scroll position and covering no line of the note. It says the whole life of the write and not only its failures: changed and not sent, being saved, saved. The success clears itself, a failure stays until the next attempt, and nothing is shown while there is nothing to say. (#81)
+- **Reloading right after ticking no longer loses the change.** The pending write was flushed in the cleanup of a React effect, and `F5`, closing the tab and switching away are none of those: the browser left and the request never went out. So the reload used to find out whether it had saved could be the very thing that destroyed it. The write now goes out on `pagehide`, with `keepalive`, which the browser finishes after the page is gone. (#81)
+
 ## [0.5.3] - 2026-09-06
 
 ### Fixed
@@ -234,7 +241,8 @@ Search by meaning left the version, with the whole vector index: the explanation
 
 - The HMAC key signing the `state` of the CIMD proxy moved from a Lambda environment variable to Secrets Manager, read at runtime. As an environment variable the value sat in clear text.
 
-[Unreleased]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.3...HEAD
+[Unreleased]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.4...HEAD
+[0.5.4]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.0...v0.5.1
