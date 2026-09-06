@@ -127,12 +127,37 @@ export function resolveWikilinks(body: string, resolve: (slug: string) => string
   });
 }
 
-/** The slug of a note, as the product derives it from the title. */
+/** The longest a slug may be, on both sides. */
+const MAX_SLUG_LENGTH = 80;
+
+/**
+ * The slug of a note, as the product derives it from the title (profile \u00a73.3).
+ *
+ * **This is the second implementation of one rule**, and the first is
+ * `packages/kernel/src/slug.ts`. It is duplicated because the frontend takes
+ * types from `@memorysmith/contracts` and nothing else from the backend
+ * (`architecture-guide.md` \u00a75.1), and breaking that to share six lines would
+ * drag the kernel into the browser bundle. The price of the duplication is
+ * that it drifts in silence \u2014 it already did, which is #73 \u2014 so the two are
+ * pinned to the **published conformance cases** rather than to each other.
+ *
+ * Two of the six steps were missing here, and both matter for exactly the
+ * titles these vaults are full of:
+ *
+ * - A `.` or `,` **between two digits** belongs to the number and not to the
+ *   words around it, so `Lei 14.133` is `lei-14133` and never `lei-14-133`.
+ *   Without it the reading surface computed a slug the backend had never
+ *   stored, failed to find the note, and drew a real edge as a pending link.
+ * - The truncation, which decides the slug of any long title.
+ */
 export function slugify(name: string): string {
   return name
-    .toLowerCase()
     .normalize('NFD')
+    .replace(/(\d)[.,](\d)/g, '$1$2')
     .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/^-+|-+$/g, '')
+    .slice(0, MAX_SLUG_LENGTH)
+    .replace(/-+$/g, '');
 }

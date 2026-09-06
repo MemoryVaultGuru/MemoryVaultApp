@@ -800,6 +800,8 @@ Three projections over the same events. All of them **derived** (PE5): deleting 
 
 A block embed resolves through `blockOf` in `transclusion.ts`, told apart from a section anchor by the `^` marker rather than by trying one and falling back — a section named `^x` and a block called `x` would otherwise answer for each other.
 
+**The slug is computed twice, and that is a boundary with a price.** `packages/kernel/src/slug.ts` produces it for storage and for the link extractor; `memorysmith-frontend/src/shared/api/markdown.ts` produces it again to turn a wikilink into a URL, because the frontend takes types from `@memorysmith/contracts` and nothing else from the backend (§5.1), and sharing six lines is not worth dragging the kernel into the browser bundle. The price is that two copies of one rule drift in silence, and they did: the interface was missing the digit-separator step of the profile's §3.3, so `[[Lei 14.133]]` addressed `lei-14-133`, found no note, and drew a real edge as a pending link. **Neither implementation is pinned to the other; both are pinned to the published conformance cases**, which is the only arrangement where the drift is a failing build instead of a screen that lies.
+
 The split is not tidiness. A rendering assertion cannot live in a JSON file — what a callout looks like is not something a suite can state — so those entries come from the profile and the expectation is written once, beside the components, and a declared entry with no expectation fails the test rather than being discovered later in a browser. That test earned its place on its first run, the same way the published suite did against the extractors.
 
 ### 11.1 The link graph
