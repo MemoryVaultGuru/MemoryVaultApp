@@ -28,7 +28,16 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { RECOGNISED_NOTATION } from '../src/markdown.js';
 
-const VAULTS = resolve(fileURLToPath(import.meta.url), '..', '..', '..', '..', '..', 'deploy-aws', 'vaults');
+const VAULTS = resolve(
+  fileURLToPath(import.meta.url),
+  '..',
+  '..',
+  '..',
+  '..',
+  '..',
+  'deploy-aws',
+  'vaults',
+);
 
 /** The two, named: en-US and pt-BR, and not translations of each other. */
 const DEMONSTRATION = ['continuity-engineering', 'enologia'] as const;
