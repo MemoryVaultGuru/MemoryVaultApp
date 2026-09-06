@@ -1,4 +1,9 @@
-import type { AnchorHTMLAttributes, HTMLAttributes } from 'react';
+import {
+  isValidElement,
+  type AnchorHTMLAttributes,
+  type HTMLAttributes,
+  type ReactNode,
+} from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Link } from 'react-router-dom';
 import remarkGfm from 'remark-gfm';
@@ -11,9 +16,11 @@ import { MermaidDiagram } from './MermaidDiagram';
 interface MarkdownProps {
   children: string;
   /**
-   * The original text a click writes back to. It is not always what is
-   * rendered: wikilinks are resolved before rendering, and the toggle has to
-   * land on the bytes the author wrote.
+   * The text the ordinal of a task box is counted over. It has to be the text
+   * the PARSER saw, because the offsets come from it — not the bytes a write
+   * sends back, which are the original ones. Keeping the two aligned is the
+   * caller's job, and `WritableContent` does it by refusing to enable the
+   * boxes when the two disagree on how many there are.
    */
   source?: string;
   onToggleTask?: (ordinal: number) => void;
@@ -56,6 +63,30 @@ function MarkdownCode({ className, children, ...rest }: HTMLAttributes<HTMLEleme
   );
 }
 
+/** The hast element react-markdown hands a component, as much as is used. */
+interface HastElement {
+  readonly tagName?: string;
+  readonly properties?: Record<string, unknown>;
+  readonly children?: readonly HastElement[];
+  readonly position?: { readonly start?: { readonly offset?: number } };
+}
+
+/**
+ * Whether this list item is a task box, and how it is ticked.
+ *
+ * The state is read from the child `input` that GFM produces, and NOT from a
+ * `checked` on the item itself: react-markdown 9 hands a component the **hast**
+ * element, which carries no such property. Reading it there returned
+ * `undefined` for every item, which sent every task box in the product down
+ * the plain branch and onto the screen as GFM's own disabled checkbox — no
+ * handler, no click, on any note.
+ */
+function taskState(node: HastElement | undefined): boolean | null {
+  const box = node?.children?.find((child) => child.tagName === 'input');
+  const checked = box?.properties?.['checked'];
+  return typeof checked === 'boolean' ? checked : null;
+}
+
 /**
  * A list item that carries a task box. The ordinal comes from the position the
  * parser reports, mapped back to the n-th task of the source, which is what
@@ -64,6 +95,7 @@ function MarkdownCode({ className, children, ...rest }: HTMLAttributes<HTMLEleme
 function TaskItem({
   node,
   children,
+  className,
   source,
   toggleTask,
   writable,
@@ -73,25 +105,47 @@ function TaskItem({
   toggleTask: ((ordinal: number) => void) | undefined;
   writable: boolean;
 }) {
-  const checked = (node as { checked?: boolean | null } | undefined)?.checked;
-  if (checked === null || checked === undefined) {
-    return <li {...rest}>{children}</li>;
+  const element = node as HastElement | undefined;
+  const checked = taskState(element);
+  if (checked === null) {
+    return (
+      <li className={className} {...rest}>
+        {children}
+      </li>
+    );
   }
 
-  const offset = (node as { position?: { start?: { offset?: number } } })?.position?.start?.offset;
+  const offset = element?.position?.start?.offset;
   const ordinal = offset === undefined ? -1 : ordinalAt(source, offset);
   const enabled = writable && toggleTask !== undefined && ordinal >= 0;
 
   return (
-    <li className="task-item" {...rest}>
+    // Our class comes LAST, because the one react-markdown passes in is on
+    // `className` and spreading it after would silently take the item back.
+    <li {...rest} className={`${className ?? ''} task-item`.trim()}>
       <input
         type="checkbox"
         checked={checked}
         disabled={!enabled}
         onChange={() => enabled && toggleTask(ordinal)}
       />
-      {children}
+      {/* The box GFM already rendered is dropped: it is `disabled`, it answers
+          to nothing, and two boxes in one item is worse than none. */}
+      {dropBox(children)}
     </li>
+  );
+}
+
+/**
+ * The children of the item without the checkbox GFM put in front of them.
+ *
+ * It is matched by element type rather than by position, because a leading
+ * space follows it and neither the space nor the order is part of any contract.
+ */
+function dropBox(children: ReactNode): ReactNode {
+  if (!Array.isArray(children)) return children;
+  return (children as ReactNode[]).filter(
+    (child) => !(isValidElement(child) && child.type === 'input'),
   );
 }
 export function Markdown({ children, source, onToggleTask, writable = false }: MarkdownProps) {

@@ -105,17 +105,20 @@ const EXPECTED: Record<string, (html: string) => void> = {
     expect(html).not.toContain('[[A note nobody has written]]');
   },
   'task-list': (html) => {
-    // What the PROFILE declares: a box per item, carrying the state written in
-    // the source, both ways round. Whether a person may toggle one is left to
-    // the reading surface by the profile, and this product does promise it
-    // (software-vision.md 13.2) — that half is asserted in the test of #71,
-    // which is the defect this very case surfaced on its first run.
+    // What the profile declares: a box per item, carrying the state written in
+    // the source, both ways round. One box per item and not two, which is what
+    // dropping GFM's own is for.
     expect((html.match(/type="checkbox"/g) ?? []).length).toBe(2);
     expect((html.match(/checked=""/g) ?? []).length).toBe(1);
     expect(html).toContain('Read the act');
     expect(html).toContain('Summarise article 75');
     expect(html).not.toContain('[ ]');
     expect(html).not.toContain('[x]');
+    // And what THIS reading surface adds on top of the profile, which the
+    // profile leaves open and software-vision.md 13.2 promises: the box is
+    // ours and it answers to a click where the role allows writing.
+    expect((html.match(/class="[^"]*task-item[^"]*"/g) ?? []).length).toBe(2);
+    expect(html).not.toContain('disabled=""');
   },
 };
 
