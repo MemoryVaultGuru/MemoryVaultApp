@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { messageKeyOf } from '../api/error-mapper';
 
 /**
  * The write behind a task box: optimistic on the screen, grouped in flight.
@@ -33,7 +34,18 @@ export function useGroupedWrite({
   onConflict: () => void;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+  /**
+   * WHY the write failed, and not merely that it did.
+   *
+   * This used to be a boolean, and the screen rendered one sentence for it:
+   * "someone wrote here first, and the content was reloaded". Every failure
+   * therefore asserted a cause nobody had established — a refused request, a
+   * dead session and a real conflict all told the same story, and the one it
+   * told was wrong for two of the three. A message that invents a cause is
+   * worse than one that admits it does not know: it sends the reader looking
+   * for a person who was never there.
+   */
+  const [failure, setFailure] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<string | null>(null);
   const committed = useRef(raw);
@@ -59,16 +71,18 @@ export function useGroupedWrite({
       committed.current = next;
     } catch (error) {
       // A conflict is information, not a system error: the screen goes back to
-      // what the server says and the person is told someone wrote first.
+      // what the server says and the person is told someone wrote first. Any
+      // other failure says what it was, in the words of the error taxonomy.
       setDraft(null);
-      setFailed(true);
-      if ((error as { code?: string })?.code === 'CONFLICT') onConflict();
+      const conflict = (error as { code?: string })?.code === 'CONFLICT';
+      setFailure(conflict ? 'note.writeConflict' : messageKeyOf(error));
+      if (conflict) onConflict();
     }
   }, [baseRevision, onConflict, write]);
 
   const toggle = useCallback(
     (next: string) => {
-      setFailed(false);
+      setFailure(null);
       setDraft(next);
       pending.current = next;
       if (timer.current) clearTimeout(timer.current);
@@ -84,5 +98,5 @@ export function useGroupedWrite({
     };
   }, [flush]);
 
-  return { text: draft ?? raw, toggle, failed };
+  return { text: draft ?? raw, toggle, failure };
 }

@@ -10,6 +10,8 @@
 import type {
   ExportJobDto,
   FolderDto,
+  ContentDto,
+  NoteDto,
   NoteSummaryDto,
   SessionDto,
   FacetStatsDto,
@@ -118,14 +120,21 @@ export async function getVaultStructure(vaultSlug: string): Promise<VaultStructu
 export async function getNote(vaultSlug: string, noteSlug: string): Promise<NoteDetail> {
   const vaultId = await vaultIdOf(vaultSlug);
   const [note, detail] = await Promise.all([
-    request<{
-      noteId: string;
-      title: string;
-      slug: string;
-      folderId: string;
-      content: string;
-      revision: string;
-    }>(`/knowledge/vaults/${vaultId}/notes/by-slug/${encodeURIComponent(noteSlug)}`),
+    /**
+     * Typed by the DTO the API publishes, and NOT by a shape retyped here.
+     *
+     * The local shape declared `revision: string`, and the DTO says it is a
+     * `ContentRef` — an object. So the whole object was carried into
+     * `NoteDetail.revision` and sent back as `baseRevision`, which the API
+     * requires to be a string: every task-box write was refused at validation
+     * and never reached the conflict check. The guidance and the template
+     * read `.versionId` and worked, which is why only the note was broken.
+     *
+     * A hand-written mirror of a published contract is a claim the compiler
+     * cannot check. Taking the DTO is what makes the next divergence a build
+     * error instead of a screen that fails.
+     */
+    request<NoteDto>(`/knowledge/vaults/${vaultId}/notes/by-slug/${encodeURIComponent(noteSlug)}`),
     request<VaultDetailDto>(`/knowledge/vaults/${vaultId}`),
   ]);
 
@@ -149,7 +158,8 @@ export async function getNote(vaultSlug: string, noteSlug: string): Promise<Note
     listProperties: [...lists],
     body,
     raw: note.content,
-    revision: note.revision,
+    // The version, which is what a write echoes back (RN-AGT-005).
+    revision: note.revision.versionId,
   };
 }
 
@@ -158,12 +168,18 @@ export async function getTemplate(
   folderId: string,
 ): Promise<TemplateDetail | null> {
   const vaultId = await vaultIdOf(vaultSlug);
-  const template = await request<{ content: string | null; revision?: { versionId: string } }>(
+  /**
+   * The route answers `{ content: null }` when the folder carries no template
+   * yet, and the published `ContentDto` when it does. That union is the
+   * contract, so it is written as one instead of as a shape with everything
+   * made optional — which is how the note DTO drifted.
+   */
+  const template = await request<ContentDto | { content: null }>(
     `/knowledge/vaults/${vaultId}/folders/${folderId}/template`,
   );
   return template.content === null
     ? null
-    : { folderId, body: template.content, revision: template.revision?.versionId ?? '' };
+    : { folderId, body: template.content, revision: template.revision.versionId };
 }
 
 /** The composed document the agent reads, shown in the connect screen. */

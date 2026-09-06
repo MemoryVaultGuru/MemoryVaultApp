@@ -111,7 +111,7 @@
   "note": {
     "properties": "Properties",
     "embedSectionMissing": "The section \"{{section}}\" is not in this note.",
-    "writeFailed": "That change was not saved. Someone wrote here first, and the content was reloaded.",
+    "writeConflict": "That change was not saved. Someone wrote here first, and the content was reloaded.",
     "pendingLink": "Pending link: the target note does not exist yet.",
     "copy": "Copy",
     "copied": "Copied",

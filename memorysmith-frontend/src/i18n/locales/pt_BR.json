@@ -111,7 +111,7 @@
   "note": {
     "properties": "Propriedades",
     "embedSectionMissing": "A seção \"{{section}}\" não existe nesta nota.",
-    "writeFailed": "A alteração não foi salva. Alguém escreveu aqui antes, e o conteúdo foi recarregado.",
+    "writeConflict": "A alteração não foi salva. Alguém escreveu aqui antes, e o conteúdo foi recarregado.",
     "pendingLink": "Link pendente: a nota alvo ainda não existe.",
     "copy": "Copiar",
     "copied": "Copiado",

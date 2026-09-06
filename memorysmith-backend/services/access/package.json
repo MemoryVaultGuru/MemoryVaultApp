@@ -1,6 +1,6 @@
 {
   "name": "@memorysmith/svc-access",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "type": "module",
   "description": "Access bounded context: subscriptions and their lifecycle, members, roles, vault ceilings, invites, links and authorization.",
