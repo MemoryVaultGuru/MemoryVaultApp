@@ -141,3 +141,42 @@ describe(`the reading surface implements profile ${MARKDOWN_PROFILE_VERSION}`, (
     expect(surface.length).toBeGreaterThan(0);
   });
 });
+
+/**
+ * The rejections are half of what the profile declares, and the reading
+ * surface is where a rejection is most easily undone by accident: drawing a
+ * chip around `#subject` would promise a grouping that does not exist
+ * (RN-DSC-033). An affordance without the function it promises is worse than
+ * the raw text.
+ */
+describe('a rejected notation is rendered as what it is: text', () => {
+  const rejected = RECOGNISED_NOTATION.filter((entry) => !entry.recognised);
+
+  it('renders an inline #tag as plain text, with no chip and nothing to click', () => {
+    const html = render('The decision touches #procurement and #contracts.');
+
+    expect(html).toContain('#procurement');
+    expect(html).toContain('#contracts');
+    expect(html).not.toMatch(/<a[^>]*>#/);
+    expect(html).not.toMatch(/class="[^"]*tag[^"]*"/);
+  });
+
+  it('does not read a heading as a tag either', () => {
+    const html = render('# Direct contracting\n\nThe rule.\n');
+
+    expect(html).toContain('<h1>Direct contracting</h1>');
+    expect(html).not.toContain('#');
+  });
+
+  it('renders an external link as a link and never as a wikilink of ours', () => {
+    const html = render('See [the official text](https://example.org/lei-14133).');
+
+    expect(html).toContain('href="https://example.org/lei-14133"');
+    expect(html).not.toContain('class="wikilink"');
+    expect(html).not.toContain('wikilink-pending');
+  });
+
+  it('declares rejections at all, so this list cannot quietly empty out', () => {
+    expect(rejected.map((entry) => entry.id)).toContain('inline-tag');
+  });
+});
