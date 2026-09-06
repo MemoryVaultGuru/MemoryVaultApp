@@ -307,3 +307,90 @@ describe('An alias is another name for the note (RN-DSC-032)', () => {
     expect(matches(parseQuery('rto'), note())).toBe(false);
   });
 });
+
+describe('A date is searchable over an interval, not only at a point (RN-DSC-034)', () => {
+  const on = (date: string): Candidate =>
+    note({ facets: { created: [date] }, facetKinds: { created: 'date' } });
+
+  it('accepts the four comparison operators', () => {
+    expect(matches(parseQuery('created:>=2026-02-01'), on('2026-02-15'))).toBe(true);
+    expect(matches(parseQuery('created:>2026-02-15'), on('2026-02-15'))).toBe(false);
+    expect(matches(parseQuery('created:<=2026-02-15'), on('2026-02-15'))).toBe(true);
+    expect(matches(parseQuery('created:<2026-02-15'), on('2026-02-15'))).toBe(false);
+  });
+
+  it('reads a range as two comparisons, both ends inclusive', () => {
+    const quarter = parseQuery('created:2026-01-01..2026-03-31');
+    expect(matches(quarter, on('2026-01-01'))).toBe(true);
+    expect(matches(quarter, on('2026-02-15'))).toBe(true);
+    expect(matches(quarter, on('2026-03-31'))).toBe(true);
+    expect(matches(quarter, on('2025-12-31'))).toBe(false);
+    expect(matches(quarter, on('2026-04-01'))).toBe(false);
+  });
+
+  it('desugars the range into the comparisons, so there is one semantics', () => {
+    expect(parseQuery('created:2026-01-01..2026-03-31')).toEqual({
+      kind: 'and',
+      nodes: [
+        { kind: 'compare', facet: 'created', op: '>=', value: '2026-01-01' },
+        { kind: 'compare', facet: 'created', op: '<=', value: '2026-03-31' },
+      ],
+    });
+  });
+
+  it('keeps the prefix granularity, so a month is a legal end of an interval', () => {
+    // The fifteenth is INSIDE February, so `<=2026-02` has to hold. Comparing
+    // the whole string would put most of the month outside the month somebody
+    // asked for, and it would look like an empty result rather than a defect.
+    expect(matches(parseQuery('created:<=2026-02'), on('2026-02-15'))).toBe(true);
+    expect(matches(parseQuery('created:>=2026-02'), on('2026-02-15'))).toBe(true);
+    expect(matches(parseQuery('created:>2026-02'), on('2026-02-15'))).toBe(false);
+    expect(matches(parseQuery('created:>2026-02'), on('2026-03-01'))).toBe(true);
+    expect(matches(parseQuery('created:2026-01..2026-03'), on('2026-02-15'))).toBe(true);
+  });
+
+  it('composes with the boolean operators already there', () => {
+    const query = parseQuery('created:>=2026-01-01 (maturity:evergreen OR maturity:growing)');
+    const evergreen = note({
+      facets: { created: ['2026-02-15'], maturity: ['evergreen'] },
+      facetKinds: { created: 'date', maturity: 'enum' },
+    });
+    expect(matches(query, evergreen)).toBe(true);
+  });
+
+  it('does not match a note whose attribute is not a date', () => {
+    const prose = note({ facets: { created: ['manually'] }, facetKinds: { created: 'enum' } });
+    expect(matches(parseQuery('created:>=2026-01-01'), prose)).toBe(false);
+  });
+
+  it('refuses an inverted range instead of answering nothing', () => {
+    // An empty result reads as "there is nothing filed under that". This means
+    // "you asked something that has no answer", which is a different thing to
+    // be told, and the difference decides whether you fix the query or doubt
+    // the vault.
+    expect(() => parseQuery('created:2026-03-31..2026-01-01')).toThrow(QuerySyntaxError);
+  });
+
+  it('refuses a range with a missing end', () => {
+    expect(() => parseQuery('created:..2026-01-01')).toThrow(QuerySyntaxError);
+    expect(() => parseQuery('created:2026-01-01..')).toThrow(QuerySyntaxError);
+  });
+
+  it('refuses a comparison with no date after it', () => {
+    expect(() => parseQuery('created:>=')).toThrow(QuerySyntaxError);
+  });
+
+  it('does not read an ordinary value with a dot as a range', () => {
+    // `norma:14.133` is a value somebody typed, not an interval.
+    expect(parseQuery('norma:14.133')).toEqual({
+      kind: 'facet',
+      facet: 'norma',
+      value: '14.133',
+    });
+  });
+
+  it('scores an interval as a filter, the way a facet is scored', () => {
+    // A filter says WHICH notes, never which one is most relevant.
+    expect(score(parseQuery('created:>=2026-01-01'), on('2026-02-15'))).toBe(2);
+  });
+});

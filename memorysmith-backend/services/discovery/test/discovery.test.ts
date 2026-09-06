@@ -491,6 +491,25 @@ describe('Discovery queries', () => {
     expect(found.value[0]?.noteId).toBe('n2');
   });
 
+  it('refuses an interval over an attribute this vault does not hold as a date', async () => {
+    /**
+     * Whether an attribute is a date is a fact about the VAULT, so it cannot
+     * be decided while parsing and it is decided here, once, with the vault in
+     * hand (RN-DSC-034). It is refused rather than answered empty: an empty
+     * result reads as "there is nothing filed under that", and this means "the
+     * question has no answer", which is the difference between fixing the
+     * query and doubting the vault.
+     */
+    const refused = await new SearchNotes(deps).execute({
+      vaultId: VAULT,
+      query: 'maturity:>=evergreen',
+    });
+
+    expect(refused.ok).toBe(false);
+    if (refused.ok) return;
+    expect(refused.error.message).toContain('maturity');
+  });
+
   it('matches the text as written, punctuation included', async () => {
     /**
      * Deliberate: the match is a substring of what the author typed, so
