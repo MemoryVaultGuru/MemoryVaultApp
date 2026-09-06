@@ -792,6 +792,14 @@ Three projections over the same events. All of them **derived** (PE5): deleting 
 | **The two extractors** | `services/discovery`, §11.1 and §11.3 | `test/notation-conformance.test.ts`, running the **published cases**: a case the extractors fail breaks the build |
 | **The reading surface** | `memorysmith-frontend`, the components | `shared/components/reading-surface-conformance.test.tsx`, running each `reading-surface` entry through the real renderer |
 
+**The reading surface is a stack of remark plugins, and each is a plugin rather than a pass over the string for one reason:** a `==` inside a code fence is not a highlight, and only the parser can tell the difference. `remark-callouts.ts` holds the callout; `remark-vault-ring.ts` holds marked text, comments, block identifiers and the dollar rule. Three of them are worth naming here because each carries a decision:
+
+- **`singleTilde: false` on `remark-gfm`.** GFM specifies strikethrough as `~~x~~`; GitHub also accepts one tilde, outside its own specification. Left on, it misrenders the one notation the profile declares absent — `H~2~O` written for a subscript comes out struck through, which is a worse answer than nothing.
+- **`remarkMathDollarRule`, after `remark-math`.** The library opens a formula at any `$` and closes it at the next one, so two prices in one paragraph become mathematics. The plugin gives back to the text any inline formula whose delimiters break the profile's rule, reading the source through the node's position, because the delimiters are gone from the node by then.
+- **No `rehype-raw`, and that absence is the boundary.** Raw HTML is escaped and shown as text, so a note carrying `<script>` is characters on a page. It is asserted with that payload rather than with a `<b>`.
+
+A block embed resolves through `blockOf` in `transclusion.ts`, told apart from a section anchor by the `^` marker rather than by trying one and falling back — a section named `^x` and a block called `x` would otherwise answer for each other.
+
 The split is not tidiness. A rendering assertion cannot live in a JSON file — what a callout looks like is not something a suite can state — so those entries come from the profile and the expectation is written once, beside the components, and a declared entry with no expectation fails the test rather than being discovered later in a browser. That test earned its place on its first run, the same way the published suite did against the extractors.
 
 ### 11.1 The link graph

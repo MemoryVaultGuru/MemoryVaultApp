@@ -7,10 +7,19 @@ import {
 import ReactMarkdown from 'react-markdown';
 import { Link } from 'react-router-dom';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import {
+  remarkBlockIds,
+  remarkComments,
+  remarkHighlight,
+  remarkMathDollarRule,
+} from '../api/remark-vault-ring';
 import { useTranslation } from 'react-i18next';
 import { toUnixNewlines } from '../api/markdown';
 import { ordinalAt } from '../api/tasklist';
 import { remarkCallouts } from '../api/remark-callouts';
+import 'katex/dist/katex.min.css';
 import { MermaidDiagram } from './MermaidDiagram';
 
 interface MarkdownProps {
@@ -154,7 +163,32 @@ export function Markdown({ children, source, onToggleTask, writable = false }: M
   return (
     <div className="markdown">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkCallouts]}
+        remarkPlugins={[
+          /**
+           * `singleTilde: false` is a decision and not a default.
+           *
+           * GFM specifies strikethrough as `~~x~~`; GitHub also accepts a
+           * single tilde, outside its own specification. Here that extension
+           * actively misrenders the one notation the profile declares absent:
+           * somebody writing `H~2~O` for a subscript would get `H` struck-out
+           * `2` `O`, which is a worse answer than nothing. With it off the
+           * characters stay on the page, and the author can see they got what
+           * the profile says they get, which is nothing (profile 5.9).
+           */
+          [remarkGfm, { singleTilde: false }],
+          remarkCallouts,
+          remarkHighlight,
+          remarkComments,
+          remarkBlockIds,
+          remarkMath,
+          // After remark-math, and it gives back what was never a formula.
+          remarkMathDollarRule,
+        ]}
+        // Raw HTML is NOT enabled, and its absence is the point: no
+        // `rehype-raw` is loaded, so a note carrying `<script>` is text. It is
+        // a security boundary rather than a rendering preference, because a
+        // vault is written by several people and by agents (profile 5.10).
+        rehypePlugins={[[rehypeKatex, { throwOnError: false }]]}
         urlTransform={(url) => url}
         components={{
           a: MarkdownAnchor,

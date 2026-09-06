@@ -104,6 +104,51 @@ const EXPECTED: Record<string, (html: string) => void> = {
     expect(html).toContain('A note nobody has written');
     expect(html).not.toContain('[[A note nobody has written]]');
   },
+  highlight: (html) => {
+    expect(html).toContain('<mark>');
+    expect(html).toContain('only for the cases listed in article 75');
+    // The `==` never reaches the screen.
+    expect(html).not.toContain('==');
+  },
+  comment: (html) => {
+    // It leaves the PAGE. That the bytes are untouched is asserted where the
+    // bytes live: `read_note` and the export return them, and nothing here
+    // rewrites a note.
+    expect(html).not.toContain('check this against the 2027 revision');
+    expect(html).not.toContain('%%');
+    // What was written around it stays.
+    expect(html).toContain('The rule holds.');
+  },
+  'block-id': (html) => {
+    // The identifier names the block for an embed to resolve to, and is never
+    // rendered as text.
+    expect(html).toContain('The rule is stated once, here.');
+    expect(html).not.toContain('^article-75');
+  },
+  'math-inline': (html) => {
+    expect(html).toContain('katex');
+    expect(html).not.toContain('$n');
+  },
+  'math-block': (html) => {
+    expect(html).toContain('katex');
+    expect(html).not.toContain('$$');
+  },
+  'sub-sup': (html) => {
+    // Rejected, so the characters stay on the page: the author sees they got
+    // nothing, which is what the profile says they get. What must NOT happen
+    // is the tilde turning into strikethrough, which is a worse answer than
+    // none — it is why `singleTilde` is off.
+    expect(html).toContain('H~2~O');
+    expect(html).not.toContain('<sub>');
+    expect(html).not.toContain('<sup>');
+    expect(html).not.toContain('<del>');
+  },
+  'raw-html': (html) => {
+    // Not rendered: the tag is text. This is the security boundary, and the
+    // `<script>` case below is the one that matters.
+    expect(html).toContain('&lt;b&gt;read the act&lt;/b&gt;');
+    expect(html).not.toContain('<b>read the act</b>');
+  },
   'task-list': (html) => {
     // What the profile declares: a box per item, carrying the state written in
     // the source, both ways round. One box per item and not two, which is what
@@ -178,5 +223,63 @@ describe('a rejected notation is rendered as what it is: text', () => {
 
   it('declares rejections at all, so this list cannot quietly empty out', () => {
     expect(rejected.map((entry) => entry.id)).toContain('inline-tag');
+    expect(rejected.map((entry) => entry.id)).toContain('raw-html');
+    expect(rejected.map((entry) => entry.id)).toContain('sub-sup');
+  });
+});
+
+/**
+ * The raw HTML policy is a **security boundary** and not a rendering
+ * preference, which is why it is asserted with the payload that would matter
+ * rather than with a `<b>` (profile 5.10). A vault is written by several
+ * people and by agents; a page that renders arbitrary HTML out of one is a
+ * script injection whose trigger is written by whoever wrote the note.
+ */
+describe('raw HTML in a note is text, and stays text', () => {
+  it('does not render a script tag', () => {
+    const html = render('Before. <script>window.stolen = document.cookie</script> After.');
+
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).toContain('Before.');
+    expect(html).toContain('After.');
+  });
+
+  it('does not render an event handler smuggled onto an element', () => {
+    const html = render('<img src="x" onerror="window.stolen = 1">');
+
+    // The whole tag is text, so the handler is characters on a page and not
+    // an attribute of anything: there is no element for it to be on.
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&lt;img');
+    expect(html).toContain('onerror=&quot;');
+  });
+
+  it('does not render an iframe', () => {
+    const html = render('<iframe src="https://example.org"></iframe>');
+
+    expect(html).not.toContain('<iframe');
+  });
+});
+
+/**
+ * The `$` that is not math. A price and a shell variable are text, and the
+ * profile says so in as many words, so the negatives are asserted next to the
+ * positives rather than left to the library.
+ */
+describe('a dollar sign that is not opening a formula stays a dollar sign', () => {
+  it('leaves a price alone', () => {
+    const html = render('The licence costs $30 a month, and the plan $60.');
+
+    expect(html).toContain('$30');
+    expect(html).toContain('$60');
+    expect(html).not.toContain('katex');
+  });
+
+  it('leaves a shell variable alone', () => {
+    const html = render('Run it with $HOME set.');
+
+    expect(html).toContain('$HOME');
+    expect(html).not.toContain('katex');
   });
 });
