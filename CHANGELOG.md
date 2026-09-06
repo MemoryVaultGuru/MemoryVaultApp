@@ -11,6 +11,8 @@ issues each entry cites.
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-09-06
+
 ### Changed
 
 - **The messages the product sends are written by the product.** What arrived until now was the identity provider's factory text — `Your username is x and temporary password is y.` — with no sentence of ours, no word about what MemorySmith is, and in English whatever language the account speaks. It is the screen **before** the sign-in page, which is fully dressed in the brand, so the seam showed at the worst possible moment. The invitation and the code now say what they are, what to do next and what to do if you were not expecting them, in Portuguese and in English. Three messages come out of two templates, because Cognito uses the verification one for both the confirmation code and the forgotten password, so that text is written to serve both errands without claiming which it is. **The sender is unchanged:** it is still the provider's address, capped at 50 messages a day, because changing it needs SES out of the sandbox — a request to AWS with a human on the other side, which is what keeps #57 open. (#83)
@@ -245,7 +247,8 @@ Search by meaning left the version, with the whole vector index: the explanation
 
 - The HMAC key signing the `state` of the CIMD proxy moved from a Lambda environment variable to Secrets Manager, read at runtime. As an environment variable the value sat in clear text.
 
-[Unreleased]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.4...HEAD
+[Unreleased]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.5...HEAD
+[0.5.5]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.1...v0.5.2

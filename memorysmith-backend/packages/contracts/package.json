@@ -1,6 +1,6 @@
 {
   "name": "@memorysmith/contracts",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "private": true,
   "type": "module",
   "description": "Zod schemas of the domain events and of the API DTOs: the only backend package the frontend imports, and it imports types only.",
