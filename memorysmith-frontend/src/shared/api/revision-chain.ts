@@ -17,8 +17,12 @@
 export interface RevisionChain {
   /** What the next write will be based on. */
   readonly current: string | null;
-  /** Writes, and adopts the revision the write produced. */
-  write(text: string): Promise<void>;
+  /**
+   * Writes, and adopts the revision the write produced. `keepalive` is for a
+   * write made while the page is going away: the browser finishes it after
+   * the document is gone.
+   */
+  write(text: string, options?: { keepalive?: boolean }): Promise<void>;
   /**
    * Takes the revision the server states, discarding whatever this chain
    * holds. A reload wins: it comes from the server, and what is held here is
@@ -28,7 +32,11 @@ export interface RevisionChain {
 }
 
 export function revisionChain(
-  write: (input: { raw: string; baseRevision: string | null }) => Promise<string>,
+  write: (input: {
+    raw: string;
+    baseRevision: string | null;
+    keepalive?: boolean;
+  }) => Promise<string>,
   initial: string | null,
   /**
    * Announced when a write LANDS, which is the same moment the revision
@@ -46,12 +54,12 @@ export function revisionChain(
     get current(): string | null {
       return current;
     },
-    async write(text: string): Promise<void> {
+    async write(text: string, options: { keepalive?: boolean } = {}): Promise<void> {
       // The assignment happens only on success: a write that failed retired
       // nothing, and the revision in hand is still the right one to retry on.
       // The announcement is on the same line of reasoning: nothing landed, so
       // there is nothing for the surface to read back.
-      current = await write({ raw: text, baseRevision: current });
+      current = await write({ raw: text, baseRevision: current, ...options });
       onWritten();
     },
     reset(to: string | null): void {

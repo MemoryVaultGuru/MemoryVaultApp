@@ -1,6 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useCallback, useEffect } from 'react';
 import { splitEmbeds } from '../api/transclusion';
 import { resolveWikilinks } from '../api/markdown';
 import { taskBoxes, toggleTaskAt } from '../api/tasklist';
@@ -8,6 +7,7 @@ import { resolveNoteUrl } from '../api/source';
 import { Markdown } from './Markdown';
 import { Transclusion } from './Transclusion';
 import { useGroupedWrite, type TaskWriter } from './TaskListWriter';
+import { useWriteStatus } from '../store/write-status';
 
 /**
  * A reading surface whose task boxes can be ticked, when the effective role in
@@ -36,7 +36,6 @@ export function WritableContent({
   write: TaskWriter;
   invalidates: unknown[];
 }) {
-  const { t } = useTranslation();
   const client = useQueryClient();
 
   /**
@@ -48,7 +47,14 @@ export function WritableContent({
     void client.invalidateQueries({ queryKey: invalidates });
   }, [client, invalidates]);
 
-  const { text, toggle, failure } = useGroupedWrite({
+  /**
+   * The status belongs to the document being read. Leaving it clears the
+   * frame, so a message never outlives what it was about — a "saved" left
+   * hanging over another note is a claim about that other note.
+   */
+  useEffect(() => () => useWriteStatus.getState().clear(), []);
+
+  const { text, toggle } = useGroupedWrite({
     raw,
     baseRevision,
     write,
@@ -105,7 +111,9 @@ export function WritableContent({
 
   return (
     <>
-      {failure && <p className="status write-failed">{t(failure)}</p>}
+      {/* What happened to the write is said in the frame of the screen, by
+          `WriteStatus`. Here it was a paragraph of the note: it scrolled away
+          with the text and was never seen from where the box was clicked. */}
       {segments.map((segment, index) => {
         if (!('rendered' in segment)) {
           return (

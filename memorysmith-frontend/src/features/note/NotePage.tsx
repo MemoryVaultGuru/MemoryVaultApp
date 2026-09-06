@@ -105,8 +105,13 @@ export function NotePage({ noteSlug }: { noteSlug: string }) {
         vaultSlug={vaultSlug}
         baseRevision={data.revision}
         writable={canWrite(structure.effectiveRole)}
-        write={({ raw, baseRevision }) =>
-          updateNote(vaultSlug, data.id, { content: raw, baseRevision: baseRevision ?? '' })
+        write={({ raw, baseRevision, keepalive }) =>
+          updateNote(
+            vaultSlug,
+            data.id,
+            { content: raw, baseRevision: baseRevision ?? '' },
+            { keepalive: keepalive ?? false },
+          )
         }
         invalidates={['note', vaultSlug, noteSlug]}
       />

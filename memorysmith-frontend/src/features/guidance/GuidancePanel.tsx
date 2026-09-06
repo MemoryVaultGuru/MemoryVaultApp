@@ -20,7 +20,9 @@ export function GuidancePanel() {
           vaultSlug={vaultSlug}
           baseRevision={structure.guidanceRevision}
           writable={canWrite(structure.effectiveRole)}
-          write={({ raw, baseRevision }) => putGuidance(vaultSlug, raw, baseRevision)}
+          write={({ raw, baseRevision, keepalive }) =>
+            putGuidance(vaultSlug, raw, baseRevision, { keepalive: keepalive ?? false })
+          }
           invalidates={['vault-structure', vaultSlug]}
         />
       ) : (

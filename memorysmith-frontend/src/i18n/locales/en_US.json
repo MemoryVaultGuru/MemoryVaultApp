@@ -1,4 +1,9 @@
 {
+  "write": {
+    "unsaved": "Unsaved changes",
+    "saving": "Saving…",
+    "saved": "Saved"
+  },
   "reserved": {
     "aliases": "Aliases",
     "tags": "Tags",
