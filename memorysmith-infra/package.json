@@ -1,6 +1,6 @@
 {
   "name": "@memorysmith/infra",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
   "type": "module",
   "description": "All CDK for MemorySmith: stacks, constructs, IAM policies and the pipeline.",
