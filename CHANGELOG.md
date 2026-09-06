@@ -11,6 +11,10 @@ issues each entry cites.
 
 ## [Unreleased]
 
+### Changed
+
+- **The messages the product sends are written by the product.** What arrived until now was the identity provider's factory text — `Your username is x and temporary password is y.` — with no sentence of ours, no word about what MemorySmith is, and in English whatever language the account speaks. It is the screen **before** the sign-in page, which is fully dressed in the brand, so the seam showed at the worst possible moment. The invitation and the code now say what they are, what to do next and what to do if you were not expecting them, in Portuguese and in English. Three messages come out of two templates, because Cognito uses the verification one for both the confirmation code and the forgotten password, so that text is written to serve both errands without claiming which it is. **The sender is unchanged:** it is still the provider's address, capped at 50 messages a day, because changing it needs SES out of the sandbox — a request to AWS with a human on the other side, which is what keeps #57 open. (#83)
+
 ## [0.5.4] - 2026-09-06
 
 ### Fixed
