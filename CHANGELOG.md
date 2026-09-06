@@ -11,6 +11,8 @@ issues each entry cites.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-06
+
 ### Added
 
 - **Two vaults show the profile working, one in en-US and one in pt-BR.** The notation was proved in tests and demonstrated nowhere, and none of what proves it can be read by a person deciding whether to bring their knowledge here. `continuity-engineering` and `enologia` are the only artefact of the profile that is documentation, demonstration and fixture at once: every declared notation of the three rings appears in each of them **in context** — an alias that finds a note by its acronym, an embed that expands to a single identified block, a formula the subject actually uses, a checklist that writes back — and so does every rejection, written where somebody would have reached for it and beside the sentence saying what to write instead. They are **not translations of each other**: the same notations carried by different subject matter, which is what lets the pair show the four reserved keys in en-US on both sides while `regiao`, `tipo` and `colhida_em` stay in the language of whoever keeps the vault. A test guards both directions — every declared entry appears in each vault, and neither vault demonstrates a notation the profile does not declare — because a hand-written vault is the first thing to age when a notation changes, and it ages while teaching the wrong version to precisely the person who is learning. (#69)
@@ -208,7 +210,8 @@ Search by meaning left the version, with the whole vector index: the explanation
 
 - The HMAC key signing the `state` of the CIMD proxy moved from a Lambda environment variable to Secrets Manager, read at runtime. As an environment variable the value sat in clear text.
 
-[Unreleased]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.2.0...v0.3.0
