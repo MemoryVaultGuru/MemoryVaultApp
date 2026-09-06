@@ -96,10 +96,11 @@ export class VaultRoleLimit {
   static readonly VIEWER = new VaultRoleLimit(Role.VIEWER);
 
   static create(raw: string): Result<VaultRoleLimit, DomainError> {
+    // RN-ACC-012. The code stays in this comment and out of the message: an
+    // error message is served text, and it addresses whoever called the API,
+    // who has no document to resolve the code against (RN-AGT-021).
     if (raw !== 'VIEWER') {
-      return err(
-        DomainError.validation('The only admitted vault role limit is VIEWER (RN-ACC-012)'),
-      );
+      return err(DomainError.validation('The only admitted vault role limit is VIEWER'));
     }
     return ok(VaultRoleLimit.VIEWER);
   }
