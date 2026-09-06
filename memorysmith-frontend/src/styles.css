@@ -367,22 +367,22 @@ a:hover {
 /* ── The reading surface ────────────────────────────────────────────────────
    A note, a Guidance, a folder page and a template are read here the way the
    vault that wrote them is read, so the rendered Markdown follows the metrics
-   of the Obsidian default theme: its heading scale, its paragraph and list
-   spacing, its quiet blockquote, its code and table treatment, its callouts
-   and its property rows.
+   of the default theme of the desktop vault editors: its heading scale, its
+   paragraph and list spacing, its quiet blockquote, its code and table
+   treatment, its callouts and its property rows.
 
-   What it does NOT take is the palette. Obsidian's own white ground and purple
-   accent would put a second brand inside the product, so every colour below
-   comes from the brand book and is merely wired into the role Obsidian gives
-   it. Structure from there, colour from here.
+   What it does NOT take is the palette. The white ground and purple accent of
+   that theme would put a second brand inside the product, so every colour
+   below comes from the brand book and is merely wired into the role the theme
+   gives it. Structure from there, colour from here.
 
    Inside this surface headings are set in the text face and not in Space
    Grotesk, which is the one place the brand's display face steps aside: what
    is drawn here is the vault's content, not the product's chrome, and the
-   modular scale is half of why an Obsidian note reads as one. */
+   modular scale is half of why a note in those editors reads as one. */
 
 .content-pane {
-  /* 700px of text, which is Obsidian's readable line length, plus the pane. */
+  /* 700px of text, the readable line length of those editors, plus the pane. */
   max-width: 48.75rem;
   margin: 0 auto;
   padding: 2rem 2.5rem 4rem;
@@ -492,7 +492,7 @@ a:hover {
    their own to say. */
 .markdown blockquote {
   /* The 40px the browser gives a blockquote by default would land on top of
-     Obsidian's own indent and push the quotation into the middle of the page. */
+     the theme's own indent and push the quotation into the middle of the page. */
   margin: var(--p-spacing) 0;
   padding: 0 0 0 1.5em;
   border: 0;
@@ -561,8 +561,8 @@ a:hover {
 
 /* The line icons a callout and a property row wear, as masks rather than
    images: one file per shape, tinted at use by whatever colour the element
-   already carries. They are the Lucide set the Obsidian default theme draws
-   with, at its own 24-unit grid and 2-unit stroke. */
+   already carries. They are the Lucide set the reference theme draws with, at
+   its own 24-unit grid and 2-unit stroke. */
 :root {
   --icon-pencil: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 20h9'/%3E%3Cpath d='M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z'/%3E%3C/svg%3E");
   --icon-info: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E");
@@ -584,7 +584,7 @@ a:hover {
    The element the vault meant when it wrote `> [!warning]`, drawn the way the
    default theme draws it: a tinted field, a coloured title and a line icon.
    The icon is a mask and not an image, so it takes the colour of the callout
-   without a second file per hue, which is Obsidian's own technique.
+   without a second file per hue, which is the reference theme's own technique.
 
    The hues are semantic and not decorative: blue informs, green confirms, amber
    warns, red stops. They start from the brand's own, and each is then taken
@@ -704,18 +704,18 @@ a:hover {
 }
 
 /* ── Properties ─────────────────────────────────────────────────────────────
-   What the note says about itself, in the shape Obsidian gives it: one row per
-   key, the key muted and named by an icon for what kind of value it holds, the
-   value in the reading colour. It replaces a two-column table, which put the
-   keys and the values in a grid that grew with the longest key and left the
-   short ones adrift.
+   What the note says about itself, in the shape the editors give it: one row
+   per key, the key muted and named by an icon for what kind of value it holds,
+   the value in the reading colour. It replaces a two-column table, which put
+   the keys and the values in a grid that grew with the longest key and left
+   the short ones adrift.
 
    The block opens by default. It is where a reader checks the note against
    what the graph says of it, and a panel that has to be found first is a panel
    that answers the wrong question. */
-/* Not a card: in Obsidian the properties sit in the flow of the page, under
-   the title and above the prose, parted from it by a single rule. A card here
-   would read as an aside, which is the one thing they are not. */
+/* Not a card: in those editors the properties sit in the flow of the page,
+   under the title and above the prose, parted from it by a single rule. A card
+   here would read as an aside, which is the one thing they are not. */
 .properties-box {
   margin: 0 0 1.5rem;
   padding: 0 0 0.85rem;

@@ -63,7 +63,7 @@ Two forms coexist in file-based knowledge bases:
 | Form | Syntax | Origin | Standardised? |
 |---|---|---|---|
 | **Relative Markdown link** | `[text](../folder/note.md)` | CommonMark | Yes |
-| **Wikilink** | `[[note]]` or `[[note\|text]]` | Wikis (WikiWikiWeb, 1995); repopularised by Roam Research and Obsidian | No |
+| **Wikilink** | `[[note]]` or `[[note\|text]]` | Wikis (WikiWikiWeb, 1995); repopularised by Roam Research and the vault editors that followed it | No |
 
 The wikilink resolves by **name**, not by path: whoever writes it does not have to know where the target lives. That is why it dominates in personal bases, where notes move between folders often. The relative link, by contrast, breaks whenever either of the two notes changes place, which makes it a poor choice for content that will be reorganised.
 
@@ -73,7 +73,7 @@ Details any resolver has to decide:
 - **The anchor.** `[[note#section]]` points at a heading inside the note.
 - **The alias.** `[[note|how it reads in the text]]` separates target from label.
 - **The scope.** The name is unique within what? The folder, the whole base, the system?
-- **A non-existent target.** In Obsidian and similar tools, a link to a note that does not exist yet is valid and becomes the gesture of creating it. Discarding it impoverishes the graph precisely while the base is being written.
+- **A non-existent target.** In the vault editors, a link to a note that does not exist yet is valid and becomes the gesture of creating it. Discarding it impoverishes the graph precisely while the base is being written.
 
 ### 1.4 Why Markdown won for knowledge bases
 
@@ -90,7 +90,7 @@ The last point is what changed the calculation in recent years: a format humans 
 
 ### 2.1 The canonical arrangement
 
-The de facto standard in personal knowledge management (PKM) is a **folder of `.md` files**, versioned or synced, opened by an editor that understands links between notes. Obsidian calls that folder a *vault*; Logseq, Foam, Dendron, Zettlr and others use the same arrangement under different names.
+The de facto standard in personal knowledge management (PKM) is a **folder of `.md` files**, versioned or synced, opened by an editor that understands links between notes. That folder is what those editors call a *vault*; Logseq, Foam, Dendron, Zettlr and others use the same arrangement under different names.
 
 What those tools add to the file system:
 
@@ -545,7 +545,7 @@ A file system does not have some concepts a base has: order among siblings, a fo
 | **PRM** | *Protected Resource Metadata* (RFC 9728) |
 | **RAG** | *Retrieval-Augmented Generation* |
 | **Streamable HTTP** | The HTTP transport of MCP for remote servers |
-| **Vault** | A folder of notes treated as a knowledge base by editors such as Obsidian |
+| **Vault** | A folder of notes treated as a knowledge base by a file-based editor |
 | **Wikilink** | A link by name in the `[[target]]` form; a convention, not a standard |
 | **WORM** | *Write Once, Read Many*, non-rewritable storage |
 | **Zettelkasten** | A method of interlinked atomic notes |
@@ -587,4 +587,3 @@ A file system does not have some concepts a base has: order among siblings, a fo
 **Knowledge practice**
 - Ahrens, S. *How to Take Smart Notes* (Zettelkasten)
 - Forte, T. *Building a Second Brain* (PARA)
-- Obsidian, documentation on vaults, links and templates: <https://help.obsidian.md/>

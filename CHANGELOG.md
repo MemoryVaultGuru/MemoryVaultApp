@@ -11,6 +11,10 @@ issues each entry cites.
 
 ## [Unreleased]
 
+### Changed
+
+- **The repository no longer names the editor whose reading metrics the interface follows.** The comments of the stylesheet and of the Markdown readers, `docs/knowledge-base.md`, `docs/software-vision.md` §13.2, `CLAUDE.md` and the entry of 0.3.0 now speak of the desktop vault editors as a family, which is what the decision was always about: the metrics are shared by the tools that read a folder of Markdown files, and naming one of them read as a dependency the product does not have. The content of the example vaults is untouched, because it is vault content and not repository documentation, and `.obsidian/` stays in `.gitignore`, in `.dockerignore` and in the ignore list of `build-vaults.mjs`, because there it is the name of a directory on disk and not a citation.
+
 ## [0.4.1] - 2026-09-04
 
 ### Fixed
@@ -77,7 +81,7 @@ The version that makes 0.2.0 stand up to use. No new bounded context and no new 
 
 - **The interface fits the screen it is read on.** The stylesheet had not a single media query. Two breakpoints entered, each with a reason that can be measured: at `1180px` the sidebar yields width first, and at `860px` it becomes a drawer over the content. The panel grids, the folder tree row height, the carousel arrows and the window height in `dvh` came along.
 - **The graph became a tool instead of a drawing.** The controls moved to a panel over the drawing; it is assembled from one switch per attribute, with no exclusive choice; each attribute gets a colour, and the colour belongs to the attribute and not to the value; clicking a value vertex holds its group, taking the rest of the vault off the screen instead of merely fading it; and it answers touch and resizes.
-- **The reading surface follows the metrics of the default Obsidian theme**, because whoever reads the vault here wrote it there: the modular heading scale, the paragraph and list spacing, the 700px reading column, callouts as the elements Obsidian draws, and the note properties in the Obsidian panel. The palette stays the brand's.
+- **The reading surface follows the metrics of the default theme of the desktop vault editors**, because whoever reads the vault here wrote it there: the modular heading scale, the paragraph and list spacing, the 700px reading column, callouts as the elements those editors draw, and the note properties in their own panel. The palette stays the brand's.
 - **Renaming and rewriting a note in the same call publishes one event, not two.** `NoteUpdated` is a portrait and not a difference, and the pair could arrive out of order, reindexing the note from the old content.
 - **The facet projection reads every page of the vault and applies every delta.** A `Query` answers at most 1 MB, and a DynamoDB transaction carries a hundred items; both ceilings were silently truncating counters, permanently.
 - **Note properties come back when the file was written with Windows line endings.** The frontmatter reader of the interface only understood `LF`, so every key with a value was silently discarded, on three quarters of the notes of the environment. It now reads the block the way the Discovery projection reads it, because the graph groups by what the projection saw and the property table is where somebody checks it.

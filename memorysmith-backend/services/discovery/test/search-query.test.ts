@@ -125,9 +125,9 @@ describe('Any attribute of the vault becomes a filter, with no code for it', () 
 
 describe('A word invented inside one note is findable, which is the point', () => {
   /**
-   * The behaviour observed in Obsidian and reproduced here: a term that is
-   * neither a link nor a tag nor part of the title, written once in the body,
-   * comes back pointing at its note.
+   * The behaviour observed in the vault editors and reproduced here: a term
+   * that is neither a link nor a tag nor part of the title, written once in
+   * the body, comes back pointing at its note.
    */
   const invented = note({
     content: normalize('Um paragrafo qualquer com xpto010101 escrito no meio.'),

@@ -17,9 +17,9 @@ export interface SplitDocument {
 }
 
 /**
- * A note is bytes the vault wrote, and a vault written on Windows, or in
- * Obsidian, or pasted from anywhere, carries CRLF. Every reader in this module
- * starts here, because a carriage return left at the end of a line is
+ * A note is bytes the vault wrote, and a vault written on Windows, or in a
+ * desktop editor, or pasted from anywhere, carries CRLF. Every reader in this
+ * module starts here, because a carriage return left at the end of a line is
  * invisible in the source and fatal to a regex: `.` does not match one, so
  * `(.*)$` fails on exactly the lines that have a value.
  */
