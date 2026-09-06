@@ -11,6 +11,8 @@ issues each entry cites.
 
 ## [Unreleased]
 
+## [0.5.6] - 2026-09-06
+
 ### Changed
 
 - **The product reads the MemorySmith Markdown Profile at v0.3.0, where the ring it implements is called by its own name.** The third ring is `memorysmith` and no longer `vault`, which was the whole compatibility break of that release — and the name travelled further than the type: two modules, a skill and a paragraph of the vision were renamed with it. Every section reference of the specification moved by two chapters, so the six citations in the code now point at what they name again. (#85)
