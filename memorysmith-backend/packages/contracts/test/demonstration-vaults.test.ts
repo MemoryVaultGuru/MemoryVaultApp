@@ -80,11 +80,6 @@ function titlesOf(notes: Note[]): Set<string> {
 /** Whether any note of the vault demonstrates the notation of this id. */
 type Detector = (notes: Note[]) => boolean;
 
-const some =
-  (test: (note: Note) => boolean): Detector =>
-  (notes) =>
-    notes.some(test);
-
 const inBody =
   (pattern: RegExp): Detector =>
   (notes) =>
