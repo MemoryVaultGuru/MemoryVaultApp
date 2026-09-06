@@ -14,7 +14,7 @@ import {
   remarkComments,
   remarkHighlight,
   remarkMathDollarRule,
-} from '../api/remark-vault-ring';
+} from '../api/remark-memorysmith-ring';
 import { useTranslation } from 'react-i18next';
 import { toUnixNewlines } from '../api/markdown';
 import { ordinalAt } from '../api/tasklist';

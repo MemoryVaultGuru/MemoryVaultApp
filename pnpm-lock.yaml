@@ -7,8 +7,8 @@ settings:
 catalogs:
   default:
     '@memorysmith/markdown-profile':
-      specifier: github:memorysmithapp/markdown-profile#v0.2.0
-      version: 0.2.0
+      specifier: github:memorysmithapp/markdown-profile#v0.3.0
+      version: 0.3.0
 
 importers:
 
@@ -90,7 +90,7 @@ importers:
     dependencies:
       '@memorysmith/markdown-profile':
         specifier: 'catalog:'
-        version: https://codeload.github.com/memorysmithapp/markdown-profile/tar.gz/91253427099f4b2960ed371e18f0b7a7505e9a45
+        version: https://codeload.github.com/memorysmithapp/markdown-profile/tar.gz/38b7d2bc3490db05e8d87d18e2b677ef659f80ef
       zod:
         specifier: ^4.0.0
         version: 4.4.3
@@ -277,7 +277,7 @@ importers:
     devDependencies:
       '@memorysmith/markdown-profile':
         specifier: 'catalog:'
-        version: https://codeload.github.com/memorysmithapp/markdown-profile/tar.gz/91253427099f4b2960ed371e18f0b7a7505e9a45
+        version: https://codeload.github.com/memorysmithapp/markdown-profile/tar.gz/38b7d2bc3490db05e8d87d18e2b677ef659f80ef
       '@types/d3-force':
         specifier: ^3.0.10
         version: 3.0.10
@@ -941,9 +941,10 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@memorysmith/markdown-profile@https://codeload.github.com/memorysmithapp/markdown-profile/tar.gz/91253427099f4b2960ed371e18f0b7a7505e9a45':
-    resolution: {gitHosted: true, integrity: sha512-DBWMK3gqQgdIpylTOoKMvz04C9J6oOz9RLDv6hipwemzzv2XYsC1NHPhhDkKpz1RvolC3Cjce2JVJfLMFG3QUA==, tarball: https://codeload.github.com/memorysmithapp/markdown-profile/tar.gz/91253427099f4b2960ed371e18f0b7a7505e9a45}
-    version: 0.2.0
+  '@memorysmith/markdown-profile@https://codeload.github.com/memorysmithapp/markdown-profile/tar.gz/38b7d2bc3490db05e8d87d18e2b677ef659f80ef':
+    resolution: {gitHosted: true, integrity: sha512-KmkuUjxANBNTqP6n1T+J6/YLVlmCcbsgUIFP7K/GKgxKZkYU8nxBdCcLq9kEhAnnbipb3AGhPNW1aamqsuryeQ==, tarball: https://codeload.github.com/memorysmithapp/markdown-profile/tar.gz/38b7d2bc3490db05e8d87d18e2b677ef659f80ef}
+    version: 0.3.0
+    engines: {node: '>=20'}
 
   '@mermaid-js/parser@1.2.1':
     resolution: {integrity: sha512-n12NohV3mrUyUL2o93IgG/ifeW9FTyeJn3zDxkhwa8MJ9Fxg3HQMlA3RiGmD/3UnJvheztkjjQAjA2T4LmUcpw==}
@@ -3416,7 +3417,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@memorysmith/markdown-profile@https://codeload.github.com/memorysmithapp/markdown-profile/tar.gz/91253427099f4b2960ed371e18f0b7a7505e9a45': {}
+  '@memorysmith/markdown-profile@https://codeload.github.com/memorysmithapp/markdown-profile/tar.gz/38b7d2bc3490db05e8d87d18e2b677ef659f80ef': {}
 
   '@mermaid-js/parser@1.2.1':
     dependencies:

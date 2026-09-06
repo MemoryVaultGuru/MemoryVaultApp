@@ -15,4 +15,4 @@ allowBuilds:
 # proved against the same cases -- and a catalog is what keeps them from
 # pinning two different versions of the same specification.
 catalog:
-  '@memorysmith/markdown-profile': github:memorysmithapp/markdown-profile#v0.2.0
+  '@memorysmith/markdown-profile': github:memorysmithapp/markdown-profile#v0.3.0

@@ -108,3 +108,74 @@ describe('an embed is a link, and the graph does not tell them apart (RN-DSC-029
     expect(extractLinks('![[Lei 14.133]] and again [[Lei 14.133]]')).toHaveLength(1);
   });
 });
+
+/**
+ * The crossings: where this profile changes what the base ring means.
+ *
+ * Profile v0.3.0 restated CommonMark and GFM as data, and the value of those
+ * entries is not the syntax — it is the `effect` each one states, which is
+ * where knowing CommonMark is not enough to predict what happens here. Each
+ * case below quotes one of them, so what is being read is the profile and not
+ * our habits.
+ */
+describe('a base notation that means something different here', () => {
+  it('reads the three link forms as one link, decided by the destination', () => {
+    // `link-reference`: the three forms are equivalent once resolved, and the
+    // destination decides the edge exactly as in the inline form.
+    const full = extractLinks('See [the text][ref].\n\n[ref]: ./lei-14133.md\n');
+    const collapsed = extractLinks('See [lei 14133][].\n\n[lei 14133]: ./lei-14133.md\n');
+    const shortcut = extractLinks('See [lei 14133].\n\n[lei 14133]: ./lei-14133.md\n');
+    const inline = extractLinks('See [the text](./lei-14133.md).');
+
+    expect(full.map((link) => link.slug)).toEqual(['lei-14133']);
+    expect(collapsed.map((link) => link.slug)).toEqual(['lei-14133']);
+    expect(shortcut.map((link) => link.slug)).toEqual(['lei-14133']);
+    expect(inline.map((link) => link.slug)).toEqual(['lei-14133']);
+  });
+
+  it('matches a label whatever its case and internal spacing', () => {
+    const links = extractLinks('See [Lei   14133][].\n\n[lei 14133]: ./lei-14133.md\n');
+    expect(links.map((link) => link.slug)).toEqual(['lei-14133']);
+  });
+
+  it('keeps an external destination external, in the reference form too', () => {
+    // RN-DSC-003 is about the destination, not about the form it was written
+    // in, and `autolink-extended` says the same of a bare address.
+    expect(extractLinks('See [the site][s].\n\n[s]: https://example.org/x\n')).toEqual([]);
+    expect(extractLinks('The text is at https://example.org/lei-14133.')).toEqual([]);
+  });
+
+  it('produces no edge from a definition nobody used', () => {
+    // `link-reference-definition`: it renders nothing where it stands. It is a
+    // destination waiting to be used, and an unused one is not a reference.
+    expect(extractLinks('[ref]: ./lei-14133.md\n')).toEqual([]);
+  });
+
+  it('does not read a task box as a reference', () => {
+    expect(extractLinks('- [x] Read the act\n- [ ] Summarise it\n')).toEqual([]);
+  });
+
+  it('reads a wikilink inside a table cell, because a cell is not a boundary', () => {
+    // `table`: a cell is a place text lives and not a boundary an Indexer
+    // stops at.
+    const links = extractLinks(
+      '| Note | Where |\n| --- | --- |\n| [[Lei 14.133]] | Article 75 |\n',
+    );
+    expect(links.map((link) => link.slug)).toEqual(['lei-14133']);
+  });
+
+  it('reads a link indented as code, and says so rather than guessing', () => {
+    // `code-indented` says an indented block suppresses notation exactly as a
+    // fenced one does, and this reader does not implement it. Telling four
+    // spaces of code from four spaces of a nested list item needs the block
+    // context a parser has and this one does not (PP4). Of the two ways to be
+    // wrong, a spurious pending link is cheap and a dropped edge is the graph
+    // lying about the vault. The declared behaviour is this one.
+    expect(extractLinks('Prose.\n\n    [[Lei 14.133]]\n').map((l) => l.slug)).toEqual([
+      'lei-14133',
+    ]);
+    // The two forms that ARE implemented, next to it, so the line is visible.
+    expect(extractLinks('```\n[[Lei 14.133]]\n```\n')).toEqual([]);
+    expect(extractLinks('Write `[[Lei 14.133]]` to link.')).toEqual([]);
+  });
+});

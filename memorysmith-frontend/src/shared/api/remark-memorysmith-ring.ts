@@ -1,6 +1,6 @@
 /**
- * The rest of the vault ring, on the reading surface: marked text, comments
- * and block identifiers (profile §5.5, §5.6, §5.7).
+ * The rest of the MemorySmith ring, on the reading surface: marked text, comments
+ * and block identifiers (profile §7.5, §7.6, §7.7).
  *
  * All three are remark plugins rather than passes over the string, for the
  * reason `remark-callouts.ts` already gives: a `==` inside a code fence is not
@@ -33,7 +33,7 @@ function isText(node: MdastNode): boolean {
 }
 
 /**
- * `==highlight==` becomes marked text (§5.5).
+ * `==highlight==` becomes marked text (§7.5).
  *
  * It carries no meaning beyond emphasis: no edge, no attribute, no index
  * entry. The `==` never reaches the screen.
@@ -55,7 +55,7 @@ export function remarkHighlight() {
 }
 
 /**
- * `%%comment%%` leaves the page and stays in the file (§5.6).
+ * `%%comment%%` leaves the page and stays in the file (§7.6).
  *
  * The asymmetry is the decision and it is declared, not discovered: the bytes
  * are untouched, so `read_note` returns the comment and the export writes it,
@@ -79,7 +79,7 @@ export function remarkComments() {
 }
 
 /**
- * `^identifier` at the end of a block names that block (§5.7), and is never
+ * `^identifier` at the end of a block names that block (§7.7), and is never
  * rendered as text. What it names is resolved by the embed, not here: this
  * plugin only keeps the marker off the page.
  */
@@ -103,7 +103,7 @@ interface Positioned extends MdastNode {
 }
 
 /**
- * The `$` that is not math (profile §5.8).
+ * The `$` that is not math (profile §7.8).
  *
  * `remark-math` opens a formula at any `$` and closes it at the next one, so
  * **two prices in one paragraph become a formula**: `costs $30 a month, and

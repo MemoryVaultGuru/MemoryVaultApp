@@ -35,10 +35,21 @@ import profile from '@memorysmith/markdown-profile/profile.json' with { type: 'j
 import conformance from '@memorysmith/markdown-profile/conformance.json' with { type: 'json' };
 
 /**
- * Which ring the notation belongs to. `vault` is what this profile specifies;
- * `extended` is GFM and CommonMark, inherited and not ours to define.
+ * Which ring the notation belongs to.
+ *
+ * `base` is CommonMark and `extended` is GFM, both inherited and neither ours
+ * to define; `memorysmith` is what this profile specifies. The third ring was
+ * called `vault` until profile v0.3.0, and renaming it removed a collision:
+ * in a document that says "vault" on nearly every page for the thing a person
+ * keeps, the same word also named a layer of the specification.
+ *
+ * The two inherited rings are restatements, and the profile is explicit that
+ * where a restatement and its source disagree, **the source governs**. What
+ * makes them worth carrying here is not the syntax — it is the crossings each
+ * entry declares, which is where this profile changes what the base means: a
+ * wikilink inside a code span is not an edge, one inside a table cell is.
  */
-export type NotationRing = 'vault' | 'extended';
+export type NotationRing = 'base' | 'extended' | 'memorysmith';
 
 /**
  * Who decides this notation. The first two are the sanctioned extractors of

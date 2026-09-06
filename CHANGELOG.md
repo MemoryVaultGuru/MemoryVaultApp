@@ -11,6 +11,16 @@ issues each entry cites.
 
 ## [Unreleased]
 
+### Changed
+
+- **The product reads the MemorySmith Markdown Profile at v0.3.0, where the ring it implements is called by its own name.** The third ring is `memorysmith` and no longer `vault`, which was the whole compatibility break of that release — and the name travelled further than the type: two modules, a skill and a paragraph of the vision were renamed with it. Every section reference of the specification moved by two chapters, so the six citations in the code now point at what they name again. (#85)
+- **Reading the base ring is what the upgrade was for.** v0.3.0 restated CommonMark and GFM as data, and those entries do not restate syntax: each one states where **this** profile changes what the syntax means. The reading-surface expectations and the two demonstration vaults are asked for the notation outside that ring, because asserting that emphasis renders as `<em>` is a claim about a library and forcing a setext heading into a hand-written vault makes it a list of specimens; the skill teaches the whole table, base ring included, because those crossings are exactly what an agent gets wrong. Each decision is written down where it is enforced. (#85)
+
+### Fixed
+
+- **A link written inside code is an example again, and not a reference.** A note teaching how to write a wikilink displayed a link to the note it was describing: the reading surface rewrote `` `[[Target]]` `` into `[Target](pending:Target)` before the parser ever saw it, inside code spans and fenced blocks alike, and an embed written in a fence was expanded into the very content it was showing. Both now leave code alone, which is what the link extractor already did. The **indented** form is declared rather than implemented, in both readers: telling four spaces of code from four spaces of a nested list item needs a parser, and guessing it wrong drops a real edge (RN-DSC-036). (#85)
+- **A note that keeps its addresses at the bottom produces edges again.** Only the inline link form was read, so `[the text][ref]` with its definition below — which is how a long note stays readable — produced no edge at all, silently. The three forms are one link, decided by the destination and never by the syntax that carried it, and a definition nobody used produces nothing (RN-DSC-037). (#85)
+
 ## [0.5.5] - 2026-09-06
 
 ### Changed

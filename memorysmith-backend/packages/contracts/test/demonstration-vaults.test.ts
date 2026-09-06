@@ -18,6 +18,19 @@
  * 2. neither vault demonstrates a notation the profile does **not** declare,
  *    so they cannot teach a reader something this product will not do.
  *
+ * **The first direction is asked of everything outside the `base` ring, and
+ * that is a decision, not a filter.** Profile v0.3.0 restated CommonMark and
+ * GFM inside `profile.json`, so the declared notation went from 31 entries to
+ * 54, and 20 of the new ones are the base ring. Demanding those here would
+ * force a setext heading, an indented code block and a link reference
+ * definition into prose that has no use for any of them — which is the list
+ * of specimens these vaults were written to not be. CommonMark is the floor
+ * every renderer already stands on; what a reader cannot learn anywhere else
+ * is what this profile adds on top of it, and that is what these vaults owe.
+ * GFM stays in: a table, a struck word and a bare address are not universal,
+ * and each of the three carries a crossing of its own — a wikilink inside a
+ * table cell is an edge, a bare address never is.
+ *
  * The prose is written by hand, because a generated vault teaches nothing.
  * This is what keeps it honest.
  */
@@ -27,6 +40,14 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { RECOGNISED_NOTATION } from '../src/markdown.js';
+
+/**
+ * What the vaults owe: everything the profile adds to the two specifications
+ * it inherits. The reason is in the preamble, and it is written as a filter on
+ * the ring so that a notation added to `memorysmith` or to `extended` is
+ * demanded here the day it is declared, with no list to remember to update.
+ */
+const DEMANDED = RECOGNISED_NOTATION.filter((entry) => entry.ring !== 'base');
 
 const VAULTS = resolve(
   fileURLToPath(import.meta.url),
@@ -139,6 +160,12 @@ const DETECTS: Record<string, Detector> = {
   'math-block': inBody(/^\$\$/m),
   'sub-sup': inBody(/~[^~\s]+~|\^[^\s^]+\^/),
   'raw-html': inBody(/<[a-z]+[\s>]/),
+  // A table with a wikilink in a cell, which is the crossing worth showing: a
+  // cell is a place text lives and not a boundary the extractor stops at.
+  table: inBody(/^\|.*\[\[.*\|/m),
+  strikethrough: inBody(/~~[^~\n]+~~/),
+  // Bare, without the angle brackets. External either way, and never an edge.
+  'autolink-extended': inBody(/(^|[^(<\]])https?:\/\//m),
 };
 
 /**
@@ -161,7 +188,7 @@ describe.each(DEMONSTRATION)('%s demonstrates the whole declared notation', (slu
     expect(notes.length).toBeGreaterThan(2);
   });
 
-  it.each(RECOGNISED_NOTATION.map((entry) => entry.id))('shows %s in context', (id) => {
+  it.each(DEMANDED.map((entry) => entry.id))('shows %s in context', (id) => {
     const detect = DETECTS[id];
     // A declared notation with no detector here is a failure of this test and
     // not a gap to find later: the profile cannot grow an entry these vaults
