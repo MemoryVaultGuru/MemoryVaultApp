@@ -128,6 +128,19 @@ avoiding the decision the owner already gave you.
  * prose around the table is the part a person wrote; the table itself is the
  * declaration that Discovery tests against its own extractors, so a notation
  * that stops being read stops being taught in the same commit.
+ *
+ * **The whole declaration, base ring included, and that is a decision.**
+ * Profile v0.3.0 restated CommonMark and GFM inside `profile.json`, taking the
+ * table from 31 rows to 54, and the first reading was that twenty of them tell
+ * an agent that a paragraph is a paragraph. They do not. Each base entry
+ * states where THIS profile changes what the base means — that a link inside a
+ * code span is not extracted, that `![[x]]` is an embed and not an image, that
+ * a wikilink in a table cell is an edge like any other, that `_` does not
+ * emphasise inside a word. Those crossings are invisible from CommonMark
+ * alone and are exactly what an agent gets wrong, so the reader who most
+ * needs them is the one reading this table. The two guards that were scoped
+ * instead — the reading-surface expectations and the demonstration vaults —
+ * were scoped for reasons that do not apply here.
  */
 function notationTable(): string {
   const row = (entry: RecognisedNotation): string =>
@@ -162,7 +175,7 @@ function rings(): string {
     'can rely on it elsewhere:',
     '',
     ...base,
-    '- **The vault ring**, specified by the profile above: the wikilink, the embed,',
+    '- **The MemorySmith ring**, specified by the profile above: the wikilink, the embed,',
     '  the frontmatter vocabulary, the callout. This is the part no base',
     '  specification covers and that every tool means something slightly different',
     '  by, which is why it is written down.',
@@ -170,6 +183,12 @@ function rings(): string {
     'Every form in the table below belongs to one of those rings, and the table is',
     'generated from the profile itself: it cannot describe a notation this build',
     'does not implement.',
+    '',
+    '**Read the inherited rows too.** They are there because the profile says',
+    'where it changes what they mean, and that is the part you cannot get from',
+    'knowing Markdown: a link inside a code span is not read, `![[note]]` is an',
+    'embed and not an image, a wikilink inside a table cell is an edge like any',
+    'other, and `_` does not emphasise in the middle of a word.',
   ].join('\n');
 }
 

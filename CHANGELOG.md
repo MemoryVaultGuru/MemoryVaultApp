@@ -11,6 +11,23 @@ issues each entry cites.
 
 ## [Unreleased]
 
+## [0.5.6] - 2026-09-06
+
+### Changed
+
+- **The product reads the MemorySmith Markdown Profile at v0.3.0, where the ring it implements is called by its own name.** The third ring is `memorysmith` and no longer `vault`, which was the whole compatibility break of that release — and the name travelled further than the type: two modules, a skill and a paragraph of the vision were renamed with it. Every section reference of the specification moved by two chapters, so the six citations in the code now point at what they name again. (#85)
+- **Reading the base ring is what the upgrade was for.** v0.3.0 restated CommonMark and GFM as data, and those entries do not restate syntax: each one states where **this** profile changes what the syntax means. The reading-surface expectations and the two demonstration vaults are asked for the notation outside that ring, because asserting that emphasis renders as `<em>` is a claim about a library and forcing a setext heading into a hand-written vault makes it a list of specimens; the skill teaches the whole table, base ring included, because those crossings are exactly what an agent gets wrong. Each decision is written down where it is enforced. (#85)
+
+### Fixed
+
+- **A link written inside code is an example again, and not a reference.** A note teaching how to write a wikilink displayed a link to the note it was describing: the reading surface rewrote `` `[[Target]]` `` into `[Target](pending:Target)` before the parser ever saw it, inside code spans and fenced blocks alike, and an embed written in a fence was expanded into the very content it was showing. Both now leave code alone, which is what the link extractor already did. The **indented** form is declared rather than implemented, in both readers: telling four spaces of code from four spaces of a nested list item needs a parser, and guessing it wrong drops a real edge (RN-DSC-036). (#85)
+- **A note that keeps its addresses at the bottom produces edges again.** Only the inline link form was read, so `[the text][ref]` with its definition below — which is how a long note stays readable — produced no edge at all, silently. The three forms are one link, decided by the destination and never by the syntax that carried it, and a definition nobody used produces nothing (RN-DSC-037). (#85)
+- **An image is no longer read as a link to a note.** The extractor matched `[alt](destination)` without looking at the `!` in front of it, so `![Curve](./curve.png)` announced a pending link called `curve-png` — the graph saying somebody was about to write a note, from a picture. A public image never showed it, because an address with a scheme is external and dropped; the relative form is where it bit. The embed keeps its edge, which it may never lose (RN-DSC-038). (#85)
+
+### Security
+
+- **The reading surface follows the web, a person, a note of the vault and nothing else.** `react-markdown` filters every address through a list of safe schemes, and this surface had that filter switched off — the identity function — because an unresolved wikilink is rendered as `pending:target` and the stock filter erased it. A whole protection had been traded for one scheme, and everything else reached the `href` with it: `javascript:` was stopped only by React itself, and `data:text/html;base64,…`, a page carried inside its own address, was not stopped at all. What passes is now written down: `http`, `https`, `mailto`, a path or a relative target, and `pending:`. **`obsidian://` is refused by decision**, not by omission: it opens the vault of whoever has that editor and that vault on that machine, so it works for the author and does nothing for every other reader of the same note. A refused address keeps the words the author wrote and loses only the affordance (RN-DSC-039). (#85)
+
 ## [0.5.5] - 2026-09-06
 
 ### Changed

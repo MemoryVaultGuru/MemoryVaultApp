@@ -27,11 +27,17 @@ it.
 | --- | --- | --- |
 | Detection | 0 | Alert fired on the health check |
 | Decision | 7 | Waiting for a second signal |
-| Promotion | 9 | The step that matters |
+| Promotion | 9 | The step in [[Failing over the payments database]] |
 | Confirmed | 14 | A real payment cleared |
 
 Fourteen minutes against an objective of thirty. The seven spent deciding are
 the finding. ^timeline-2026-03
+
+The objective was ~~forty-five minutes~~ thirty from January on, and the
+struck number is what the drill before this one was measured against. The
+alert that opens the timeline is written up at
+https://status.example.org/payments, outside this vault: a bare address is a
+link on the page and never an edge in the graph.
 
 ## What went wrong
 

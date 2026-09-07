@@ -27,10 +27,15 @@ decisão tomada com pressa possa ser lida com calma no ano seguinte.
 | 3 fev | 19,4 | 38 | Casca ainda verde |
 | 10 fev | 21,1 | 47 | Curva subindo |
 | 17 fev | 22,0 | 55 | Chuva anunciada |
-| 24 fev | 22,3 | 58 | Colheita antecipada |
+| 24 fev | 22,3 | 58 | Antecipada, contra [[Vinificação em tinto]] |
 
 Colhemos com IPT 58 e não com os 62 de
 [[Índice de Polifenóis Totais#^faixa-de-guarda]]. ^decisao-2026
+
+A meta escrita no protocolo era ~~62~~ 58 depois da chuva do dia 17, e o
+número riscado é o que valia quando a safra começou. O boletim que anunciou a
+chuva está em https://boletim.example.org/serra-gaucha, fora deste vault: um
+endereço solto é link na página e nunca aresta no grafo.
 
 ## O que deu errado
 

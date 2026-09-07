@@ -1,12 +1,22 @@
 /**
  * The reading surface, run against the PUBLISHED profile (RN-AGT-023).
  *
- * The profile declares five notations under the `reading-surface` reader, and
- * the two sanctioned extractors decide none of them: they are behaviour of
+ * The profile declares a set of notations under the `reading-surface` reader,
+ * and the two sanctioned extractors decide none of them: they are behaviour of
  * this interface and of nothing else. A rendering assertion cannot live in a
  * JSON file — what a callout looks like is not something the suite can state —
  * so the entries come from the profile and the expectation is written here,
  * once per entry, against the real components.
+ *
+ * **The entries asked for are those outside the `base` ring, and that is a
+ * decision, not a filter.** Profile v0.3.0 restated CommonMark and GFM inside
+ * `profile.json`, taking this reader from 12 entries to 35, and 20 of the new
+ * ones are the base ring. Writing those expectations would mean asserting
+ * that emphasis renders as `<em>` — asserting that react-markdown works,
+ * which is a claim about somebody else's library and not about this surface.
+ * What the base ring did bring is the **crossings**: the places where this
+ * profile changes what CommonMark means. Those are proved, at the bottom of
+ * this file, one case each and named.
  *
  * The surface is exercised through `WritableContent`, which is what a note
  * actually renders: it splits the embeds, resolves the wikilinks and hands the
@@ -165,9 +175,29 @@ const EXPECTED: Record<string, (html: string) => void> = {
     expect((html.match(/class="[^"]*task-item[^"]*"/g) ?? []).length).toBe(2);
     expect(html).not.toContain('disabled=""');
   },
+  table: (html) => {
+    expect(html).toContain('<table>');
+    expect(html).toContain('<th>');
+    expect(html).toContain('<td>');
+    // The delimiter row is structure and never a row of its own.
+    expect(html).not.toContain('---');
+  },
+  strikethrough: (html) => {
+    expect(html).toContain('<del>');
+    expect(html).toContain('still in force');
+    expect(html).not.toContain('~~');
+  },
+  'autolink-extended': (html) => {
+    // Bare, and still a link. External, so it is a plain anchor and never one
+    // of ours: `wikilink` is the class this surface puts on an edge.
+    expect(html).toContain('href="https://example.org/lei-14133"');
+    expect(html).not.toContain('class="wikilink"');
+  },
 };
 
-const surface = RECOGNISED_NOTATION.filter((entry) => entry.reader === 'reading-surface');
+const surface = RECOGNISED_NOTATION.filter(
+  (entry) => entry.reader === 'reading-surface' && entry.ring !== 'base',
+);
 
 describe(`the reading surface implements profile ${MARKDOWN_PROFILE_VERSION}`, () => {
   it.each(surface)('renders $id as the profile declares', ({ id, example }) => {
@@ -281,5 +311,125 @@ describe('a dollar sign that is not opening a formula stays a dollar sign', () =
 
     expect(html).toContain('$HOME');
     expect(html).not.toContain('katex');
+  });
+});
+
+/**
+ * The crossings: where this profile changes what the base ring means.
+ *
+ * These are the entries v0.3.0 brought that are worth a test even though the
+ * ring they sit in is a restatement of somebody else's specification. Each
+ * one is a place where knowing CommonMark is not enough to predict what
+ * happens here, and each is stated by `profile.json` in the `effect` of a
+ * `base` entry — so the profile is what is being read, and not our habits.
+ */
+describe('a base notation that means something different here', () => {
+  it('renders an image as an image, and an embed as neither', () => {
+    // `image`: a `!` in front of a wikilink is not an image, it is an embed.
+    const html = render('![The curve](https://example.org/curve.png)\n\n![[A note]]\n');
+
+    expect(html).toContain('alt="The curve"');
+    expect(html).not.toContain('![[');
+    expect(html).not.toContain('alt="[[A note]]"');
+  });
+
+  it('keeps the alt text of an image, which is the description and not decoration', () => {
+    const html = render('![Fourteen minutes against thirty](https://example.org/x.png)');
+
+    expect(html).toContain('alt="Fourteen minutes against thirty"');
+  });
+
+  it('leaves a wikilink inside a code span as characters', () => {
+    // `code-span`: it is where an author writes notation without invoking it.
+    const html = render('Write `[[Target]]` to link to it.');
+
+    expect(html).toContain('[[Target]]');
+    expect(html).not.toContain('class="wikilink"');
+  });
+
+  it('leaves every notation inside a fenced block alone', () => {
+    // `code-fenced`: nothing inside is parsed. Not the wikilink, not the
+    // callout marker, not the marked text.
+    const html = render('```\n[[Target]] and ==marked== and > [!warning] x\n```\n');
+
+    expect(html).toContain('[[Target]]');
+    expect(html).toContain('==marked==');
+    expect(html).not.toContain('<mark>');
+    expect(html).not.toContain('class="callout"');
+  });
+
+  it('reads three dashes under a paragraph as a heading and not as frontmatter', () => {
+    // `thematic-break`: `---` is context-dependent and all three readings are
+    // correct in their place. Only the first line of the file opens a head.
+    const html = render('Serra Gaucha\n---\n\nThe rest.\n');
+
+    expect(html).toContain('<h2>Serra Gaucha</h2>');
+    expect(html).not.toContain('<hr');
+  });
+
+  it('does not strike a single tilde, which is where this surface leaves GFM', () => {
+    // `strikethrough` names both `~x~` and `~~x~~`, following the renderer
+    // rather than the GFM specification, which is `~~x~~`. Honouring the
+    // single tilde would strike `H~2~O` — the one form the profile declares
+    // ABSENT, in `sub-sup` — so this surface implements the specification and
+    // not the renderer, and says so in `architecture-guide.md` section 14.
+    const html = render('Water is H~2~O, and the rule is ~~revoked~~.');
+
+    expect(html).toContain('H~2~O');
+    expect(html).toContain('<del>revoked</del>');
+  });
+});
+
+/**
+ * A public image is content, and an address is a decision.
+ *
+ * The profile declares the image in the base ring and says the alt text is the
+ * description a Reader MUST NOT drop. There is no upload here — the product
+ * stores `text/markdown` and nothing else — so a picture in a note is always
+ * an address somebody else serves, which makes what this surface will and
+ * will not follow part of rendering it (RN-DSC-039).
+ */
+describe('a picture in a note, and the addresses around it', () => {
+  it('renders a public image, with the description the author wrote', () => {
+    const html = render('![The maturation curve](https://example.org/curve.png "Serra Gaucha")');
+
+    expect(html).toContain('src="https://example.org/curve.png"');
+    expect(html).toContain('alt="The maturation curve"');
+    expect(html).toContain('title="Serra Gaucha"');
+  });
+
+  it('renders one inside a callout, where a note actually puts it', () => {
+    const html = render('> [!tip] The curve\n> ![The curve](https://example.org/c.png)\n');
+
+    expect(html).toContain('class="callout"');
+    expect(html).toContain('src="https://example.org/c.png"');
+  });
+
+  it('follows a link to the web and to a person', () => {
+    expect(render('[The text](https://example.org/x)')).toContain('href="https://example.org/x"');
+    expect(render('[Write](mailto:a@example.org)')).toContain('href="mailto:a@example.org"');
+  });
+
+  it('leaves an address it does not follow as text, and never as a link', () => {
+    const html = render('[Open it](obsidian://open?vault=Notas&file=Lei)');
+
+    expect(html).toContain('Open it');
+    expect(html).toContain('link-refused');
+    expect(html).not.toContain('<a');
+    expect(html).not.toContain('obsidian://');
+  });
+
+  it('does the same with a page carried inside the address', () => {
+    const html = render('[Click](data:text/html;base64,PHNjcmlwdD4=)');
+
+    expect(html).toContain('link-refused');
+    expect(html).not.toContain('data:text/html');
+  });
+
+  it('still draws the pending link, which is the scheme all of this was for', () => {
+    const html = render('[[A note nobody has written]]');
+
+    expect(html).toContain('wikilink-pending');
+    expect(html).toContain('A note nobody has written');
   });
 });

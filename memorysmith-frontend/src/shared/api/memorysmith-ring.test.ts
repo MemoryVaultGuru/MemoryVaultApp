@@ -1,5 +1,5 @@
 /**
- * The rest of the vault ring, at the level where each piece decides.
+ * The rest of the MemorySmith ring, at the level where each piece decides.
  *
  * The conformance test proves each declared notation through the real
  * renderer; these prove the edges the profile states and a single example

@@ -116,9 +116,58 @@ export function guidanceDescription(guidance: string): string {
 
 const WIKILINK = /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g;
 
+/**
+ * Code, where notation is characters and nothing else.
+ *
+ * A fenced block parses nothing inside it and a code span is where an author
+ * writes notation without invoking it — both stated by the profile, in the
+ * `code-fenced` and `code-span` entries of the base ring. The rewrites below
+ * run over the raw text BEFORE the parser sees it, so they are the one place
+ * in this interface that has to know that on its own: every other reading of
+ * the notation is a remark plugin, working on a tree where a code node is
+ * already a code node.
+ *
+ * The indented form is deliberately NOT here, and the reason is the cost of
+ * being wrong. Telling four spaces of code from four spaces of a nested list
+ * item needs the block context only a parser has; guessing it wrong turns a
+ * real link into text, and the same guess in the link extractor would drop a
+ * real edge. A wikilink written inside an indented code block is therefore
+ * still read, in both readers, and that is declared rather than discovered
+ * (`architecture-guide.md` §11.1).
+ */
+const CODE = /```[\s\S]*?(?:\n```|$)|`[^`\n]*`/g;
+
+/** The half-open ranges of `body` that are code. */
+export function codeRegions(body: string): Array<[number, number]> {
+  return [...body.matchAll(CODE)].map((match) => [
+    match.index ?? 0,
+    (match.index ?? 0) + match[0].length,
+  ]);
+}
+
+/** Whether an offset falls inside one of them. */
+export function insideCode(regions: Array<[number, number]>, at: number): boolean {
+  return regions.some(([start, end]) => at >= start && at < end);
+}
+
+/** Runs a rewrite over everything except code, which is copied through. */
+export function outsideCode(body: string, rewrite: (text: string) => string): string {
+  let out = '';
+  let cursor = 0;
+  for (const [start, end] of codeRegions(body)) {
+    out += rewrite(body.slice(cursor, start)) + body.slice(start, end);
+    cursor = end;
+  }
+  return out + rewrite(body.slice(cursor));
+}
+
 // Replaces [[wikilinks]] with markdown links. Resolved targets point at the
 // note route; unresolved ones become pending: links styled by the renderer.
 export function resolveWikilinks(body: string, resolve: (slug: string) => string | null): string {
+  return outsideCode(body, (text) => resolveWikilinksIn(text, resolve));
+}
+
+function resolveWikilinksIn(body: string, resolve: (slug: string) => string | null): string {
   return body.replace(WIKILINK, (_all, target: string, label?: string) => {
     const clean = target.split('#')[0]?.trim() ?? '';
     const text = (label ?? target).trim();
@@ -131,14 +180,14 @@ export function resolveWikilinks(body: string, resolve: (slug: string) => string
 const MAX_SLUG_LENGTH = 80;
 
 /**
- * The slug of a note, as the product derives it from the title (profile \u00a73.3).
+ * The slug of a note, as the product derives it from the title (profile §5.3).
  *
  * **This is the second implementation of one rule**, and the first is
  * `packages/kernel/src/slug.ts`. It is duplicated because the frontend takes
  * types from `@memorysmith/contracts` and nothing else from the backend
- * (`architecture-guide.md` \u00a75.1), and breaking that to share six lines would
+ * (`architecture-guide.md` §5.1), and breaking that to share six lines would
  * drag the kernel into the browser bundle. The price of the duplication is
- * that it drifts in silence \u2014 it already did, which is #73 \u2014 so the two are
+ * that it drifts in silence — it already did, which is #73 — so the two are
  * pinned to the **published conformance cases** rather than to each other.
  *
  * Two of the six steps were missing here, and both matter for exactly the
@@ -154,7 +203,7 @@ export function slugify(name: string): string {
   return name
     .normalize('NFD')
     .replace(/(\d)[.,](\d)/g, '$1$2')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')

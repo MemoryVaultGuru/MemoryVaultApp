@@ -12,7 +12,7 @@
  * other from hanging the page.
  */
 
-import { slugify } from './markdown';
+import { codeRegions, insideCode, outsideCode, slugify } from './markdown';
 
 /** Same shape the Discovery extractor matches, plus the leading `!`. */
 const EMBED = /!\[\[([^\]|#]+?)(?:#([^\]|]+?))?(?:\|[^\]]*?)?\]\]/g;
@@ -34,6 +34,7 @@ export const EMBED_LIMIT = 10;
  */
 export function splitEmbeds(body: string, limit = EMBED_LIMIT): BodySegment[] {
   const segments: BodySegment[] = [];
+  const code = codeRegions(body);
   let cursor = 0;
   let expanded = 0;
 
@@ -41,6 +42,9 @@ export function splitEmbeds(body: string, limit = EMBED_LIMIT): BodySegment[] {
     const at = match.index ?? 0;
     const target = (match[1] ?? '').trim();
     if (!target) continue;
+    // An embed written inside code is an example of the notation, not a use of
+    // it: expanding it would replace the very text somebody was showing.
+    if (insideCode(code, at)) continue;
 
     if (expanded >= limit) break;
 
@@ -58,14 +62,14 @@ export function splitEmbeds(body: string, limit = EMBED_LIMIT): BodySegment[] {
 
 /** `![[x]]` becomes `[[x]]`: a reference instead of an expansion. */
 export function demoteEmbeds(body: string): string {
-  return body.replace(EMBED, (all) => all.slice(1));
+  return outsideCode(body, (text) => text.replace(EMBED, (all) => all.slice(1)));
 }
 
 const HEADING = /^(#{1,6})\s+(.+?)\s*$/;
 
 /**
  * The block a `^identifier` names, or null when nothing names it (profile
- * §5.7).
+ * §7.7).
  *
  * A block is what the parser would call one: a run of lines up to a blank
  * line. The identifier sits at the END of it, and the marker is left in the

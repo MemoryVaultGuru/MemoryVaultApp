@@ -14,9 +14,10 @@ import {
   remarkComments,
   remarkHighlight,
   remarkMathDollarRule,
-} from '../api/remark-vault-ring';
+} from '../api/remark-memorysmith-ring';
 import { useTranslation } from 'react-i18next';
 import { toUnixNewlines } from '../api/markdown';
+import { followable } from '../api/address';
 import { ordinalAt } from '../api/tasklist';
 import { remarkCallouts } from '../api/remark-callouts';
 import 'katex/dist/katex.min.css';
@@ -47,7 +48,17 @@ function MarkdownAnchor({ href, children, ...rest }: AnchorHTMLAttributes<HTMLAn
       </span>
     );
   }
-  if (href?.startsWith('/')) {
+  // Refused by `followable`: the text stays on the page and stops being
+  // something to click. An author sees they got nothing, which is the same
+  // answer the profile gives for a notation it does not implement.
+  if (!href) {
+    return (
+      <span className="link-refused" title={t('note.refusedLink')}>
+        {children}
+      </span>
+    );
+  }
+  if (href.startsWith('/')) {
     return (
       <Link className="wikilink" to={href}>
         {children}
@@ -189,7 +200,9 @@ export function Markdown({ children, source, onToggleTask, writable = false }: M
         // a security boundary rather than a rendering preference, because a
         // vault is written by several people and by agents (profile 5.10).
         rehypePlugins={[[rehypeKatex, { throwOnError: false }]]}
-        urlTransform={(url) => url}
+        // Which addresses this surface will follow, and the reason the stock
+        // filter is not doing it, are in `address.ts` (RN-DSC-039).
+        urlTransform={followable}
         components={{
           a: MarkdownAnchor,
           code: MarkdownCode,
