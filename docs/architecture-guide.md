@@ -811,6 +811,7 @@ Three projections over the same events. All of them **derived** (PE5): deleting 
 - **`singleTilde: false` on `remark-gfm`.** GFM specifies strikethrough as `~~x~~`; GitHub also accepts one tilde, outside its own specification. Left on, it misrenders the one notation the profile declares absent — `H~2~O` written for a subscript comes out struck through, which is a worse answer than nothing.
 - **`remarkMathDollarRule`, after `remark-math`.** The library opens a formula at any `$` and closes it at the next one, so two prices in one paragraph become mathematics. The plugin gives back to the text any inline formula whose delimiters break the profile's rule, reading the source through the node's position, because the delimiters are gone from the node by then.
 - **No `rehype-raw`, and that absence is the boundary.** Raw HTML is escaped and shown as text, so a note carrying `<script>` is characters on a page. It is asserted with that payload rather than with a `<b>`.
+- **`urlTransform` is `followable`, in `shared/api/address.ts` (RN-DSC-039).** It was the identity — the stock filter switched off — because an unresolved wikilink is rendered as `[text](pending:target)` and the stock filter does not know `pending:`, so it erased the pending link from the page. A whole protection had been traded for one scheme, and every other scheme reached the `href` with it: `javascript:` was stopped only by React itself, and `data:text/html` was not stopped at all. The list now says what passes, and a refused address keeps its text and loses its affordance.
 
 A block embed resolves through `blockOf` in `transclusion.ts`, told apart from a section anchor by the `^` marker rather than by trying one and falling back — a section named `^x` and a block called `x` would otherwise answer for each other.
 
@@ -821,6 +822,8 @@ The split is not tidiness. A rendering assertion cannot live in a JSON file — 
 ### 11.1 The link graph
 
 `LinkExtractor` (§6.6) runs on every `NoteCreated` and `NoteUpdated`. The target is reduced to the **basename without extension** and normalised into a `Slug`; resolution happens within the scope of the vault (RN-DSC-001 to RN-DSC-006).
+
+**An image is not a link (RN-DSC-038).** The extractor matched `[alt](destination)` without looking at the `!` in front of it, so a picture became a note: `![Curve](./curve.png)` produced a pending link called `curve-png`. A public image never showed it, because an address with a scheme is external and dropped by RN-DSC-003 — the relative form is where it bit. The embed keeps its edge: it is read by the wikilink pattern, which requires no parenthesis, and the two patterns never meet.
 
 **Three forms of one link, and code that is not a link.** The wikilink, the inline Markdown link and the **reference** form all produce the same edge, because the destination decides it and not the syntax that carried it (RN-DSC-037); a definition nobody used produces nothing, since it renders nothing where it stands. A link written inside a fenced block or a code span is an example and not a reference, and produces no edge (RN-DSC-036) — the same rule the reading surface applies before it rewrites a wikilink, which is why `` `[[Target]]` `` now survives on the page instead of being turned into a link to the note it was describing.
 

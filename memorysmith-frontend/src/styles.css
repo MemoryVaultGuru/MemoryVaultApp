@@ -1238,6 +1238,15 @@ a:hover {
   cursor: help;
 }
 
+/* An address this surface does not follow. The text is the author's and stays
+   exactly as they wrote it; what it loses is the affordance, because a link
+   that looks like a link and goes nowhere is worse than plain text. The dotted
+   rule is the only sign, and the title says why. */
+.link-refused {
+  border-bottom: 1px dotted var(--text-soft);
+  cursor: help;
+}
+
 /* Transclusion: another note, shown in place. The left rule and the source
    line exist for one reason: a passage without provenance is indistinguishable
    from what the author wrote. */

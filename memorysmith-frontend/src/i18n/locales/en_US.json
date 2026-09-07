@@ -118,6 +118,7 @@
     "embedSectionMissing": "The section \"{{section}}\" is not in this note.",
     "writeConflict": "That change was not saved. Someone wrote here first, and the content was reloaded.",
     "pendingLink": "Pending link: the target note does not exist yet.",
+    "refusedLink": "This address is not one the reading surface follows, so the text stays and the link does not.",
     "copy": "Copy",
     "copied": "Copied",
     "copyHint": "Copy the note's Markdown to the clipboard"

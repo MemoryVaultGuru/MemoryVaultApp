@@ -164,6 +164,21 @@ describe('a base notation that means something different here', () => {
     expect(links.map((link) => link.slug)).toEqual(['lei-14133']);
   });
 
+  it('reads an image as an image, and never as a link to a note', () => {
+    // `image`: the `!` in front is the whole difference between the two forms,
+    // and reading it as a link turned a picture into a note. The relative case
+    // is the one that showed: the graph announced a note called `curve-png`
+    // that somebody was apparently about to write (RN-DSC-038).
+    expect(extractLinks('![The curve](./curve.png)')).toEqual([]);
+    expect(extractLinks('![The curve](../assets/curve.png)')).toEqual([]);
+    expect(extractLinks('![The curve](https://example.org/curve.png)')).toEqual([]);
+    expect(extractLinks('![The curve][c]\n\n[c]: ./curve.png\n')).toEqual([]);
+    // The link form of the same destination still produces the edge, and so
+    // does the embed, which may never stop (RN-DSC-029).
+    expect(extractLinks('[The curve](./lei-14133.md)').map((l) => l.slug)).toEqual(['lei-14133']);
+    expect(extractLinks('![[Lei 14.133]]').map((l) => l.slug)).toEqual(['lei-14133']);
+  });
+
   it('reads a link indented as code, and says so rather than guessing', () => {
     // `code-indented` says an indented block suppresses notation exactly as a
     // fenced one does, and this reader does not implement it. Telling four

@@ -379,3 +379,57 @@ describe('a base notation that means something different here', () => {
     expect(html).toContain('<del>revoked</del>');
   });
 });
+
+/**
+ * A public image is content, and an address is a decision.
+ *
+ * The profile declares the image in the base ring and says the alt text is the
+ * description a Reader MUST NOT drop. There is no upload here — the product
+ * stores `text/markdown` and nothing else — so a picture in a note is always
+ * an address somebody else serves, which makes what this surface will and
+ * will not follow part of rendering it (RN-DSC-039).
+ */
+describe('a picture in a note, and the addresses around it', () => {
+  it('renders a public image, with the description the author wrote', () => {
+    const html = render('![The maturation curve](https://example.org/curve.png "Serra Gaucha")');
+
+    expect(html).toContain('src="https://example.org/curve.png"');
+    expect(html).toContain('alt="The maturation curve"');
+    expect(html).toContain('title="Serra Gaucha"');
+  });
+
+  it('renders one inside a callout, where a note actually puts it', () => {
+    const html = render('> [!tip] The curve\n> ![The curve](https://example.org/c.png)\n');
+
+    expect(html).toContain('class="callout"');
+    expect(html).toContain('src="https://example.org/c.png"');
+  });
+
+  it('follows a link to the web and to a person', () => {
+    expect(render('[The text](https://example.org/x)')).toContain('href="https://example.org/x"');
+    expect(render('[Write](mailto:a@example.org)')).toContain('href="mailto:a@example.org"');
+  });
+
+  it('leaves an address it does not follow as text, and never as a link', () => {
+    const html = render('[Open it](obsidian://open?vault=Notas&file=Lei)');
+
+    expect(html).toContain('Open it');
+    expect(html).toContain('link-refused');
+    expect(html).not.toContain('<a');
+    expect(html).not.toContain('obsidian://');
+  });
+
+  it('does the same with a page carried inside the address', () => {
+    const html = render('[Click](data:text/html;base64,PHNjcmlwdD4=)');
+
+    expect(html).toContain('link-refused');
+    expect(html).not.toContain('data:text/html');
+  });
+
+  it('still draws the pending link, which is the scheme all of this was for', () => {
+    const html = render('[[A note nobody has written]]');
+
+    expect(html).toContain('wikilink-pending');
+    expect(html).toContain('A note nobody has written');
+  });
+});

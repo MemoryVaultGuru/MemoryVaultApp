@@ -21,7 +21,18 @@ export interface ExtractedLink {
 }
 
 const WIKILINK = /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
-const MARKDOWN_LINK = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+/**
+ * A link, and NOT an image: the `!` in front is the whole difference between
+ * the two forms, and reading it as a link made an image a note. A relative
+ * `![Curve](./curve.png)` became a pending link called `curve-png` — the graph
+ * announcing a note somebody was about to write, from a picture (RN-DSC-038).
+ *
+ * The embed is untouched by this. `![[note]]` is read by WIKILINK above, which
+ * does not care what precedes it, and it has to keep producing exactly the
+ * edge `[[note]]` produces (RN-DSC-029). The two forms never meet: this one
+ * requires a `](`, and the embed has no parenthesis at all.
+ */
+const MARKDOWN_LINK = /(?<!!)\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
 /**
@@ -33,10 +44,17 @@ const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
  * how a long note stays readable - produced no edges at all.
  */
 const DEFINITION = /^ {0,3}\[([^\]\n]+)\]:[ \t]*<?([^\s>]+)>?/gm;
-/** `[text][label]` and the collapsed `[label][]`. */
-const REFERENCE = /\[([^\]\n]*)\]\[([^\]\n]*)\]/g;
-/** `[label]` on its own, which is a link only when the label is defined. */
-const SHORTCUT = /(^|[^[!])\[([^\]\n]+)\](?![[(:])/g;
+/** `[text][label]` and the collapsed `[label][]`, and again never an image. */
+const REFERENCE = /(?<!!)\[([^\]\n]*)\]\[([^\]\n]*)\]/g;
+/**
+ * `[label]` ON ITS OWN, which is a link only when the label is defined.
+ *
+ * "On its own" is what the three exclusions in front are for: a `[` before it
+ * makes it a wikilink, a `!` makes it the label of an image, and a `]` makes
+ * it the second half of a reference — which the pattern above already read,
+ * and which would otherwise smuggle an image back in through `![alt][label]`.
+ */
+const SHORTCUT = /(^|[^[!\]])\[([^\]\n]+)\](?![[(:])/g;
 
 function normalize(target: string): ExtractedLink | null {
   const trimmed = target.trim();
