@@ -20,6 +20,9 @@ import { toUnixNewlines } from '../api/markdown';
 import { followable } from '../api/address';
 import { ordinalAt } from '../api/tasklist';
 import { remarkCallouts } from '../api/remark-callouts';
+import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
+import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
+import { highlightLanguage, highlightTree } from '../api/highlight';
 import 'katex/dist/katex.min.css';
 import { MermaidDiagram } from './MermaidDiagram';
 
@@ -72,10 +75,42 @@ function MarkdownAnchor({ href, children, ...rest }: AnchorHTMLAttributes<HTMLAn
   );
 }
 
+/**
+ * A code span, a fenced block, and the one info string with a rendering rule.
+ *
+ * The order of the three branches is the contract. `mermaid` is checked first
+ * and reaches `MermaidDiagram` with its source untouched, because it is the
+ * only info string the profile attaches a rendering rule to (§7.2) and a
+ * highlighter in front of that check would swallow a diagram. A language the
+ * highlighter carries is tokenised. Everything else — a code span, a fence
+ * with no info string, a language nobody registered — renders exactly as it
+ * did before highlighting existed, which is the pattern the profile sets for
+ * the diagram it cannot draw and the formula it cannot typeset: show the
+ * source, never hide it.
+ *
+ * The tokens arrive as ELEMENTS. `refractor` produces a hast tree and
+ * `toJsxRuntime` builds React out of it, so no note-derived markup is ever
+ * parsed as HTML — the boundary §7.9 draws, held at the one place a
+ * highlighter would otherwise breach it.
+ */
 function MarkdownCode({ className, children, ...rest }: HTMLAttributes<HTMLElement>) {
   if (className?.includes('language-mermaid')) {
     return <MermaidDiagram code={String(children).trim()} />;
   }
+
+  const language = highlightLanguage(className);
+  if (language !== null) {
+    // The source is read and never rewritten: what is on the page is the
+    // bytes, split into spans. React-markdown hands the children of a fence as
+    // a single string ending in the newline before the closing fence.
+    const code = String(children).replace(/\n$/, '');
+    return (
+      <code className={className} {...rest}>
+        {toJsxRuntime(highlightTree(code, language), { Fragment, jsx, jsxs })}
+      </code>
+    );
+  }
+
   return (
     <code className={className} {...rest}>
       {children}

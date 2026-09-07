@@ -654,3 +654,84 @@ describe('a note that fetches from another site says so', () => {
     expect((notice.match(/(^|[^.])example\.org/g) ?? []).length).toBe(1);
   });
 });
+
+/**
+ * Syntax highlighting, which is a product decision and not a conformance
+ * obligation: the profile attaches a rendering rule to exactly one info string
+ * and §8 leaves every other form to the implementation to draw as it likes.
+ *
+ * What the profile DOES constrain is everything around it, and these are the
+ * four rules it imposes on anything sitting this close to the body of a note.
+ */
+describe('a fenced block that names its language', () => {
+  it('is highlighted, in tokens and not in one flat run of text', () => {
+    const html = render('```sql\nselect 1 from notes;\n```\n');
+
+    expect(html).toContain('language-sql');
+    expect(html).toContain('token');
+    expect(html).toContain('select');
+  });
+
+  it('renders an unknown language as plain code, never as nothing', () => {
+    // The pattern the profile sets twice, for the diagram it cannot draw
+    // (§7.2) and the mathematics it cannot typeset (§7.8): show the source.
+    const html = render('```brainfuck\n+++[->+++<]\n```\n');
+
+    expect(html).toContain('+++[-&gt;+++&lt;]');
+    expect(html).not.toContain('class="token');
+  });
+
+  it('renders a fence with no info string exactly as before', () => {
+    const html = render('```\nplain text\n```\n');
+
+    expect(html).toContain('plain text');
+    expect(html).not.toContain('class="token');
+  });
+
+  it('leaves mermaid to the diagram, which is the one info string with a rule', () => {
+    const html = render('```mermaid\ngraph TD\n  A --> B\n```\n');
+
+    expect(html).toContain('mermaid-diagram');
+    expect(html).not.toContain('language-mermaid');
+    expect(html).not.toContain('class="token');
+  });
+
+  it('does not change the bytes, only how they are drawn', () => {
+    // §7.6 sets the principle and §7.11 states it as behaviour: display is
+    // display. A highlighter that normalised whitespace or re-indented would
+    // break the one thing a task toggle depends on.
+    const code = '{\n    "a":   1,\n\t"b": [ 2 ]\n}';
+    const html = render('```json\n' + code + '\n```\n');
+
+    // The strongest form of the assertion: strip the spans the highlighter
+    // added, and what is left has to be the source, character for character.
+    // Four spaces of indentation, a tab on the next line, three spaces after a
+    // colon and the spaces inside the brackets all survive — a highlighter
+    // that reformats is one that has rewritten the note.
+    const inside = /<code[^>]*language-json[^>]*>([\s\S]*?)<\/code>/.exec(html)?.[1] ?? '';
+    const text = inside
+      .replace(/<[^>]+>/g, '')
+      .replace(/&quot;/g, '"')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&');
+
+    expect(text).toBe(code);
+  });
+
+  it('never injects note-derived markup as HTML', () => {
+    // The boundary of §7.9, held at the one place a highlighter would breach
+    // it: the tokens arrive as elements, so a payload inside a fence is text.
+    const html = render('```javascript\nconst x = "<script>window.stolen = 1</script>";\n```\n');
+
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
+
+  it('highlights a code span never, because a span has no info string', () => {
+    const html = render('Write `select 1` in the console.');
+
+    expect(html).toContain('select 1');
+    expect(html).not.toContain('class="token');
+  });
+});
