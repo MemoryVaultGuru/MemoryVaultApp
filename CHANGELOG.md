@@ -11,6 +11,10 @@ issues each entry cites.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`R$100 e o frete R$200` is a price again, and not a formula.** The reading surface implemented half of the profile's dollar rule: a `$` followed by whitespace did not open a formula and one preceded by whitespace did not close one, which keeps `R$ 100` whole and decides nothing at all about `R$100`. Neither `$` in that sentence sits next to a space, so the middle of it — `100 e o frete R` — was typeset as mathematics, in italic serif, with the `R` and the `200` stranded either side. It is an ordinary sentence in pt-BR, where a price is written `R$`. Profile v0.4.0 states the other half of each prohibition, and both are now implemented: a `$` immediately preceded by an alphanumeric does not open, and one immediately followed by a digit does not close. **The cost is deliberate and the profile names it:** an inline formula written immediately after a word character no longer opens, so `2 $x$` is the form that works and `2$x$` is text. (#91)
+
 ### Changed
 
 - **The product reads the MemorySmith Markdown Profile at v0.4.0, which stopped describing itself in tiers.** The ring is gone and each form is credited to a source instead — CommonMark, GFM and, named for the first time, Obsidian, which is where seven notation families came from and which the specification governs over rather than defers to. `base` became `sources` and its `version` became optional, because Obsidian publishes documentation and not a versioned specification: read as required, it served the agent `Obsidian undefined`. The skill now opens by naming the three sources and stating that the precedence runs in both directions, and it teaches §8 — the one rule answering every form the profile does not list — in place of the `Read?` column that used to answer it per row. Unlike the 0.3.0 break, this one was caught by `tsc` at the seam before a test ran. (#89)

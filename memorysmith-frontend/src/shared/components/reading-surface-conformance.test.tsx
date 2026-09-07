@@ -146,8 +146,13 @@ const EXPECTED: Record<string, (html: string) => void> = {
     expect(html).not.toContain('^article-75');
   },
   'math-inline': (html) => {
+    // The example carries both halves since profile v0.4.0: two prices that
+    // must survive as text, and one formula that must render. The old
+    // expectation asserted only the second and passed while `100 e o frete R`
+    // was being typeset as mathematics between them.
     expect(html).toContain('katex');
     expect(html).not.toContain('$n');
+    expect(html).toContain('R$100 e o frete R$200');
   },
   'math-block': (html) => {
     expect(html).toContain('katex');
@@ -344,7 +349,9 @@ describe('raw HTML in a note is text, and stays text', () => {
  * positives rather than left to the library.
  */
 describe('a dollar sign that is not opening a formula stays a dollar sign', () => {
-  it('leaves a price alone', () => {
+  it('leaves a price alone when a space separates it from the amount', () => {
+    // The outside edge: a `$` followed by whitespace does not open, and one
+    // preceded by whitespace does not close.
     const html = render('The licence costs $30 a month, and the plan $60.');
 
     expect(html).toContain('$30');
@@ -352,22 +359,76 @@ describe('a dollar sign that is not opening a formula stays a dollar sign', () =
     expect(html).not.toContain('katex');
   });
 
+  it('leaves two prices alone when nothing separates them from the amount', () => {
+    // The INSIDE edge, added by profile v0.4.0 and the reason it was added.
+    // Neither `$` here sits next to a space, so the outside edge alone decides
+    // nothing and the sentence lost its middle: `100 e o frete R` came out
+    // typeset as mathematics, with the `R` and the `200` stranded either side.
+    // It is an ordinary sentence in pt-BR, where a price is written `R$`.
+    const html = render('O item custa R$100 e o frete R$200, e nada disso é fórmula.');
+
+    expect(html).toContain('R$100 e o frete R$200');
+    expect(html).not.toContain('katex');
+  });
+
+  it('renders a real formula in the same sentence as two prices', () => {
+    // Both halves at once, which is the case the profile ships as the worked
+    // example: the rule has to reject two delimiters and accept a third.
+    const html = render('O item custa R$100 e o frete R$200, e a complexidade é $n \\log n$.');
+
+    expect(html).toContain('R$100 e o frete R$200');
+    expect(html).toContain('katex');
+    expect(html).not.toContain('$n');
+  });
+
+  it('does not open a formula written immediately after a word character', () => {
+    // The declared cost of protecting the price, named by the profile under
+    // Compatibility: `2 $x$` is the form that works.
+    const plain = render('A largura é 2$x$ do total.');
+    const spaced = render('A largura é 2 $x$ do total.');
+
+    expect(plain).not.toContain('katex');
+    expect(plain).toContain('2$x$');
+    expect(spaced).toContain('katex');
+  });
+
+  it('does not close a formula on a delimiter followed by a digit', () => {
+    const html = render('Custa $50 hoje e $60 amanhã.');
+
+    expect(html).toContain('$50');
+    expect(html).toContain('$60');
+    expect(html).not.toContain('katex');
+  });
+
   it('leaves a shell variable alone', () => {
+    // Neither edge decides this one: both delimiters look legal by every local
+    // rule, so the profile withdrew the claim in v0.4.0 and says a `$` written
+    // for any other purpose belongs in a code span. This case survives because
+    // `$HOME set.` ends the sentence with no second delimiter — two of them in
+    // one sentence is what the code span is for.
     const html = render('Run it with $HOME set.');
 
     expect(html).toContain('$HOME');
     expect(html).not.toContain('katex');
   });
+
+  it('protects two shell variables in one sentence through a code span', () => {
+    const html = render('Run it with `$HOME` and `$PATH` set.');
+
+    expect(html).toContain('$HOME');
+    expect(html).toContain('$PATH');
+    expect(html).not.toContain('katex');
+  });
 });
 
 /**
- * The crossings: where this profile changes what the base ring means.
+ * The crossings: where this profile changes what an inherited form means.
  *
  * These are the entries v0.3.0 brought that are worth a test even though the
- * ring they sit in is a restatement of somebody else's specification. Each
- * one is a place where knowing CommonMark is not enough to predict what
- * happens here, and each is stated by `profile.json` in the `effect` of a
- * `base` entry — so the profile is what is being read, and not our habits.
+ * form itself is a restatement of somebody else's specification. Each one is a
+ * place where knowing CommonMark is not enough to predict what happens here,
+ * and each is stated by `profile.json` in the `effect` of the entry — so the
+ * profile is what is being read, and not our habits.
  */
 describe('a base notation that means something different here', () => {
   it('renders an image as an image, and an embed as neither', () => {
