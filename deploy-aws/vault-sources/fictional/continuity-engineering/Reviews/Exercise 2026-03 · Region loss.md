@@ -50,9 +50,11 @@ which is $0.99968$ for the month, and inside the budget.
 
 ## What we tried to write and could not
 
-- **A formula with a subscript.** `H~2~O` and `x^2^` carry no meaning in this
-  profile: what is written stays on the page as those characters. Write the
-  real character, or a formula: $H_2O$ and $x^2$.
+- **A formula with a subscript.** `H~2~O` and `x^2^` are not notation here, so
+  nothing happens to them: what is written stays on the page as those
+  characters. The profile does not list a form for either, and anything it
+  does not list may be drawn and never means anything. Write the real
+  character, or a formula: $H_2O$ and $x^2$.
 - **A styled warning in HTML.** `<div class="warn">` is stored and shown as
   text, never rendered. Use a callout, as this page does above.
 - **A summary in the frontmatter.** The `summary` above is longer than forty

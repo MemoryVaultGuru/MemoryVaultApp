@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { RECOGNISED_NOTATION } from '@memorysmith/contracts';
+import { DECLARED_SILENCE, RECOGNISED_NOTATION } from '@memorysmith/contracts';
 import { TOOL_CATALOG } from '../src/mcp/catalog.js';
 import { SKILLS, skillNamed } from '../src/mcp/skills.js';
 import { whoAmI } from '../src/mcp/whoami.js';
@@ -53,6 +53,14 @@ function servedText(): Array<{ where: string; text: string }> {
       { where: `notation ${entry.id}.effect`, text: entry.effect },
       { where: `notation ${entry.id}.syntax`, text: entry.syntax },
       { where: `notation ${entry.id}.example`, text: entry.example },
+    ]),
+    // Written in this repository rather than imported, which is exactly why
+    // they are checked here: the profile's own text was never going to cite an
+    // `RN-` code, and ours could.
+    ...DECLARED_SILENCE.flatMap((entry) => [
+      { where: `silence ${entry.id}.effect`, text: entry.effect },
+      { where: `silence ${entry.id}.syntax`, text: entry.syntax },
+      { where: `silence ${entry.id}.example`, text: entry.example },
     ]),
   ];
 }

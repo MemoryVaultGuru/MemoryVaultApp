@@ -8,15 +8,20 @@
  * so the entries come from the profile and the expectation is written here,
  * once per entry, against the real components.
  *
- * **The entries asked for are those outside the `base` ring, and that is a
- * decision, not a filter.** Profile v0.3.0 restated CommonMark and GFM inside
- * `profile.json`, taking this reader from 12 entries to 35, and 20 of the new
- * ones are the base ring. Writing those expectations would mean asserting
- * that emphasis renders as `<em>` — asserting that react-markdown works,
- * which is a claim about somebody else's library and not about this surface.
- * What the base ring did bring is the **crossings**: the places where this
- * profile changes what CommonMark means. Those are proved, at the bottom of
- * this file, one case each and named.
+ * **The entries asked for are those the profile ADDS to what a base parser
+ * already does, and that is a decision, not a filter.** Profile v0.3.0
+ * restated CommonMark and GFM inside `profile.json`, taking this reader from
+ * 12 entries to 35. Writing an expectation for each would mean asserting that
+ * emphasis renders as `<em>` — asserting that react-markdown works, which is a
+ * claim about somebody else's library and not about this surface. What the
+ * restated forms did bring is the **crossings**: the places where this profile
+ * changes what CommonMark means. Those are proved, at the bottom of this file,
+ * one case each and named.
+ *
+ * Which entries are exempt is `DELEGATED_TO_THE_BASE_PARSER` in the contracts.
+ * It was a filter on `entry.ring` until profile v0.4.0 removed the field, and
+ * the last case here is what keeps the move from costing anything: an entry in
+ * neither list fails, exactly as an unclassified ring never could.
  *
  * The surface is exercised through `WritableContent`, which is what a note
  * actually renders: it splits the embeds, resolves the wikilinks and hands the
@@ -35,7 +40,12 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { RECOGNISED_NOTATION, MARKDOWN_PROFILE_VERSION } from '@memorysmith/contracts';
+import {
+  DECLARED_SILENCE,
+  DELEGATED_TO_THE_BASE_PARSER,
+  MARKDOWN_PROFILE_VERSION,
+  RECOGNISED_NOTATION,
+} from '@memorysmith/contracts';
 
 function memoryStorage(): Storage {
   const map = new Map<string, string>();
@@ -136,23 +146,22 @@ const EXPECTED: Record<string, (html: string) => void> = {
     expect(html).not.toContain('^article-75');
   },
   'math-inline': (html) => {
+    // The example carries both halves since profile v0.4.0: two prices that
+    // must survive as text, and one formula that must render. The old
+    // expectation asserted only the second and passed while `100 e o frete R`
+    // was being typeset as mathematics between them.
     expect(html).toContain('katex');
     expect(html).not.toContain('$n');
+    expect(html).toContain('R$100 e o frete R$200');
   },
   'math-block': (html) => {
     expect(html).toContain('katex');
     expect(html).not.toContain('$$');
   },
-  'sub-sup': (html) => {
-    // Rejected, so the characters stay on the page: the author sees they got
-    // nothing, which is what the profile says they get. What must NOT happen
-    // is the tilde turning into strikethrough, which is a worse answer than
-    // none — it is why `singleTilde` is off.
-    expect(html).toContain('H~2~O');
-    expect(html).not.toContain('<sub>');
-    expect(html).not.toContain('<sup>');
-    expect(html).not.toContain('<del>');
-  },
+  // `sub-sup` was here until profile v0.4.0 stopped declaring it. The
+  // behaviour is unchanged and the assertion moved to the rejections block
+  // below, which now reads `DECLARED_SILENCE` — the form is no longer the
+  // profile's to describe, and it is still ours to answer for.
   'raw-html': (html) => {
     // Not rendered: the tag is text. This is the security boundary, and the
     // `<script>` case below is the one that matters.
@@ -163,16 +172,20 @@ const EXPECTED: Record<string, (html: string) => void> = {
     // What the profile declares: a box per item, carrying the state written in
     // the source, both ways round. One box per item and not two, which is what
     // dropping GFM's own is for.
-    expect((html.match(/type="checkbox"/g) ?? []).length).toBe(2);
+    expect((html.match(/type="checkbox"/g) ?? []).length).toBe(3);
     expect((html.match(/checked=""/g) ?? []).length).toBe(1);
-    expect(html).toContain('Read the act');
-    expect(html).toContain('Summarise article 75');
+    expect(html).toContain('Price research');
+    expect(html).toContain('Three quotes gathered');
     expect(html).not.toContain('[ ]');
     expect(html).not.toContain('[x]');
+    // The example nests since profile v0.4.0, and a nested item is a task like
+    // any other: the box belongs to the item, not to the top level. `[X]` is
+    // the capital form, which GFM accepts and which has to leave the page too.
+    expect(html).not.toContain('[X]');
     // And what THIS reading surface adds on top of the profile, which the
     // profile leaves open and software-vision.md 13.2 promises: the box is
     // ours and it answers to a click where the role allows writing.
-    expect((html.match(/class="[^"]*task-item[^"]*"/g) ?? []).length).toBe(2);
+    expect((html.match(/class="[^"]*task-item[^"]*"/g) ?? []).length).toBe(3);
     expect(html).not.toContain('disabled=""');
   },
   table: (html) => {
@@ -183,8 +196,14 @@ const EXPECTED: Record<string, (html: string) => void> = {
     expect(html).not.toContain('---');
   },
   strikethrough: (html) => {
+    // Two tildes and only two. The example carries both halves on one line
+    // since profile v0.4.0, which is the point: `~~revoked~~` is struck and
+    // `H~2~O` is not. A renderer accepting the single tilde would strike the
+    // middle of the second one — a wrong answer where the profile promises
+    // none at all, and the reason `singleTilde` is off.
     expect(html).toContain('<del>');
-    expect(html).toContain('still in force');
+    expect(html).toContain('revoked');
+    expect(html).toContain('H~2~O');
     expect(html).not.toContain('~~');
   },
   'autolink-extended': (html) => {
@@ -196,7 +215,7 @@ const EXPECTED: Record<string, (html: string) => void> = {
 };
 
 const surface = RECOGNISED_NOTATION.filter(
-  (entry) => entry.reader === 'reading-surface' && entry.ring !== 'base',
+  (entry) => entry.reader === 'reading-surface' && !DELEGATED_TO_THE_BASE_PARSER.has(entry.id),
 );
 
 describe(`the reading surface implements profile ${MARKDOWN_PROFILE_VERSION}`, () => {
@@ -218,14 +237,20 @@ describe(`the reading surface implements profile ${MARKDOWN_PROFILE_VERSION}`, (
 });
 
 /**
- * The rejections are half of what the profile declares, and the reading
- * surface is where a rejection is most easily undone by accident: drawing a
- * chip around `#subject` would promise a grouping that does not exist
- * (RN-DSC-033). An affordance without the function it promises is worse than
- * the raw text.
+ * The reading surface is where a rejection is most easily undone by accident:
+ * drawing a chip around `#subject` would promise a grouping that does not
+ * exist (RN-DSC-033), and an affordance without the function it promises is
+ * worse than the raw text.
+ *
+ * These were read off `recognised: false` until profile v0.4.0 stopped
+ * carrying it — a catalogue of the forms a specification declines can never be
+ * finished, so §8 became one rule about all of them at once. What this product
+ * does with them did not change, so the declaration is ours now, in
+ * `DECLARED_SILENCE`, and this is the guard that would otherwise have been
+ * left watching an empty list.
  */
 describe('a rejected notation is rendered as what it is: text', () => {
-  const rejected = RECOGNISED_NOTATION.filter((entry) => !entry.recognised);
+  const silent = DECLARED_SILENCE.map((entry) => entry.id);
 
   it('renders an inline #tag as plain text, with no chip and nothing to click', () => {
     const html = render('The decision touches #procurement and #contracts.');
@@ -251,10 +276,36 @@ describe('a rejected notation is rendered as what it is: text', () => {
     expect(html).not.toContain('wikilink-pending');
   });
 
+  it('renders a subscript and a superscript as the characters they are', () => {
+    // There is no notation for either, so the author sees they got nothing —
+    // the answer the profile gives, and a better one than a tilde silently
+    // striking the middle of a formula.
+    const html = render('The formula is H~2~O, and the area is 3 m^2^.');
+
+    expect(html).toContain('H~2~O');
+    expect(html).toContain('m^2^');
+    expect(html).not.toContain('<sub>');
+    expect(html).not.toContain('<sup>');
+    expect(html).not.toContain('<del>');
+  });
+
   it('declares rejections at all, so this list cannot quietly empty out', () => {
-    expect(rejected.map((entry) => entry.id)).toContain('inline-tag');
-    expect(rejected.map((entry) => entry.id)).toContain('raw-html');
-    expect(rejected.map((entry) => entry.id)).toContain('sub-sup');
+    // The assertion that caught the v0.4.0 break: the source went empty and
+    // this said so, instead of a whole describe block passing on nothing.
+    expect(silent).toContain('inline-tag');
+    expect(silent).toContain('sub-sup');
+  });
+
+  it('renders every declared silence through the surface it is declared for', () => {
+    // Each example rendered, and what must not happen is anything: no element
+    // the form would have produced in the editor somebody arrived from.
+    for (const entry of DECLARED_SILENCE) {
+      const html = render(entry.example);
+
+      expect(html, entry.id).not.toContain('<sub>');
+      expect(html, entry.id).not.toContain('<sup>');
+      expect(html, entry.id).not.toMatch(/<a[^>]*>#/);
+    }
   });
 });
 
@@ -298,7 +349,9 @@ describe('raw HTML in a note is text, and stays text', () => {
  * positives rather than left to the library.
  */
 describe('a dollar sign that is not opening a formula stays a dollar sign', () => {
-  it('leaves a price alone', () => {
+  it('leaves a price alone when a space separates it from the amount', () => {
+    // The outside edge: a `$` followed by whitespace does not open, and one
+    // preceded by whitespace does not close.
     const html = render('The licence costs $30 a month, and the plan $60.');
 
     expect(html).toContain('$30');
@@ -306,22 +359,76 @@ describe('a dollar sign that is not opening a formula stays a dollar sign', () =
     expect(html).not.toContain('katex');
   });
 
+  it('leaves two prices alone when nothing separates them from the amount', () => {
+    // The INSIDE edge, added by profile v0.4.0 and the reason it was added.
+    // Neither `$` here sits next to a space, so the outside edge alone decides
+    // nothing and the sentence lost its middle: `100 e o frete R` came out
+    // typeset as mathematics, with the `R` and the `200` stranded either side.
+    // It is an ordinary sentence in pt-BR, where a price is written `R$`.
+    const html = render('O item custa R$100 e o frete R$200, e nada disso é fórmula.');
+
+    expect(html).toContain('R$100 e o frete R$200');
+    expect(html).not.toContain('katex');
+  });
+
+  it('renders a real formula in the same sentence as two prices', () => {
+    // Both halves at once, which is the case the profile ships as the worked
+    // example: the rule has to reject two delimiters and accept a third.
+    const html = render('O item custa R$100 e o frete R$200, e a complexidade é $n \\log n$.');
+
+    expect(html).toContain('R$100 e o frete R$200');
+    expect(html).toContain('katex');
+    expect(html).not.toContain('$n');
+  });
+
+  it('does not open a formula written immediately after a word character', () => {
+    // The declared cost of protecting the price, named by the profile under
+    // Compatibility: `2 $x$` is the form that works.
+    const plain = render('A largura é 2$x$ do total.');
+    const spaced = render('A largura é 2 $x$ do total.');
+
+    expect(plain).not.toContain('katex');
+    expect(plain).toContain('2$x$');
+    expect(spaced).toContain('katex');
+  });
+
+  it('does not close a formula on a delimiter followed by a digit', () => {
+    const html = render('Custa $50 hoje e $60 amanhã.');
+
+    expect(html).toContain('$50');
+    expect(html).toContain('$60');
+    expect(html).not.toContain('katex');
+  });
+
   it('leaves a shell variable alone', () => {
+    // Neither edge decides this one: both delimiters look legal by every local
+    // rule, so the profile withdrew the claim in v0.4.0 and says a `$` written
+    // for any other purpose belongs in a code span. This case survives because
+    // `$HOME set.` ends the sentence with no second delimiter — two of them in
+    // one sentence is what the code span is for.
     const html = render('Run it with $HOME set.');
 
     expect(html).toContain('$HOME');
     expect(html).not.toContain('katex');
   });
+
+  it('protects two shell variables in one sentence through a code span', () => {
+    const html = render('Run it with `$HOME` and `$PATH` set.');
+
+    expect(html).toContain('$HOME');
+    expect(html).toContain('$PATH');
+    expect(html).not.toContain('katex');
+  });
 });
 
 /**
- * The crossings: where this profile changes what the base ring means.
+ * The crossings: where this profile changes what an inherited form means.
  *
  * These are the entries v0.3.0 brought that are worth a test even though the
- * ring they sit in is a restatement of somebody else's specification. Each
- * one is a place where knowing CommonMark is not enough to predict what
- * happens here, and each is stated by `profile.json` in the `effect` of a
- * `base` entry — so the profile is what is being read, and not our habits.
+ * form itself is a restatement of somebody else's specification. Each one is a
+ * place where knowing CommonMark is not enough to predict what happens here,
+ * and each is stated by `profile.json` in the `effect` of the entry — so the
+ * profile is what is being read, and not our habits.
  */
 describe('a base notation that means something different here', () => {
   it('renders an image as an image, and an embed as neither', () => {
@@ -431,5 +538,200 @@ describe('a picture in a note, and the addresses around it', () => {
 
     expect(html).toContain('wikilink-pending');
     expect(html).toContain('A note nobody has written');
+  });
+});
+
+/**
+ * The three places an embed cannot expand, and the one answer to all of them
+ * (profile §7.3): where expansion cannot happen the embed becomes a link, and
+ * it is never dropped.
+ *
+ * The table cell was named by profile v0.4.0 and it is the sharpest of the
+ * three, because the split that decides expansion runs on the raw string: a
+ * cut inside a table row did not merely fail to expand, it ended the run
+ * mid-row and left the parser an unterminated table.
+ */
+describe('an embed where no block fits', () => {
+  const TABLE = '| Rule | Where |\n|---|---|\n| The general one | ![[Lei 14.133]] |\n';
+
+  it('keeps the table whole, with the embed inside the cell', () => {
+    const html = render(TABLE);
+
+    // One table, and the row it was written with. The embed used to land
+    // outside it, the cell used to come out empty, and the closing pipe used
+    // to become a paragraph of its own.
+    expect(html).toContain('<table>');
+    expect((html.match(/<table>/g) ?? []).length).toBe(1);
+    expect(html).toContain('The general one');
+    expect(html).not.toMatch(/<p>\s*\|\s*<\/p>/);
+    expect(html).not.toContain('<td></td>');
+  });
+
+  it('draws the embed in the cell as a link, and never drops it', () => {
+    const html = render(TABLE);
+
+    // Demoted to a wikilink, which resolves like any other: the note does not
+    // exist here, so it is the pending form. What must not happen is the
+    // literal notation reaching the page, or the reference disappearing.
+    expect(html).toContain('Lei 14.133');
+    expect(html).not.toContain('![[');
+    expect(html).not.toContain('[[Lei 14.133]]');
+    expect(html).toMatch(/wikilink/);
+  });
+
+  it('still expands an embed written outside the table in the same note', () => {
+    // The skip is scoped to the cell and to nothing else, and the run carrying
+    // the table has to survive being cut around a later embed.
+    const html = render(`${TABLE}\n![[Another note]]\n`);
+
+    expect(html).toContain('<table>');
+    expect(html).toMatch(/embed|status/);
+    expect(html).not.toContain('![[');
+  });
+
+  it('leaves an embed written inside a fence alone, table or no table', () => {
+    const html = render('```\n| A | B |\n|---|---|\n| x | ![[Lei 14.133]] |\n```\n');
+
+    expect(html).toContain('![[Lei 14.133]]');
+    expect(html).not.toContain('<table>');
+  });
+});
+
+/**
+ * §7.10, the one section of profile v0.4.0 that is about disclosure rather
+ * than rendering.
+ *
+ * An image whose destination names a host is a request to that host, made when
+ * the note is opened, by whoever opens it — and the trigger was written by
+ * whoever wrote the note. A Reader MUST state whether that happens. Three
+ * answers conform: never, only on the reader's action, or yes and we say so.
+ * **Only silence does not**, because a person cannot decline what nobody told
+ * them about.
+ *
+ * This product gives the third answer (RN-DSC-040), so what is asserted here
+ * is that the fetch is disclosed and that the disclosure appears exactly where
+ * it is true.
+ */
+describe('a note that fetches from another site says so', () => {
+  it('names the host when an image reaches outside', () => {
+    const html = render('![A curve](https://example.org/curve.png)');
+
+    expect(html).toContain('remote-notice');
+    expect(html).toContain('example.org');
+  });
+
+  it('says nothing when nothing is fetched', () => {
+    // The disclosure appears where it is true and nowhere else. A notice on
+    // every note is a thing to scroll past rather than a thing to read.
+    const html = render('![A curve](./curve.png)\n\nAnd [a link](https://example.org).');
+
+    expect(html).not.toContain('remote-notice');
+  });
+
+  it('keeps the alt text, which is what a person gets when the image does not load', () => {
+    const html = render('![Fourteen minutes against thirty](https://example.org/x.png)');
+
+    expect(html).toContain('alt="Fourteen minutes against thirty"');
+  });
+
+  it('does not count an image written inside a fence, which fetches nothing', () => {
+    const html = render('```\n![A curve](https://example.org/curve.png)\n```\n');
+
+    expect(html).not.toContain('remote-notice');
+  });
+
+  it('names each host once, however many images came from it', () => {
+    const html = render(
+      '![One](https://example.org/a.png)\n\n![Two](https://example.org/b.png)\n\n![Three](https://cdn.example.net/c.png)\n',
+    );
+
+    // Asserted on the notice and not on the whole page, which also carries the
+    // host in each `src` and in the preload React emits for it.
+    const notice = /<p class="remote-notice">(.*?)<\/p>/.exec(html)?.[1] ?? '';
+
+    expect(notice).toContain('example.org');
+    expect(notice).toContain('cdn.example.net');
+    expect((notice.match(/(^|[^.])example\.org/g) ?? []).length).toBe(1);
+  });
+});
+
+/**
+ * Syntax highlighting, which is a product decision and not a conformance
+ * obligation: the profile attaches a rendering rule to exactly one info string
+ * and §8 leaves every other form to the implementation to draw as it likes.
+ *
+ * What the profile DOES constrain is everything around it, and these are the
+ * four rules it imposes on anything sitting this close to the body of a note.
+ */
+describe('a fenced block that names its language', () => {
+  it('is highlighted, in tokens and not in one flat run of text', () => {
+    const html = render('```sql\nselect 1 from notes;\n```\n');
+
+    expect(html).toContain('language-sql');
+    expect(html).toContain('token');
+    expect(html).toContain('select');
+  });
+
+  it('renders an unknown language as plain code, never as nothing', () => {
+    // The pattern the profile sets twice, for the diagram it cannot draw
+    // (§7.2) and the mathematics it cannot typeset (§7.8): show the source.
+    const html = render('```brainfuck\n+++[->+++<]\n```\n');
+
+    expect(html).toContain('+++[-&gt;+++&lt;]');
+    expect(html).not.toContain('class="token');
+  });
+
+  it('renders a fence with no info string exactly as before', () => {
+    const html = render('```\nplain text\n```\n');
+
+    expect(html).toContain('plain text');
+    expect(html).not.toContain('class="token');
+  });
+
+  it('leaves mermaid to the diagram, which is the one info string with a rule', () => {
+    const html = render('```mermaid\ngraph TD\n  A --> B\n```\n');
+
+    expect(html).toContain('mermaid-diagram');
+    expect(html).not.toContain('language-mermaid');
+    expect(html).not.toContain('class="token');
+  });
+
+  it('does not change the bytes, only how they are drawn', () => {
+    // §7.6 sets the principle and §7.11 states it as behaviour: display is
+    // display. A highlighter that normalised whitespace or re-indented would
+    // break the one thing a task toggle depends on.
+    const code = '{\n    "a":   1,\n\t"b": [ 2 ]\n}';
+    const html = render('```json\n' + code + '\n```\n');
+
+    // The strongest form of the assertion: strip the spans the highlighter
+    // added, and what is left has to be the source, character for character.
+    // Four spaces of indentation, a tab on the next line, three spaces after a
+    // colon and the spaces inside the brackets all survive — a highlighter
+    // that reformats is one that has rewritten the note.
+    const inside = /<code[^>]*language-json[^>]*>([\s\S]*?)<\/code>/.exec(html)?.[1] ?? '';
+    const text = inside
+      .replace(/<[^>]+>/g, '')
+      .replace(/&quot;/g, '"')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&');
+
+    expect(text).toBe(code);
+  });
+
+  it('never injects note-derived markup as HTML', () => {
+    // The boundary of §7.9, held at the one place a highlighter would breach
+    // it: the tokens arrive as elements, so a payload inside a fence is text.
+    const html = render('```javascript\nconst x = "<script>window.stolen = 1</script>";\n```\n');
+
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
+
+  it('highlights a code span never, because a span has no info string', () => {
+    const html = render('Write `select 1` in the console.');
+
+    expect(html).toContain('select 1');
+    expect(html).not.toContain('class="token');
   });
 });

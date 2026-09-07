@@ -4,7 +4,11 @@ import { McpToolAdapter } from '../src/mcp/tools.js';
 import { GatewayError, type AgentCaller } from '../src/mcp/gateway.js';
 import { handleMcpRequest } from '../src/mcp.js';
 import { SKILLS, skillNamed } from '../src/mcp/skills.js';
-import { RECOGNISED_NOTATION } from '@memorysmith/contracts';
+import {
+  DECLARED_SILENCE,
+  MARKDOWN_PROFILE_SOURCES,
+  RECOGNISED_NOTATION,
+} from '@memorysmith/contracts';
 import type { VerifiedAgentToken } from '../src/auth.js';
 import pkg from '../package.json' with { type: 'json' };
 
@@ -538,16 +542,44 @@ describe('skills: the method, indexed by whoami', () => {
 
   it('teaches what the product deliberately does not read', () => {
     const body = skillNamed('write-notes')?.body ?? '';
-    const ignored = RECOGNISED_NOTATION.filter((entry) => !entry.recognised);
 
     // The half an agent gets wrong is not the notation it mistyped, it is the
     // one it believed in, so the list of what does nothing is part of the
     // skill and not an appendix.
-    expect(ignored.length).toBeGreaterThan(0);
-    for (const entry of ignored) {
+    //
+    // It was read off `recognised: false` until profile v0.4.0 stopped
+    // carrying the field, and the assertion below is why that mattered: the
+    // list went empty and this test said so instead of passing on nothing.
+    expect(DECLARED_SILENCE.length).toBeGreaterThan(0);
+    for (const entry of DECLARED_SILENCE) {
       expect(body).toContain(entry.syntax);
+      expect(body).toContain(entry.effect);
     }
-    expect(body).toContain('is NOT read');
+  });
+
+  it('teaches the closing rule, which answers every form it does not list', () => {
+    const body = skillNamed('write-notes')?.body ?? '';
+
+    // §8 of the profile: a form outside the table may still be drawn, never
+    // carries meaning, and never supports a conformance claim. It is the one
+    // sentence that answers "I wrote something and got nothing" for every
+    // undescribed form at once, which is why the profile traded a catalogue
+    // for it in v0.4.0 and why the skill states it rather than a list.
+    expect(body).toContain('is not part of the notation');
+    expect(body).toContain('never carries meaning');
+  });
+
+  it('names each source of the notation, and survives one without a version', () => {
+    const body = skillNamed('write-notes')?.body ?? '';
+
+    // Obsidian is credited without a version because it publishes
+    // documentation and not a specification. Reading `version` as required is
+    // how the skill served `Obsidian undefined`.
+    for (const source of MARKDOWN_PROFILE_SOURCES) {
+      expect(body).toContain(source.name);
+      expect(body).toContain(source.url);
+    }
+    expect(body).not.toContain('undefined');
   });
   it('answers an unknown skill with the ones that exist, not with a bare refusal', async () => {
     const result = await gateways().call('get_skill', { name: 'no-such-skill' }, caller);

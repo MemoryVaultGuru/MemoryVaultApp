@@ -10,9 +10,22 @@
  * ONE LEVEL, AND ONLY ONE. An embed found inside transcluded content is drawn
  * as a link to its target, which is what keeps a pair of notes that embed each
  * other from hanging the page.
+ *
+ * **Three places an embed cannot expand, and one answer for all of them.**
+ * Inside embedded content, past the ceiling this file sets, and — since
+ * profile v0.4.0 named it — inside a table cell, because a cell holds inlines
+ * and never blocks (§4.1). Wherever expansion cannot happen the embed becomes
+ * a link and is never dropped, which is what `demoteEmbeds` does.
  */
 
-import { codeRegions, insideCode, outsideCode, slugify } from './markdown';
+import {
+  codeRegions,
+  insideCode,
+  insideTable,
+  outsideCode,
+  slugify,
+  tableRegions,
+} from './markdown';
 
 /** Same shape the Discovery extractor matches, plus the leading `!`. */
 const EMBED = /!\[\[([^\]|#]+?)(?:#([^\]|]+?))?(?:\|[^\]]*?)?\]\]/g;
@@ -35,6 +48,7 @@ export const EMBED_LIMIT = 10;
 export function splitEmbeds(body: string, limit = EMBED_LIMIT): BodySegment[] {
   const segments: BodySegment[] = [];
   const code = codeRegions(body);
+  const tables = tableRegions(body);
   let cursor = 0;
   let expanded = 0;
 
@@ -45,10 +59,21 @@ export function splitEmbeds(body: string, limit = EMBED_LIMIT): BodySegment[] {
     // An embed written inside code is an example of the notation, not a use of
     // it: expanding it would replace the very text somebody was showing.
     if (insideCode(code, at)) continue;
+    // An embed inside a table cell is drawn as a link (profile §7.3): no block
+    // fits in a cell. Skipping it here leaves it in the surrounding text run,
+    // where `demoteEmbeds` turns it into the wikilink the profile asks for —
+    // and, just as importantly, keeps the run from being cut mid-row, which
+    // used to empty the cell and leave the closing pipe as a paragraph.
+    if (insideTable(tables, at)) continue;
 
     if (expanded >= limit) break;
 
-    const before = body.slice(cursor, at);
+    // Demoted like the tail is, and for the embeds this loop SKIPPED: one in
+    // a table cell lands in a run before an expanded one, and without this it
+    // would reach the page as the literal `![[…]]` — dropped notation, which
+    // is the one thing §7.3 forbids in every place expansion cannot happen.
+    // Code is untouched, because `demoteEmbeds` rewrites outside it.
+    const before = demoteEmbeds(body.slice(cursor, at));
     if (before.length > 0) segments.push({ kind: 'text', text: before });
     segments.push({ kind: 'embed', target, anchor: match[2]?.trim() ?? null });
     cursor = at + match[0].length;

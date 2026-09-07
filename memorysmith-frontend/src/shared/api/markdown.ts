@@ -121,7 +121,7 @@ const WIKILINK = /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g;
  *
  * A fenced block parses nothing inside it and a code span is where an author
  * writes notation without invoking it — both stated by the profile, in the
- * `code-fenced` and `code-span` entries of the base ring. The rewrites below
+ * `code-fenced` and `code-span` entries of the profile. The rewrites below
  * run over the raw text BEFORE the parser sees it, so they are the one place
  * in this interface that has to know that on its own: every other reading of
  * the notation is a remark plugin, working on a tree where a code node is
@@ -147,6 +147,62 @@ export function codeRegions(body: string): Array<[number, number]> {
 
 /** Whether an offset falls inside one of them. */
 export function insideCode(regions: Array<[number, number]>, at: number): boolean {
+  return regions.some(([start, end]) => at >= start && at < end);
+}
+
+/**
+ * A GFM table, which is the third place an embed cannot expand (profile §7.3).
+ *
+ * A cell holds inlines and never blocks (§4.1), so an embed of a note in a
+ * cell is drawn as a link, the same answer the one-level rule and the embed
+ * ceiling already give. What made this its own case is that the expansion is
+ * decided on the raw string, by cutting the body into runs around each
+ * `![[…]]`, and a cut inside a table row does not merely fail to expand: it
+ * ends the run mid-row, so the parser that reads it has an unterminated table
+ * and the closing pipe becomes a paragraph of its own.
+ *
+ * Detected here rather than in a plugin for the reason the code regions
+ * already are: the split happens before anything is parsed, so this is the one
+ * place in the interface that has to recognise the block on its own.
+ *
+ * A table is a line containing a pipe, followed by a delimiter row of dashes,
+ * and it runs to the first blank line. The outer pipes are optional, which is
+ * why the delimiter row is what identifies the block. A shape this misses
+ * costs nothing new — it is the behaviour of before — so the pattern is
+ * deliberately the conservative one.
+ */
+const DELIMITER_ROW = /^ {0,3}\|?[ \t]*:?-{1,}:?[ \t]*(\|[ \t]*:?-{1,}:?[ \t]*)*\|?[ \t]*$/;
+
+export function tableRegions(body: string): Array<[number, number]> {
+  const regions: Array<[number, number]> = [];
+  const code = codeRegions(body);
+  const lines = body.split('\n');
+  const offsets: number[] = [];
+
+  let at = 0;
+  for (const line of lines) {
+    offsets.push(at);
+    at += line.length + 1;
+  }
+
+  for (let index = 0; index + 1 < lines.length; index++) {
+    const header = lines[index] ?? '';
+    const delimiter = lines[index + 1] ?? '';
+    if (!header.includes('|') || !delimiter.includes('|')) continue;
+    if (!DELIMITER_ROW.test(delimiter)) continue;
+    if (insideCode(code, offsets[index] ?? 0)) continue;
+
+    let last = index + 1;
+    while (last + 1 < lines.length && (lines[last + 1] ?? '').trim().length > 0) last++;
+
+    regions.push([offsets[index] ?? 0, (offsets[last] ?? 0) + (lines[last] ?? '').length]);
+    index = last;
+  }
+  return regions;
+}
+
+/** Whether an offset falls inside one of them. */
+export function insideTable(regions: Array<[number, number]>, at: number): boolean {
   return regions.some(([start, end]) => at >= start && at < end);
 }
 
@@ -209,4 +265,52 @@ export function slugify(name: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, MAX_SLUG_LENGTH)
     .replace(/-+$/g, '');
+}
+
+/**
+ * The hosts a note asks the reader's browser to talk to (profile §7.10,
+ * RN-DSC-040).
+ *
+ * An image whose destination names a host is a **request to that host**, made
+ * when the note is opened, by whoever opens it — and the trigger was written
+ * by whoever wrote the note, which is the same sentence §7.9 uses about raw
+ * HTML. What travels with it is the reader's address, their user-agent and the
+ * moment they read it.
+ *
+ * The profile admits three answers and forbids only silence: never fetching,
+ * fetching on the reader's action, or fetching and saying so. This product
+ * gives the third, so this is the half that says so. It is the image of §3.14
+ * and nothing else: a diagram and a formula render locally, and a link —
+ * bracketed, bare or autolinked — is a navigation the person initiates rather
+ * than a request the page makes.
+ *
+ * Code is excluded, because an image written inside a fence is an example of
+ * the notation and fetches nothing.
+ */
+const IMAGE_DESTINATION = /!\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g;
+
+export function remoteImageHosts(body: string): string[] {
+  const regions = codeRegions(body);
+  const hosts = new Set<string>();
+
+  for (const match of body.matchAll(IMAGE_DESTINATION)) {
+    if (insideCode(regions, match.index ?? 0)) continue;
+
+    const destination = (match[1] ?? '').trim();
+    // A path, a relative target or an anchor names no host and asks nobody
+    // for anything. Only a scheme or a leading `//` reaches outside.
+    const authority = /^[a-z][a-z0-9+.-]*:\/\//i.test(destination)
+      ? destination.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '')
+      : destination.startsWith('//')
+        ? destination.slice(2)
+        : '';
+    if (authority === '') continue;
+
+    // The authority, minus any credentials, port and path: what a person needs
+    // in order to recognise who they just talked to.
+    const host = (authority.split('/')[0] ?? '').split('@').pop() ?? '';
+    const named = host.split(':')[0] ?? '';
+    if (named !== '') hosts.add(named.toLowerCase());
+  }
+  return [...hosts];
 }

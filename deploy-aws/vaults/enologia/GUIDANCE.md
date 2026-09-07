@@ -36,5 +36,8 @@ dele. Dois hábitos merecem ser nomeados porque as pessoas chegam com eles:
 - **Um assunto escrito no corpo como `#tinta` não arquiva nada.** É texto
   comum. Assunto mora em `tags:`; assunto que merece página própria vira
   `[[wikilink]]`.
-- **HTML bruto não é renderizado**, e não existe notação para subscrito nem
-  sobrescrito. Escreva um callout, ou uma fórmula.
+- **HTML bruto não é renderizado.** É guardado e mostrado como texto, e isso é
+  fronteira de segurança, não preferência. Escreva um callout.
+- **Não existe notação para subscrito nem sobrescrito**, nem para nada mais que
+  o perfil não liste: pode até ser desenhado na página, e nunca significa nada.
+  Escreva uma fórmula.

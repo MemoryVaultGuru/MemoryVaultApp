@@ -1,7 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { splitEmbeds } from '../api/transclusion';
-import { resolveWikilinks } from '../api/markdown';
+import { remoteImageHosts, resolveWikilinks } from '../api/markdown';
 import { taskBoxes, toggleTaskAt } from '../api/tasklist';
 import { resolveNoteUrl } from '../api/source';
 import { Markdown } from './Markdown';
@@ -37,6 +38,7 @@ export function WritableContent({
   invalidates: unknown[];
 }) {
   const client = useQueryClient();
+  const { t } = useTranslation();
 
   /**
    * What the screen holds is no longer what the server holds, either because
@@ -109,6 +111,21 @@ export function WritableContent({
   // the two, and it has to include anything above the body.
   let seen = taskBoxes(text.slice(0, split)).length;
 
+  /**
+   * Whom this note asked the browser to talk to (profile §7.10, RN-DSC-040).
+   *
+   * The profile admits three answers about a remote image and forbids only
+   * silence: never fetching, fetching on the reader's action, or fetching and
+   * saying so. This product fetches — the destination reaches `<img src>`, and
+   * React even preloads it — so this line is the half that says so, and the
+   * reason it has to exist is that this is the one of the three answers a
+   * person cannot work out from the page.
+   *
+   * It appears only where it is true, naming the hosts, because a notice on
+   * every note would be a thing to scroll past rather than a thing to read.
+   */
+  const hosts = remoteImageHosts(body);
+
   return (
     <>
       {/* What happened to the write is said in the frame of the screen, by
@@ -143,6 +160,11 @@ export function WritableContent({
           </Markdown>
         );
       })}
+      {hosts.length > 0 && (
+        <p className="remote-notice">
+          {t('note.remoteImages', { count: hosts.length, hosts: hosts.join(', ') })}
+        </p>
+      )}
     </>
   );
 }

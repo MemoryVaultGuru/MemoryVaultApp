@@ -110,11 +110,32 @@ interface Positioned extends MdastNode {
  * the plan $60` renders `30 a month, and the plan` as mathematics. That is not
  * an exotic case, it is a sentence somebody writes on an ordinary day.
  *
- * The profile states the rule that prevents it: a `$` followed by whitespace
- * does not open, and one preceded by whitespace does not close. This runs
- * after `remark-math` and gives back to the text any inline formula that
- * breaks it, using the source the parser read — the delimiters are gone from
- * the node, and the position is what still knows where they were.
+ * The profile states four prohibitions, and **each one has an outside edge and
+ * an inside edge**. A `$` does not OPEN a formula when it is followed by
+ * whitespace, nor when it is immediately preceded by an alphanumeric; it does
+ * not CLOSE one when it is preceded by whitespace, nor when it is immediately
+ * followed by a digit.
+ *
+ * The inside edges arrived with profile v0.4.0, and they are what keeps a
+ * price whole. `R$ 100` is safe on the outside edge alone, because of the
+ * space. `R$100 e o frete R$200` is not: neither `$` sits next to a space, so
+ * with only the outside edge the sentence loses its middle — `100 e o frete R`
+ * typeset as mathematics, in italic serif, with the `R` and the `200` stranded
+ * either side of it. It is an ordinary sentence in pt-BR, where a price is
+ * written `R$`.
+ *
+ * **The cost is deliberate and the profile names it.** An inline formula
+ * written immediately after a word character no longer opens, so `2$x$` is
+ * text and `2 $x$` is the form that works. A `$` written for any other purpose
+ * belongs in a code span, which is opaque to everything — and for `$HOME` and
+ * `$PATH` in one sentence that is the only thing that protects them, because
+ * both delimiters look legal by every local rule.
+ *
+ * This runs after `remark-math` and gives back to the text any inline formula
+ * that breaks the rule, reading the source the parser read: the delimiters are
+ * gone from the node, and the position is what still knows where they were.
+ * The characters ON either side of the range are what the inside edges need,
+ * which is why the slice reaches one character past each end.
  *
  * Block math (`$$…$$`) is untouched: its delimiters are unambiguous.
  */
@@ -132,11 +153,19 @@ export function remarkMathDollarRule() {
 
         const raw = source.slice(start.offset, end.offset);
         const inner = raw.replace(/^\$+/, '').replace(/\$+$/, '');
-        if (inner.length > 0 && !/^\s/.test(inner) && !/\s$/.test(inner)) return child;
+        if (inner.length === 0) return { type: 'text', value: raw };
 
-        // Not a formula after all: the characters go back on the page exactly
-        // as they were typed, which is what somebody writing a price meant.
-        return { type: 'text', value: raw };
+        // The outside edges: what sits just inside each delimiter.
+        if (/^\s/.test(inner) || /\s$/.test(inner)) return { type: 'text', value: raw };
+
+        // The inside edges: what sits just OUTSIDE each delimiter, which is
+        // the half `R$100 e o frete R$200` is decided by.
+        const before = start.offset > 0 ? (source[start.offset - 1] ?? '') : '';
+        const after = source[end.offset] ?? '';
+        if (before !== '' && /[0-9A-Za-z]/.test(before)) return { type: 'text', value: raw };
+        if (after !== '' && /[0-9]/.test(after)) return { type: 'text', value: raw };
+
+        return child;
       });
     });
   };

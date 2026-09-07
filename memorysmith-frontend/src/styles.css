@@ -20,6 +20,17 @@
      be: inside a callout the code sits on the callout's tint over the code
      tint, and --text-soft loses the 4.5:1 there by a hair. */
   --code-color: #4e566b;
+  /* Syntax tokens, drawn from the brand palette rather than from a theme
+     somebody else shipped: the blue of structure for what a language reserves,
+     the green of connection for a literal value, and the orange of capture for
+     the one thing an eye should catch in a block, which is a string. A comment
+     is the soft text of the surface. All four are checked against --code-bg
+     for 4.5:1, because a token nobody can read is decoration. */
+  --token-keyword: #0f56d7;
+  --token-string: #b4541a;
+  --token-number: #157a3a;
+  --token-comment: #6b7386;
+  --token-punctuation: #4e566b;
   --seq-seed: #bfd2f6;
   --seq-growing: #6b96ea;
   --seq-evergreen: #0f56d7;
@@ -1279,6 +1290,70 @@ a:hover {
   font-size: 0.9rem;
 }
 
+/* What this note asked the browser to fetch (profile 7.10, RN-DSC-040). It is
+   a disclosure and not a warning: nothing went wrong, and a person is being
+   told something they could not otherwise know. So it reads as a footnote of
+   the note it belongs to, in the soft text of the surface, and never in the
+   signal orange, which this product spends on capture. */
+/* Prism token classes, mapped onto the palette above. The grammars name far
+   more tokens than this; every one not named here inherits --code-color, which
+   is what the block looked like before highlighting existed. Adding a colour
+   is deliberate, because the value of highlighting is the few things it picks
+   out and not the many it could. */
+.markdown .token.comment,
+.markdown .token.prolog,
+.markdown .token.doctype,
+.markdown .token.cdata {
+  color: var(--token-comment);
+  font-style: italic;
+}
+.markdown .token.punctuation,
+.markdown .token.operator {
+  color: var(--token-punctuation);
+}
+.markdown .token.keyword,
+.markdown .token.atrule,
+.markdown .token.rule,
+.markdown .token.important,
+.markdown .token.tag,
+.markdown .token.selector {
+  color: var(--token-keyword);
+}
+.markdown .token.string,
+.markdown .token.char,
+.markdown .token.attr-value,
+.markdown .token.regex {
+  color: var(--token-string);
+}
+.markdown .token.number,
+.markdown .token.boolean,
+.markdown .token.constant,
+.markdown .token.symbol,
+.markdown .token.inserted {
+  color: var(--token-number);
+}
+.markdown .token.property,
+.markdown .token.attr-name,
+.markdown .token.function,
+.markdown .token.class-name,
+.markdown .token.variable {
+  color: var(--code-color);
+  font-weight: 500;
+}
+/* A diff is the one grammar whose meaning is the line and not the token. */
+.markdown .token.deleted {
+  color: var(--token-string);
+}
+
+.remote-notice {
+  margin-top: 2rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 /* Dark mode: brand "Fundo escuro" #0B1220, Papel as text */
 :root[data-theme='dark'] {
   --bg: #0b1220;
@@ -1292,6 +1367,11 @@ a:hover {
   --pending: #5d6880;
   --code-bg: #0e1728;
   --code-color: #93a0ba;
+  --token-keyword: #7aa4f2;
+  --token-string: #f0a05a;
+  --token-number: #4fc07f;
+  --token-comment: #6f7c96;
+  --token-punctuation: #93a0ba;
   --seq-seed: #33507f;
   --seq-growing: #6b96ea;
   --seq-evergreen: #a9c4f5;

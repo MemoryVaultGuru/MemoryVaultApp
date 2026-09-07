@@ -20,8 +20,9 @@
  */
 
 import {
-  MARKDOWN_PROFILE_BASE,
+  DECLARED_SILENCE,
   MARKDOWN_PROFILE_NAME,
+  MARKDOWN_PROFILE_SOURCES,
   MARKDOWN_PROFILE_URL,
   MARKDOWN_PROFILE_VERSION,
   RECOGNISED_NOTATION,
@@ -129,60 +130,99 @@ avoiding the decision the owner already gave you.
  * declaration that Discovery tests against its own extractors, so a notation
  * that stops being read stops being taught in the same commit.
  *
- * **The whole declaration, base ring included, and that is a decision.**
- * Profile v0.3.0 restated CommonMark and GFM inside `profile.json`, taking the
- * table from 31 rows to 54, and the first reading was that twenty of them tell
- * an agent that a paragraph is a paragraph. They do not. Each base entry
- * states where THIS profile changes what the base means — that a link inside a
- * code span is not extracted, that `![[x]]` is an embed and not an image, that
- * a wikilink in a table cell is an edge like any other, that `_` does not
- * emphasise inside a word. Those crossings are invisible from CommonMark
- * alone and are exactly what an agent gets wrong, so the reader who most
- * needs them is the one reading this table. The two guards that were scoped
- * instead — the reading-surface expectations and the demonstration vaults —
- * were scoped for reasons that do not apply here.
+ * **The whole declaration, the forms inherited from CommonMark included, and
+ * that is a decision.** Profile v0.3.0 restated CommonMark and GFM inside
+ * `profile.json`, taking the table from 31 rows to 54, and the first reading
+ * was that twenty of them tell an agent that a paragraph is a paragraph. They
+ * do not. Each inherited entry states where THIS profile changes what the form
+ * means — that a link inside a code span is not extracted, that `![[x]]` is an
+ * embed and not an image, that a wikilink in a table cell is an edge like any
+ * other, that `_` does not emphasise inside a word. Those crossings are
+ * invisible from CommonMark alone and are exactly what an agent gets wrong, so
+ * the reader who most needs them is the one reading this table. The two guards
+ * scoped the other way — the reading-surface expectations and the
+ * demonstration vaults — were scoped for reasons that do not apply here.
+ *
+ * The `Read?` column left with profile v0.4.0, and it left because the answer
+ * stopped being a field: the profile no longer lists what it declines, so what
+ * a form does is now the whole of what an entry says. The forms this product
+ * is silent about are served below the table instead, from `DECLARED_SILENCE`.
  */
 function notationTable(): string {
-  const row = (entry: RecognisedNotation): string =>
-    `| \`${entry.syntax}\` | ${entry.ring} | ${entry.recognised ? 'yes' : '**no**'} | ${entry.effect} |`;
+  const row = (entry: RecognisedNotation): string => `| \`${entry.syntax}\` | ${entry.effect} |`;
+
+  return ['| Form | What happens |', '| --- | --- |', ...RECOGNISED_NOTATION.map(row)].join('\n');
+}
+
+/**
+ * What is NOT in the table, which is the question the table cannot answer.
+ *
+ * §8 of the profile is one rule about every form it does not describe, and it
+ * is the single most useful sentence an agent can be given about writing here,
+ * because it answers "I wrote something and got nothing" once instead of per
+ * form. Beside it go the two forms this product is asked about most, which are
+ * the two the profile carried as entries until v0.4.0 and now does not
+ * (RN-DSC-033).
+ */
+function silence(): string {
+  const row = (entry: (typeof DECLARED_SILENCE)[number]): string =>
+    `| \`${entry.syntax}\` | ${entry.effect} |`;
 
   return [
-    '| Form | Ring | Read? | What happens |',
-    '| --- | --- | --- | --- |',
-    ...RECOGNISED_NOTATION.map(row),
+    'A form that is not in the table above is not part of the notation. It may',
+    'still be drawn on the page, it never carries meaning — no edge, no',
+    'attribute, no index entry — and writing it is how you get a note that looks',
+    'right and answers nothing.',
+    '',
+    'Two of them are worth naming, because whoever arrives from another editor',
+    'arrives with both:',
+    '',
+    '| Form | What happens |',
+    '| --- | --- |',
+    ...DECLARED_SILENCE.map(row),
   ].join('\n');
 }
 
 /**
- * The three rings, named with the versions this build implements.
+ * Where the notation comes from, named with the versions this build implements.
  *
- * It comes first in the skill, because "which Markdown is this" is the
- * question underneath every other one an agent has about writing here, and
- * answering it with a specification and a version is a different answer from
- * a list of forms (RN-AGT-022). It is generated from the profile, so it cannot
- * cite a version this build does not carry.
+ * It comes first in the skill, because "which Markdown is this" is the question
+ * underneath every other one an agent has about writing here, and answering it
+ * with a specification and a version is a different answer from a list of forms
+ * (RN-AGT-022). It is generated from the profile, so it cannot cite a version
+ * this build does not carry — and a source without one prints without one,
+ * because Obsidian publishes documentation rather than a versioned
+ * specification.
+ *
+ * **The precedence is stated because it is not uniform.** The profile defers to
+ * CommonMark and GFM and governs over Obsidian, which is the opposite
+ * direction, and an agent that assumes one rule for all three will be wrong
+ * about the half of the notation it is most confident in.
  */
-function rings(): string {
-  const base = MARKDOWN_PROFILE_BASE.map(
-    (spec) => `- **${spec.name} ${spec.version}** — ${spec.url}`,
+function sources(): string {
+  const cited = MARKDOWN_PROFILE_SOURCES.map((source) =>
+    source.version
+      ? `- **${source.name} ${source.version}** — ${source.url}`
+      : `- **${source.name}** — ${source.url}`,
   );
 
   return [
     `This product implements the **${MARKDOWN_PROFILE_NAME} ${MARKDOWN_PROFILE_VERSION}**, a`,
     `published specification: ${MARKDOWN_PROFILE_URL}`,
     '',
-    'It has three rings, and which one a form belongs to tells you how much you',
-    'can rely on it elsewhere:',
+    'It does not invent the notation. Each form is credited to where it was',
+    'established:',
     '',
-    ...base,
-    '- **The MemorySmith ring**, specified by the profile above: the wikilink, the embed,',
-    '  the frontmatter vocabulary, the callout. This is the part no base',
-    '  specification covers and that every tool means something slightly different',
-    '  by, which is why it is written down.',
+    ...cited,
     '',
-    'Every form in the table below belongs to one of those rings, and the table is',
-    'generated from the profile itself: it cannot describe a notation this build',
-    'does not implement.',
+    '**Which one wins is not the same in both directions.** Where the profile and',
+    'CommonMark or GFM disagree, those specifications govern and the profile is',
+    'the one that is wrong. Where the profile and a vault editor disagree, the',
+    'profile governs — it is a lineage and never a promise that a note behaves',
+    'identically somewhere else.',
+    '',
+    'The table below is generated from the profile itself: it cannot describe a',
+    'notation this build does not implement.',
     '',
     '**Read the inherited rows too.** They are there because the profile says',
     'where it changes what they mean, and that is the part you cannot get from',
@@ -288,11 +328,15 @@ is the whole list. Everything else you write is text, and nothing more.
 
 ## Which Markdown this is
 
-${rings()}
+${sources()}
 
 ## The notation
 
 ${notationTable()}
+
+## What is not in that table
+
+${silence()}
 
 ## What none of this changes
 
@@ -307,14 +351,17 @@ ${notationTable()}
   other: the vocabulary belongs to the guidance of the vault you are writing in.
   Read it before inventing a field.
 
-## What is NOT read, and is worth knowing before you rely on it
+## What is read, and what is only drawn
 
-- A tag written in the body, like \`#procurement\`. Only the frontmatter becomes
-  a facet.
-- A block identifier, like \`^abc123\`. That is a convention of a desktop
-  editor, not universal Markdown.
-- A heading. Headings are searchable text and give a section name to a link
-  anchor; they carry no other meaning.
+The table has two kinds of row and they are easy to run together. Most forms
+are **rendered and nothing else**: a heading, a callout, a struck word and a
+diagram change how a note looks and carry no meaning any query can reach. Only
+the frontmatter and the links are read.
+
+- A heading is searchable text and gives a section name to a link anchor. It
+  carries no other meaning, and a heading is not a tag.
+- A block identifier, like \`^abc123\`, names a block so an embed can address
+  it. It is drawn nowhere and it means nothing outside its own note.
 - Anything the guidance of the vault invented and the server was never told
   about. Conventions are for the humans and agents reading the vault, and they
   work because everyone follows them, not because anything enforces them.

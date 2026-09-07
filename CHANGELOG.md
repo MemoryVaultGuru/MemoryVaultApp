@@ -11,6 +11,23 @@ issues each entry cites.
 
 ## [Unreleased]
 
+## [0.5.7] - 2026-09-07
+
+### Fixed
+
+- **An embed written in a table cell no longer breaks the table.** `| The general one | ![[Lei 14.133]] |` produced three wrong things at once: the cell came out empty, the embed became a block outside the table, and the closing pipe of the row became a paragraph containing `|`. The expansion is decided on the raw string, so a cut at the embed ended the text run mid-row and handed the parser an unterminated table. Profile v0.4.0 names the table cell as the third place expansion cannot happen — a cell holds inlines and never blocks — and the answer is the one the other two already had: where an embed cannot expand it is drawn as a link, and it is never dropped. (#92)
+- **`R$100 e o frete R$200` is a price again, and not a formula.** The reading surface implemented half of the profile's dollar rule: a `$` followed by whitespace did not open a formula and one preceded by whitespace did not close one, which keeps `R$ 100` whole and decides nothing at all about `R$100`. Neither `$` in that sentence sits next to a space, so the middle of it — `100 e o frete R` — was typeset as mathematics, in italic serif, with the `R` and the `200` stranded either side. It is an ordinary sentence in pt-BR, where a price is written `R$`. Profile v0.4.0 states the other half of each prohibition, and both are now implemented: a `$` immediately preceded by an alphanumeric does not open, and one immediately followed by a digit does not close. **The cost is deliberate and the profile names it:** an inline formula written immediately after a word character no longer opens, so `2 $x$` is the form that works and `2$x$` is text. (#91)
+
+### Added
+
+- **A fenced block that names its language is highlighted.** A fence opening ```` ```sql ```` and the rest arrived as unstyled monospace: the info string reached the DOM as a class name and nothing consumed it, because one info string had a rendering rule and no highlighter was installed. The profile leaves this open — it attaches a rendering rule to `mermaid` alone, and says of every form it does not describe that an implementation may render it however it likes — so this is a product decision and not a conformance fix. What the profile does constrain is honoured and asserted: the bytes never change, an unknown or absent language renders exactly as before rather than as an error or an empty block, `mermaid` keeps its branch and is checked first, and **the tokens arrive as React elements and never as an HTML string**, which is the raw-HTML boundary held at the one place a highlighter would otherwise breach it with the note body as its input. Fifteen grammars are registered by name rather than the full Prism bundle. (#88)
+- **A note that fetches an image from another site says so, on the note that does it.** Profile v0.4.0 added §7.10, the one section about what a Reader may fetch rather than what it renders, and it forbids exactly one of the answers: saying nothing. This surface does fetch — the destination reaches `<img src>` and the browser is even told to preload it — so a person who opens a note with a remote image in it has had their address, their browser and the moment they read it sent to a host somebody else named. That is now disclosed at the foot of the note, with the hosts named, on the notes where it is true and on no others. Of the three conforming answers it is the one that changes no behaviour, and the only one a person cannot work out by looking; never fetching would break a remote image in every vault, and fetching on the reader's action needs a control the interface does not have yet (RN-DSC-040). (#93)
+
+### Changed
+
+- **The product reads the MemorySmith Markdown Profile at v0.4.0, which stopped describing itself in tiers.** The ring is gone and each form is credited to a source instead — CommonMark, GFM and, named for the first time, Obsidian, which is where seven notation families came from and which the specification governs over rather than defers to. `base` became `sources` and its `version` became optional, because Obsidian publishes documentation and not a versioned specification: read as required, it served the agent `Obsidian undefined`. The skill now opens by naming the three sources and stating that the precedence runs in both directions, and it teaches §8 — the one rule answering every form the profile does not list — in place of the `Read?` column that used to answer it per row. Unlike the 0.3.0 break, this one was caught by `tsc` at the seam before a test ran. (#89)
+- **Two decisions this repository was reading off the profile are now written in it.** The reading-surface expectations and the two demonstration vaults were scoped by `ring !== 'base'`, and what the product deliberately does not read was scoped by `recognised: false`; the profile dropped both fields for reasons of its own. Neither decision changed, so both moved into `packages/contracts`: `DELEGATED_TO_THE_BASE_PARSER` says which forms this repository leaves to the base parser and why, and `DECLARED_SILENCE` says what happens to `#subject` and to a subscript, which is nothing, in the product's own words now that the specification no longer carries them (RN-DSC-033). A form the profile adds in a later version lands in neither list and fails the build, which is the property the removed fields gave for free. (#90)
+
 ## [0.5.6] - 2026-09-06
 
 ### Changed
@@ -264,7 +281,8 @@ Search by meaning left the version, with the whole vector index: the explanation
 
 - The HMAC key signing the `state` of the CIMD proxy moved from a Lambda environment variable to Secrets Manager, read at runtime. As an environment variable the value sat in clear text.
 
-[Unreleased]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.6...HEAD
+[Unreleased]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.7...HEAD
+[0.5.7]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.6...v0.5.7
 [0.5.6]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.5...v0.5.6
 [0.5.5]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.3...v0.5.4
