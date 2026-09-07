@@ -149,8 +149,7 @@ avoiding the decision the owner already gave you.
  * is silent about are served below the table instead, from `DECLARED_SILENCE`.
  */
 function notationTable(): string {
-  const row = (entry: RecognisedNotation): string =>
-    `| \`${entry.syntax}\` | ${entry.effect} |`;
+  const row = (entry: RecognisedNotation): string => `| \`${entry.syntax}\` | ${entry.effect} |`;
 
   return ['| Form | What happens |', '| --- | --- |', ...RECOGNISED_NOTATION.map(row)].join('\n');
 }

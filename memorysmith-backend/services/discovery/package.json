@@ -1,6 +1,6 @@
 {
   "name": "@memorysmith/svc-discovery",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "private": true,
   "type": "module",
   "description": "Discovery bounded context: link graph, vector index and curation facets, three projections over the same events.",

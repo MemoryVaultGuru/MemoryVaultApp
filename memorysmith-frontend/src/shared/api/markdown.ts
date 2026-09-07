@@ -280,7 +280,7 @@ export function slugify(name: string): string {
  * The profile admits three answers and forbids only silence: never fetching,
  * fetching on the reader's action, or fetching and saying so. This product
  * gives the third, so this is the half that says so. It is the image of §3.14
- * and nothing else: a diagram and a formula render locally, and a link — 
+ * and nothing else: a diagram and a formula render locally, and a link —
  * bracketed, bare or autolinked — is a navigation the person initiates rather
  * than a request the page makes.
  *
