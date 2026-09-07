@@ -11,6 +11,11 @@ issues each entry cites.
 
 ## [Unreleased]
 
+### Changed
+
+- **The product reads the MemorySmith Markdown Profile at v0.4.0, which stopped describing itself in tiers.** The ring is gone and each form is credited to a source instead — CommonMark, GFM and, named for the first time, Obsidian, which is where seven notation families came from and which the specification governs over rather than defers to. `base` became `sources` and its `version` became optional, because Obsidian publishes documentation and not a versioned specification: read as required, it served the agent `Obsidian undefined`. The skill now opens by naming the three sources and stating that the precedence runs in both directions, and it teaches §8 — the one rule answering every form the profile does not list — in place of the `Read?` column that used to answer it per row. Unlike the 0.3.0 break, this one was caught by `tsc` at the seam before a test ran. (#89)
+- **Two decisions this repository was reading off the profile are now written in it.** The reading-surface expectations and the two demonstration vaults were scoped by `ring !== 'base'`, and what the product deliberately does not read was scoped by `recognised: false`; the profile dropped both fields for reasons of its own. Neither decision changed, so both moved into `packages/contracts`: `DELEGATED_TO_THE_BASE_PARSER` says which forms this repository leaves to the base parser and why, and `DECLARED_SILENCE` says what happens to `#subject` and to a subscript, which is nothing, in the product's own words now that the specification no longer carries them (RN-DSC-033). A form the profile adds in a later version lands in neither list and fails the build, which is the property the removed fields gave for free. (#90)
+
 ## [0.5.6] - 2026-09-06
 
 ### Changed

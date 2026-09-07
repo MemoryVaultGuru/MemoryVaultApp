@@ -31,11 +31,11 @@ coverage: 2020-01 a 2025-12
 
 Cruzando, por distribuidora e ano (2020–2025, 210 observações de 36 concessionárias com dez ou mais conjuntos), a inadimplência definitiva `ITot24` com as medidas de continuidade:
 
-| Par | Spearman ρ | p-valor |
-|---|---:|---:|
-| DEC médio dos conjuntos × inadimplência | **0,412** | 5,0 × 10⁻¹⁰ |
-| % de conjuntos em transgressão × inadimplência | 0,230 | 7,7 × 10⁻⁴ |
-| Razão apurado/limite (mediana) × inadimplência | 0,281 | 3,5 × 10⁻⁵ |
+| Par                                            | Spearman ρ |     p-valor |
+| ---------------------------------------------- | ---------: | ----------: |
+| DEC médio dos conjuntos × inadimplência        |  **0,412** | 5,0 × 10⁻¹⁰ |
+| % de conjuntos em transgressão × inadimplência |      0,230 |  7,7 × 10⁻⁴ |
+| Razão apurado/limite (mediana) × inadimplência |      0,281 |  3,5 × 10⁻⁵ |
 
 Agregando por concessionária (média dos seis anos, n = 36), a associação persiste (ρ = 0,316) mas perde significância convencional (p = 0,060) — o que era esperado com 36 pontos.
 

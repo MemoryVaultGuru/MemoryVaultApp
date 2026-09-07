@@ -36,5 +36,8 @@ with them:
 - **A subject written in the body as `#continuity` files nothing.** It is plain
   text. Subjects live in `tags:`; a subject that deserves a page of its own
   gets a `[[wikilink]]`.
-- **Raw HTML is not rendered**, and there is no notation for superscript or
-  subscript. Write a callout, or a formula.
+- **Raw HTML is not rendered.** It is stored and shown as text, and that is a
+  security boundary rather than a preference. Write a callout.
+- **There is no notation for superscript or subscript**, and none for anything
+  else the profile does not list: it may still be drawn on the page, and it
+  never means anything. Write a formula.

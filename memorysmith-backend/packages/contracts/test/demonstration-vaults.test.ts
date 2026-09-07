@@ -18,18 +18,33 @@
  * 2. neither vault demonstrates a notation the profile does **not** declare,
  *    so they cannot teach a reader something this product will not do.
  *
- * **The first direction is asked of everything outside the `base` ring, and
- * that is a decision, not a filter.** Profile v0.3.0 restated CommonMark and
- * GFM inside `profile.json`, so the declared notation went from 31 entries to
- * 54, and 20 of the new ones are the base ring. Demanding those here would
- * force a setext heading, an indented code block and a link reference
- * definition into prose that has no use for any of them — which is the list
- * of specimens these vaults were written to not be. CommonMark is the floor
- * every renderer already stands on; what a reader cannot learn anywhere else
- * is what this profile adds on top of it, and that is what these vaults owe.
- * GFM stays in: a table, a struck word and a bare address are not universal,
- * and each of the three carries a crossing of its own — a wikilink inside a
- * table cell is an edge, a bare address never is.
+ * **The first direction is asked of everything the profile ADDS to what a base
+ * parser already does, and that is a decision, not a filter.** Profile v0.3.0
+ * restated CommonMark and GFM inside `profile.json`, so the declared notation
+ * went from 31 entries to 54. Demanding all of them here would force a setext
+ * heading, an indented code block and a link reference definition into prose
+ * that has no use for any of them — which is the list of specimens these
+ * vaults were written to not be. CommonMark is the floor every renderer
+ * already stands on; what a reader cannot learn anywhere else is what this
+ * profile adds on top of it, and that is what these vaults owe. GFM stays in:
+ * a table, a struck word and a bare address are not universal, and each of the
+ * three carries a crossing of its own — a wikilink inside a table cell is an
+ * edge, a bare address never is.
+ *
+ * Which entries those are is `DELEGATED_TO_THE_BASE_PARSER` in `markdown.ts`.
+ * It was a filter on `entry.ring` until profile v0.4.0 removed the field, for
+ * a reason of its own: an implementation is asked for the notation the
+ * document lists and not for a specification in full. The decision above did
+ * not change with it.
+ *
+ * **A third direction, added in the same cycle: the rejections.** They were
+ * read off `recognised: false` and the profile stopped carrying them, because
+ * a catalogue of the forms a specification declines can never be finished.
+ * What this product does with `#subject` did not change (RN-DSC-033), so the
+ * declaration moved to `DECLARED_SILENCE` and these vaults still owe it — a
+ * vault written by somebody using the product contains only what worked, and
+ * this is the one place a form that does nothing is shown beside one that
+ * does.
  *
  * The prose is written by hand, because a generated vault teaches nothing.
  * This is what keeps it honest.
@@ -39,15 +54,23 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { RECOGNISED_NOTATION } from '../src/markdown.js';
+import {
+  DECLARED_SILENCE,
+  DELEGATED_TO_THE_BASE_PARSER,
+  RECOGNISED_NOTATION,
+} from '../src/markdown.js';
 
 /**
- * What the vaults owe: everything the profile adds to the two specifications
- * it inherits. The reason is in the preamble, and it is written as a filter on
- * the ring so that a notation added to `memorysmith` or to `extended` is
- * demanded here the day it is declared, with no list to remember to update.
+ * What the vaults owe: everything the profile adds to what a base parser
+ * already does. The reason is in the preamble.
+ *
+ * It was a filter on `entry.ring` until profile v0.4.0, which dropped the
+ * field. The scope did not change and the place it is written did: it is now
+ * an explicit list in `markdown.ts`, and the second assertion below is what
+ * keeps it from quietly absorbing a notation added in a later version, which
+ * is the property the field used to give for free.
  */
-const DEMANDED = RECOGNISED_NOTATION.filter((entry) => entry.ring !== 'base');
+const DEMANDED = RECOGNISED_NOTATION.filter((entry) => !DELEGATED_TO_THE_BASE_PARSER.has(entry.id));
 
 const VAULTS = resolve(
   fileURLToPath(import.meta.url),
@@ -195,6 +218,19 @@ describe.each(DEMONSTRATION)('%s demonstrates the whole declared notation', (slu
     // are silently not demonstrating.
     expect(detect, `no detector written for the notation "${id}"`).toBeDefined();
     expect(detect?.(notes), `"${id}" is declared and appears nowhere in ${slug}`).toBe(true);
+  });
+
+  it.each(DECLARED_SILENCE.map((entry) => entry.id))('shows %s being ignored', (id) => {
+    // The rejections are demanded exactly as the declarations are, and for a
+    // sharper reason: a vault written by somebody using the product only ever
+    // contains what worked, so this is the one place a reader sees a form that
+    // does nothing sitting beside the form that does. They were read off
+    // `recognised: false` until profile v0.4.0 stopped carrying it.
+    const detect = DETECTS[id];
+    expect(detect, `no detector written for the silence "${id}"`).toBeDefined();
+    expect(detect?.(notes), `"${id}" is a declared silence and appears nowhere in ${slug}`).toBe(
+      true,
+    );
   });
 
   it.each(Object.entries(UNDECLARED))('demonstrates no %s', (_name, pattern) => {

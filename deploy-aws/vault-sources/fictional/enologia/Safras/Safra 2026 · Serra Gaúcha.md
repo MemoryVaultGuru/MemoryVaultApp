@@ -48,9 +48,11 @@ $$P = 1 - \frac{IPT_{colheita}}{IPT_{alvo}}$$
 
 ## O que tentamos escrever e não deu
 
-- **Fórmula com subscrito.** `H~2~O` e `m^2^` não têm significado neste
-  perfil: ficam na página exatamente com esses caracteres. Escreva o caractere
-  real, ou uma fórmula: $H_2O$ e $m^2$.
+- **Fórmula com subscrito.** `H~2~O` e `m^2^` não são notação aqui, então nada
+  acontece com eles: ficam na página exatamente com esses caracteres. O perfil
+  não lista forma para nenhum dos dois, e o que ele não lista pode ser
+  desenhado e nunca significa nada. Escreva o caractere real, ou uma fórmula:
+  $H_2O$ e $m^2$.
 - **Um aviso em HTML.** `<div class="aviso">` é guardado e mostrado como
   texto, nunca renderizado. Use um callout, como esta página faz acima.
 - **Um resumo no frontmatter.** O `resumo` lá em cima passa de quarenta
