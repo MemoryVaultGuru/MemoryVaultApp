@@ -118,6 +118,8 @@
     "embedSectionMissing": "A seção \"{{section}}\" não existe nesta nota.",
     "writeConflict": "A alteração não foi salva. Alguém escreveu aqui antes, e o conteúdo foi recarregado.",
     "pendingLink": "Link pendente: a nota alvo ainda não existe.",
+    "remoteImages_one": "Abrir esta nota buscou uma imagem em {{hosts}}, então esse site recebeu seu endereço e o momento em que você leu.",
+    "remoteImages_other": "Abrir esta nota buscou imagens em {{count}} outros sites — {{hosts}} —, então cada um deles recebeu seu endereço e o momento em que você leu.",
     "refusedLink": "Este endereço não é dos que a superfície de leitura segue, então o texto fica e o link não.",
     "copy": "Copiar",
     "copied": "Copiado",

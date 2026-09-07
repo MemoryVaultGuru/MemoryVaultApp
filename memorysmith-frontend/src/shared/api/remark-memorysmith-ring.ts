@@ -160,7 +160,7 @@ export function remarkMathDollarRule() {
 
         // The inside edges: what sits just OUTSIDE each delimiter, which is
         // the half `R$100 e o frete R$200` is decided by.
-        const before = start.offset > 0 ? source[start.offset - 1] : '';
+        const before = start.offset > 0 ? (source[start.offset - 1] ?? '') : '';
         const after = source[end.offset] ?? '';
         if (before !== '' && /[0-9A-Za-z]/.test(before)) return { type: 'text', value: raw };
         if (after !== '' && /[0-9]/.test(after)) return { type: 'text', value: raw };

@@ -1279,6 +1279,20 @@ a:hover {
   font-size: 0.9rem;
 }
 
+/* What this note asked the browser to fetch (profile 7.10, RN-DSC-040). It is
+   a disclosure and not a warning: nothing went wrong, and a person is being
+   told something they could not otherwise know. So it reads as a footnote of
+   the note it belongs to, in the soft text of the surface, and never in the
+   signal orange, which this product spends on capture. */
+.remote-notice {
+  margin-top: 2rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 /* Dark mode: brand "Fundo escuro" #0B1220, Papel as text */
 :root[data-theme='dark'] {
   --bg: #0b1220;

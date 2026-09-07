@@ -596,3 +596,61 @@ describe('an embed where no block fits', () => {
     expect(html).not.toContain('<table>');
   });
 });
+
+/**
+ * §7.10, the one section of profile v0.4.0 that is about disclosure rather
+ * than rendering.
+ *
+ * An image whose destination names a host is a request to that host, made when
+ * the note is opened, by whoever opens it — and the trigger was written by
+ * whoever wrote the note. A Reader MUST state whether that happens. Three
+ * answers conform: never, only on the reader's action, or yes and we say so.
+ * **Only silence does not**, because a person cannot decline what nobody told
+ * them about.
+ *
+ * This product gives the third answer (RN-DSC-040), so what is asserted here
+ * is that the fetch is disclosed and that the disclosure appears exactly where
+ * it is true.
+ */
+describe('a note that fetches from another site says so', () => {
+  it('names the host when an image reaches outside', () => {
+    const html = render('![A curve](https://example.org/curve.png)');
+
+    expect(html).toContain('remote-notice');
+    expect(html).toContain('example.org');
+  });
+
+  it('says nothing when nothing is fetched', () => {
+    // The disclosure appears where it is true and nowhere else. A notice on
+    // every note is a thing to scroll past rather than a thing to read.
+    const html = render('![A curve](./curve.png)\n\nAnd [a link](https://example.org).');
+
+    expect(html).not.toContain('remote-notice');
+  });
+
+  it('keeps the alt text, which is what a person gets when the image does not load', () => {
+    const html = render('![Fourteen minutes against thirty](https://example.org/x.png)');
+
+    expect(html).toContain('alt="Fourteen minutes against thirty"');
+  });
+
+  it('does not count an image written inside a fence, which fetches nothing', () => {
+    const html = render('```\n![A curve](https://example.org/curve.png)\n```\n');
+
+    expect(html).not.toContain('remote-notice');
+  });
+
+  it('names each host once, however many images came from it', () => {
+    const html = render(
+      '![One](https://example.org/a.png)\n\n![Two](https://example.org/b.png)\n\n![Three](https://cdn.example.net/c.png)\n',
+    );
+
+    // Asserted on the notice and not on the whole page, which also carries the
+    // host in each `src` and in the preload React emits for it.
+    const notice = /<p class="remote-notice">(.*?)<\/p>/.exec(html)?.[1] ?? '';
+
+    expect(notice).toContain('example.org');
+    expect(notice).toContain('cdn.example.net');
+    expect((notice.match(/(^|[^.])example\.org/g) ?? []).length).toBe(1);
+  });
+});
