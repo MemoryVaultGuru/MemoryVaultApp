@@ -264,7 +264,8 @@ Search by meaning left the version, with the whole vector index: the explanation
 
 - The HMAC key signing the `state` of the CIMD proxy moved from a Lambda environment variable to Secrets Manager, read at runtime. As an environment variable the value sat in clear text.
 
-[Unreleased]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.5...HEAD
+[Unreleased]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.6...HEAD
+[0.5.6]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.5...v0.5.6
 [0.5.5]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/memorysmithapp/memorysmithapp/compare/v0.5.2...v0.5.3
