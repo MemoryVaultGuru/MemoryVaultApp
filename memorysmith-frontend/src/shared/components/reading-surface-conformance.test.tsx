@@ -540,3 +540,59 @@ describe('a picture in a note, and the addresses around it', () => {
     expect(html).toContain('A note nobody has written');
   });
 });
+
+/**
+ * The three places an embed cannot expand, and the one answer to all of them
+ * (profile §7.3): where expansion cannot happen the embed becomes a link, and
+ * it is never dropped.
+ *
+ * The table cell was named by profile v0.4.0 and it is the sharpest of the
+ * three, because the split that decides expansion runs on the raw string: a
+ * cut inside a table row did not merely fail to expand, it ended the run
+ * mid-row and left the parser an unterminated table.
+ */
+describe('an embed where no block fits', () => {
+  const TABLE = '| Rule | Where |\n|---|---|\n| The general one | ![[Lei 14.133]] |\n';
+
+  it('keeps the table whole, with the embed inside the cell', () => {
+    const html = render(TABLE);
+
+    // One table, and the row it was written with. The embed used to land
+    // outside it, the cell used to come out empty, and the closing pipe used
+    // to become a paragraph of its own.
+    expect(html).toContain('<table>');
+    expect((html.match(/<table>/g) ?? []).length).toBe(1);
+    expect(html).toContain('The general one');
+    expect(html).not.toMatch(/<p>\s*\|\s*<\/p>/);
+    expect(html).not.toContain('<td></td>');
+  });
+
+  it('draws the embed in the cell as a link, and never drops it', () => {
+    const html = render(TABLE);
+
+    // Demoted to a wikilink, which resolves like any other: the note does not
+    // exist here, so it is the pending form. What must not happen is the
+    // literal notation reaching the page, or the reference disappearing.
+    expect(html).toContain('Lei 14.133');
+    expect(html).not.toContain('![[');
+    expect(html).not.toContain('[[Lei 14.133]]');
+    expect(html).toMatch(/wikilink/);
+  });
+
+  it('still expands an embed written outside the table in the same note', () => {
+    // The skip is scoped to the cell and to nothing else, and the run carrying
+    // the table has to survive being cut around a later embed.
+    const html = render(`${TABLE}\n![[Another note]]\n`);
+
+    expect(html).toContain('<table>');
+    expect(html).toMatch(/embed|status/);
+    expect(html).not.toContain('![[');
+  });
+
+  it('leaves an embed written inside a fence alone, table or no table', () => {
+    const html = render('```\n| A | B |\n|---|---|\n| x | ![[Lei 14.133]] |\n```\n');
+
+    expect(html).toContain('![[Lei 14.133]]');
+    expect(html).not.toContain('<table>');
+  });
+});

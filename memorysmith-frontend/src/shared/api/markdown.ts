@@ -150,6 +150,62 @@ export function insideCode(regions: Array<[number, number]>, at: number): boolea
   return regions.some(([start, end]) => at >= start && at < end);
 }
 
+/**
+ * A GFM table, which is the third place an embed cannot expand (profile §7.3).
+ *
+ * A cell holds inlines and never blocks (§4.1), so an embed of a note in a
+ * cell is drawn as a link, the same answer the one-level rule and the embed
+ * ceiling already give. What made this its own case is that the expansion is
+ * decided on the raw string, by cutting the body into runs around each
+ * `![[…]]`, and a cut inside a table row does not merely fail to expand: it
+ * ends the run mid-row, so the parser that reads it has an unterminated table
+ * and the closing pipe becomes a paragraph of its own.
+ *
+ * Detected here rather than in a plugin for the reason the code regions
+ * already are: the split happens before anything is parsed, so this is the one
+ * place in the interface that has to recognise the block on its own.
+ *
+ * A table is a line containing a pipe, followed by a delimiter row of dashes,
+ * and it runs to the first blank line. The outer pipes are optional, which is
+ * why the delimiter row is what identifies the block. A shape this misses
+ * costs nothing new — it is the behaviour of before — so the pattern is
+ * deliberately the conservative one.
+ */
+const DELIMITER_ROW = /^ {0,3}\|?[ \t]*:?-{1,}:?[ \t]*(\|[ \t]*:?-{1,}:?[ \t]*)*\|?[ \t]*$/;
+
+export function tableRegions(body: string): Array<[number, number]> {
+  const regions: Array<[number, number]> = [];
+  const code = codeRegions(body);
+  const lines = body.split('\n');
+  const offsets: number[] = [];
+
+  let at = 0;
+  for (const line of lines) {
+    offsets.push(at);
+    at += line.length + 1;
+  }
+
+  for (let index = 0; index + 1 < lines.length; index++) {
+    const header = lines[index] ?? '';
+    const delimiter = lines[index + 1] ?? '';
+    if (!header.includes('|') || !delimiter.includes('|')) continue;
+    if (!DELIMITER_ROW.test(delimiter)) continue;
+    if (insideCode(code, offsets[index] ?? 0)) continue;
+
+    let last = index + 1;
+    while (last + 1 < lines.length && (lines[last + 1] ?? '').trim().length > 0) last++;
+
+    regions.push([offsets[index] ?? 0, (offsets[last] ?? 0) + (lines[last] ?? '').length]);
+    index = last;
+  }
+  return regions;
+}
+
+/** Whether an offset falls inside one of them. */
+export function insideTable(regions: Array<[number, number]>, at: number): boolean {
+  return regions.some(([start, end]) => at >= start && at < end);
+}
+
 /** Runs a rewrite over everything except code, which is copied through. */
 export function outsideCode(body: string, rewrite: (text: string) => string): string {
   let out = '';
