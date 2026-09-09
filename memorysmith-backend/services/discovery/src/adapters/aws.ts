@@ -494,6 +494,65 @@ export class DynamoLinkGraph implements LinkGraph {
 
     return { nodes, edges, pending, truncated };
   }
+
+  /*
+   * The three below exist for the reprojection (#102) and for nothing else.
+   *
+   * A projection is derived and rebuildable from zero (PE5), and the one in
+   * this table was built by a rule that retired: rebuilding it means forgetting
+   * every edge, restating what the vault answers to, and letting the ordinary
+   * write path decide the edges again. They are not on the LinkGraph port,
+   * because the projector never needs them and a port is what a caller needs.
+   */
+
+  /** Every edge the vault holds right now, for the before and after of a run. */
+  async currentEdges(vaultId: string): Promise<Array<{ from: string; to: string }>> {
+    return (await this.query(vaultId, 'OUT#')).map((item) => ({
+      from: String(item['fromNoteId']),
+      to: String(item['toNoteId']),
+    }));
+  }
+
+  /**
+   * Every edge, backlink, pending link and alias edge of the vault, forgotten.
+   *
+   * The NOTE# items stay: they are what the vault answers to, and the seeding
+   * below restates them before a single edge is resolved. Deleting them here
+   * would make the first note of the rebuild resolve against an empty vault.
+   */
+  async forgetLinks(vaultId: string): Promise<void> {
+    for (const prefix of ['OUT#', 'IN#', 'PENDING#', 'ALIAS#']) {
+      const items = await this.query(vaultId, prefix);
+      await this.remove(
+        vaultId,
+        items.map((item) => String(item['SK'])),
+      );
+    }
+  }
+
+  /**
+   * What the vault answers to, restated from the notes themselves, and the
+   * note items of whatever is no longer there taken away.
+   *
+   * It runs before the edges are rebuilt so that every note resolves against
+   * the whole vault rather than against however much of it had been written by
+   * the time its turn came.
+   */
+  async seedNotes(vaultId: string, notes: readonly NoteRef[]): Promise<void> {
+    const live = new Set(notes.map((note) => note.noteId));
+    const stale = (await this.query(vaultId, 'NOTE#'))
+      .map((item) => String(item['SK']))
+      .filter((sk) => !live.has(sk.slice('NOTE#'.length)));
+    await this.remove(vaultId, stale);
+    await this.put(
+      notes.map((note) => ({
+        PK: this.pk(vaultId),
+        SK: `NOTE#${note.noteId}`,
+        entity: 'GNOTE',
+        ...note,
+      })),
+    );
+  }
 }
 
 export class DynamoFacetIndex implements FacetIndex {

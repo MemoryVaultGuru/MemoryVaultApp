@@ -332,6 +332,31 @@ At the end, the script prints the account, the region, the addresses of the site
 
 With the environment live, it checks four things: the `/health` of the API answers, `/mcp` returns `401` with the `WWW-Authenticate` header pointing at the metadata document, the two `.well-known` documents of MCP answer with the expected content, and the site answers `200`. If any of them fails, the script exits with a non-zero code and says which one.
 
+#### Upgrading an environment already in use to 0.6.0
+
+**A vault written before 0.6.0 needs a migration, and the migration has to run BEFORE the deploy.**
+
+Until 0.6.0 a note carried its title as an attribute of the note and nothing in its content, and every
+link in it was written to be found by a slug that folded case, accents and punctuation. From 0.6.0 the
+title is read from the content and a link addresses a title exactly. Deployed over vaults already
+written, that turns into notes with no addressable title, every wikilink pending and a graph with no
+edges — and the deploy destroys what the repair needs, because after it there is no stored title to
+write into the content.
+
+So the order is fixed, and the release does not go up before step 1 has run:
+
+| | Step | What it does |
+| --- | --- | --- |
+| 1 | `./deploy-aws/retitle-vaults.ps1 -Apply` | Against the version **still in production**: writes `title:` into the frontmatter of every note from its stored title, and retargets every link from the old slug to the exact title |
+| 2 | `./deploy-aws/deploy.ps1` | The release itself |
+| 3 | `./deploy-aws/reproject-links.ps1 -Apply` | Rebuilds the link graph of every vault under the new rule, since the one in the table was built by the rule that just retired |
+
+Both scripts report first and write only with `-Apply`, and running either of them twice changes nothing.
+Read the report of step 1 before applying it: it names the notes whose frontmatter already stated
+another title, the links that stay pending, the titles that now repeat, and the titles carrying `#`,
+`[`, `]` or `|`, which no link can name and which only a rename repairs. Step 3 exits with `2` when an
+edge was lost, which means step 1 did not reach some note.
+
 #### What the deployment does not do for you
 
 - **Create any account.** The user pool comes up empty, on purpose: no e-mail of a real person stays in the repository and no deployment decides who operates the platform. The one that creates the first account is `onboard.ps1`, just below.

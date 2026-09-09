@@ -13,6 +13,7 @@
     "./application/queries": "./src/application/queries.ts",
     "./adapters/memory": "./src/adapters/memory.ts",
     "./adapters/aws": "./src/adapters/aws.ts",
+    "./adapters/reprojection": "./src/adapters/reprojection.ts",
     "./adapters/http": "./src/adapters/routes.ts",
     "./main": "./src/main/handler.ts"
   },
