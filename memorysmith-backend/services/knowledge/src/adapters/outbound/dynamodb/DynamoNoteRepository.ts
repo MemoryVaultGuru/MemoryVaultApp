@@ -194,7 +194,7 @@ export class DynamoNoteRepository implements NoteRepository {
 
   private async commit(note: Note, items: TransactItem[]): Promise<Result<void, ConcurrencyError>> {
     const pk = this.keys.vault(note.vaultId);
-    // 4. The event, into the outbox, in the same transaction.
+    // 3. The event, into the outbox, in the same transaction.
     const events = note.pullEvents();
     const all = [
       ...items,

@@ -348,7 +348,12 @@ function Add-StatedTitle {
   #>
   param([Parameter(Mandatory)][string]$Text, [Parameter(Mandatory)][string]$FileName)
 
-  $title = $FileName -replace '["\\]', ''
+  # The four characters that would leave the note unaddressable
+  # (RN-KNW-036) come out of the file name, with the quotes that would
+  # break the scalar. A repair that wrote an unaddressable title would be
+  # no repair at all.
+  $title = ($FileName -replace '[#\[\]|"\\]', '').Trim()
+  if (-not $title) { $title = 'Nota' }
   $opens = $Text -match '^---\r?\n'
   if ($opens) {
     $end = [regex]::Match($Text, '^---\r?\n([\s\S]*?)\r?\n---')
