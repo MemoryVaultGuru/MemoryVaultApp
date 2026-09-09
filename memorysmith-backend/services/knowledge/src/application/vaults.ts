@@ -32,6 +32,13 @@ export interface VaultDependencies {
   readonly content: ContentStore;
   /** What the plan allows and what is already stored (RN-SUB-021). */
   readonly storage: StorageBudget;
+  /**
+   * The attribute names the specification reserves, injected from the
+   * composition root because it is the layer that knows which version the
+   * product pins (RN-AGT-025). Neither the domain nor the application reads a
+   * specification.
+   */
+  readonly reservedVocabulary: readonly string[];
 }
 
 /** Loads a vault and authorizes in one step, so no caller can forget. */
@@ -343,7 +350,13 @@ export class GetVaultContext {
     const guidance = vault.value.guidanceRef
       ? await this.deps.content.read(vault.value.guidanceRef)
       : null;
-    return ok(composeVaultContext({ vault: vault.value, guidance }));
+    return ok(
+      composeVaultContext({
+        vault: vault.value,
+        guidance,
+        reservedVocabulary: this.deps.reservedVocabulary,
+      }),
+    );
   }
 }
 

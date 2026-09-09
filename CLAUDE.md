@@ -61,7 +61,8 @@ memorysmithapp/
 ```
 memorysmith-infra      →  references backend and frontend artifacts (bundling, deploy)
 memorysmith-backend    →  knows nothing about infra or frontend
-memorysmith-frontend   →  imports @memorysmith/contracts (types only) and calls the API at runtime
+memorysmith-frontend   →  imports @memorysmith/contracts (its types, and the constants it
+                          derives from the pinned specification) and calls the API at runtime
 ```
 
 An `import` of `memorysmith-infra` inside `memorysmith-backend` is an architecture error, not a matter of style. Services never import each other either: communication between contexts is HTTP with IAM authentication or an event, never an `import`.

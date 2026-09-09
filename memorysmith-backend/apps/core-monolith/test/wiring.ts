@@ -7,6 +7,7 @@
  * differ, which is the point of the hexagon.
  */
 
+import { RESERVED_FRONTMATTER_KEYS } from '@memorysmith/contracts';
 import {
   Authorship,
   DomainError,
@@ -168,6 +169,8 @@ export function buildTestApp() {
     notes: new InMemoryNoteRepository(context, knowledgeDb, events),
     content: new InMemoryContentStore(context, knowledgeDb),
     storage,
+    // The same list production injects, from the same pin (RN-AGT-025).
+    reservedVocabulary: RESERVED_FRONTMATTER_KEYS,
   });
 
   const accessUseCases: AccessUseCases = {

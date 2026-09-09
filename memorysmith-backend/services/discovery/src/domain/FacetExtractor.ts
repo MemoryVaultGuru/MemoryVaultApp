@@ -24,35 +24,23 @@
  * second value to an attribute must not change what the attribute is.
  */
 
-import { frontmatterOf, type FrontmatterEntry } from '@memorysmith/kernel';
+import { frontmatterOf, TITLE_KEY, type FrontmatterEntry } from '@memorysmith/kernel';
 
 export type FacetKind = 'date' | 'boolean' | 'enum' | 'list';
 
 /**
- * The vocabulary the profile reserves, always in en-US (RN-DSC-030).
+ * **There is no list of reserved keys in this extractor, and there never was
+ * one it used.** Reserved means declared, not enforced: every attribute is
+ * classified by the shape of its value, so `created: manually` degrades to an
+ * ordinary enum instead of being an error and `autor:` written by a vault in
+ * pt-BR stays legal and stays indexed. What the reservation buys is the name,
+ * and the name is read from the pinned specification where it is needed — the
+ * Vault Context that declares it to an agent (RN-AGT-025) and the interface
+ * that may translate its label (RN-DSC-030), never the bytes.
  *
- * Reserved means **declared**, not enforced. Nothing in this extractor treats
- * these four differently: they are classified by the shape of their value like
- * every other attribute, so `created: manually` degrades to an ordinary enum
- * instead of being an error. What the reservation buys is a name every vault
- * spells the same way, which is what lets a tool, an interface or an agent say
- * something about "when this was written" without asking the vault first.
- *
- * The interface may translate the LABEL of one of these and never the bytes,
- * which is the same line PP4 draws everywhere else.
+ * The one key this file does know is the one it must never index, and it
+ * arrives from the kernel, which is where it is read.
  */
-export const RESERVED_KEYS = ['aliases', 'tags', 'created', 'updated'] as const;
-export type ReservedKey = (typeof RESERVED_KEYS)[number];
-
-/**
- * `title` is deliberately NOT reserved. The title of a note is structural, and
- * a `title:` in the frontmatter is an ordinary attribute that the cardinality
- * ceiling switches off on its own (RN-DSC-024) — which is exactly what should
- * happen to a key that is different in every note.
- */
-export function isReserved(key: string): key is ReservedKey {
-  return (RESERVED_KEYS as readonly string[]).includes(key);
-}
 
 export interface FacetValue {
   readonly facet: string;
@@ -91,10 +79,20 @@ function canonical(kind: FacetKind, value: string): string {
   return value;
 }
 
-/** The portrait of one note: what it says about itself, in aggregable form. */
+/**
+ * The portrait of one note: what it says about itself, in aggregable form.
+ *
+ * `title` produces nothing here, whatever the shape of its value
+ * (RN-DSC-050). It names the note (RN-KNW-035) and a note is not a category of
+ * itself; leaving it to the cardinality ceiling would mean a small vault
+ * showing a facet made of titles, and a `title:` of the wrong shape surfacing
+ * as one — a facet that appears only when a value is malformed is exactly the
+ * surprise the shape rule exists to prevent.
+ */
 export function extractFacets(markdown: string): FacetSnapshot {
   const snapshot: FacetSnapshot = {};
   for (const [facet, entry] of Object.entries(frontmatterOf(markdown))) {
+    if (facet === TITLE_KEY) continue;
     const kind = kindOf(entry);
     if (!kind) continue; // free text and empties are described, not counted
     snapshot[facet] = {

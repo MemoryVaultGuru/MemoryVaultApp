@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { DRAWN_RESERVED_KEYS, TITLE_KEY } from '@memorysmith/contracts';
 import { resolveNoteUrl } from '../api/source';
 import { slugify } from '../api/markdown';
 
@@ -24,11 +25,16 @@ interface PropertyValueProps {
  * names here would be this layer deciding what `status` means.
  */
 /**
- * The four keys the profile reserves, always written in en-US (RN-DSC-030).
- * The list is here because this is the layer allowed to know it: the backend
- * classifies every attribute by shape and knows no key at all.
+ * The keys the specification reserves, minus the one that names the note:
+ * `title` is drawn as the title and never as a property, because a note is not
+ * a category of itself (RN-DSC-050, RN-DSC-051).
+ *
+ * The list is not written here. It is derived from the pinned specification,
+ * in the contracts package, so this file cannot drift from the extractor or
+ * from the version the product implements — which is what it did while three
+ * copies of it existed (RN-DSC-030).
  */
-const RESERVED = ['aliases', 'tags', 'created', 'updated'] as const;
+const RESERVED = DRAWN_RESERVED_KEYS;
 
 /**
  * How a property is LABELLED. The reserved keys may be shown translated; every
@@ -41,7 +47,35 @@ const RESERVED = ['aliases', 'tags', 'created', 'updated'] as const;
  * only thing that changes, which is the same line PP4 draws everywhere else.
  */
 export function propertyLabel(key: string, t: (key: string) => string): string {
-  return (RESERVED as readonly string[]).includes(key) ? t(`reserved.${key}`) : key;
+  return RESERVED.includes(key) ? t(`reserved.${key}`) : key;
+}
+
+/**
+ * The properties in the order they are drawn: the reserved keys first, in the
+ * order the specification declares them, and then the vocabulary of the vault
+ * in the order the note wrote it (RN-DSC-051).
+ *
+ * That is the honest shape of the block. The first group is the same in every
+ * vault of every language and is what the product can say something about; the
+ * second belongs to the Guidance, and the product knows nothing about it
+ * beyond the shape of its value. Drawing them shuffled together, which is what
+ * the written order did, asked the reader to know which was which.
+ */
+export function orderedProperties(
+  entries: ReadonlyArray<readonly [string, string]>,
+): Array<readonly [string, string]> {
+  const rank = (key: string): number => {
+    const at = RESERVED.indexOf(key);
+    return at === -1 ? RESERVED.length : at;
+  };
+  return entries
+    .filter(([key]) => key !== TITLE_KEY)
+    .map((entry, index) => ({ entry, index }))
+    .sort((left, right) => {
+      const byGroup = rank(left.entry[0]) - rank(right.entry[0]);
+      return byGroup !== 0 ? byGroup : left.index - right.index;
+    })
+    .map(({ entry }) => entry);
 }
 
 export function propertyType(value: string, list: boolean): 'list' | 'date' | 'checkbox' | 'text' {

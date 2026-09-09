@@ -78,8 +78,9 @@ module.exports = {
     {
       name: 'frontend-imports-contracts-only',
       comment:
-        'The frontend imports @memorysmith/contracts (types only) and nothing else from the ' +
-        'backend: not the kernel, not a service (architecture-guide.md, section 5.1).',
+        'The frontend imports @memorysmith/contracts — its types, and the constants it derives ' +
+        'from the pinned specification — and nothing else from the backend: not the kernel, not ' +
+        'a service (architecture-guide.md, section 5.1).',
       severity: 'error',
       from: { path: '^memorysmith-frontend/' },
       to: {

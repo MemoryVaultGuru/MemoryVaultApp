@@ -7,7 +7,12 @@ import { WritableContent } from '../../shared/components/WritableContent';
 import { NoteSkeleton } from '../../shared/components/skeletons';
 import { canWrite, updateNote } from '../../shared/api/source';
 
-import { PropertyValue, propertyLabel, propertyType } from '../../shared/components/PropertyValue';
+import {
+  PropertyValue,
+  orderedProperties,
+  propertyLabel,
+  propertyType,
+} from '../../shared/components/PropertyValue';
 import { CheckIcon, CopyIcon } from '../../shared/components/icons';
 import { folderTrailForNote } from '../structure/trail';
 import { VaultBreadcrumb, folderCrumbs } from '../structure/VaultBreadcrumb';
@@ -53,7 +58,12 @@ export function NotePage({ noteSlug }: { noteSlug: string }) {
   if (isPending) return <NoteSkeleton />;
   if (isError || !data) return <p className="status">{t('common.notFound')}</p>;
 
-  const properties = Object.entries(data.frontmatter).filter(([, value]) => value !== '');
+  // The reserved keys first, in the order of the specification, then what the
+  // vault invented, in the order the note wrote it (RN-DSC-051). `title` is
+  // drawn above as the title of the note and never as a property.
+  const properties = orderedProperties(
+    Object.entries(data.frontmatter).filter(([, value]) => value !== ''),
+  );
   const lists = new Set(data.listProperties);
 
   return (

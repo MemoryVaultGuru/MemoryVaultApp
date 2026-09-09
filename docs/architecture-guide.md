@@ -178,7 +178,8 @@ The repository is a pnpm monorepo with **three first-level projects**, named aft
 ```
 memorysmith-infra      →  references backend and frontend artifacts (bundling, deploy)
 memorysmith-backend    →  knows nothing about infra, knows nothing about frontend
-memorysmith-frontend   →  consumes @memorysmith/contracts (types only) and the API at runtime
+memorysmith-frontend   →  consumes @memorysmith/contracts (its types, and the constants
+                          derived from the pinned specification) and the API at runtime
 ```
 
 An `import` of `memorysmith-infra` inside `memorysmith-backend` is an architecture error, not a matter of taste: it would mean the service code knows the AWS account, the same leak PE1 prevents one layer below.

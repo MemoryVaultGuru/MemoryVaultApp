@@ -26,6 +26,13 @@ import { bodyWithoutFrontmatter, frontmatterOf } from './frontmatter.js';
 const UNADDRESSABLE = /[#[\]|]/;
 
 /**
+ * The frontmatter key that names a note (§6.5). It is here because this is
+ * where it is read, and it is exported because the facet extractor has to know
+ * which key it must never turn into an attribute (RN-DSC-050).
+ */
+export const TITLE_KEY = 'title';
+
+/**
  * The title of a note, or `null` when it has none that a link could name.
  *
  * The chain, in order:
@@ -56,7 +63,7 @@ export function noteTitle(body: string): string | null {
 
 /** The `title:` of the frontmatter, when it is a single text value. */
 function statedTitle(body: string): string | null {
-  const entry = frontmatterOf(body)['title'];
+  const entry = frontmatterOf(body)[TITLE_KEY];
   if (!entry || entry.written !== 'scalar') return null;
   const [value] = entry.values;
   return value === undefined || value.length === 0 ? null : value;

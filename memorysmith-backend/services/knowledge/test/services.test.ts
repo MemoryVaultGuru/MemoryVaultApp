@@ -3,6 +3,7 @@ import type { FolderId } from '@memorysmith/kernel';
 import { NoteId, Position, Role, VaultRoleLimit } from '@memorysmith/kernel';
 import type { Folder } from '../src/domain/vault/Folder.js';
 import { NotePlacement } from '../src/domain/services/NotePlacement.js';
+import { RESERVED_FRONTMATTER_KEYS } from '@memorysmith/contracts';
 import { composeVaultContext } from '../src/domain/services/VaultContextComposer.js';
 import {
   AuthorizationPolicy,
@@ -20,6 +21,12 @@ import {
   unwrap,
   user,
 } from './fixtures.js';
+
+/**
+ * What the composition root injects in production: the vocabulary of the
+ * pinned specification, never a list typed in a test (RN-AGT-025).
+ */
+const VOCABULARY = RESERVED_FRONTMATTER_KEYS;
 
 describe('NotePlacement', () => {
   const first = { noteId: NoteId.generate(), position: Position.first() };
@@ -86,7 +93,11 @@ describe('VaultContextComposer', () => {
       ),
     );
 
-    const context = composeVaultContext({ vault, guidance: '## Purpose\nOne norm per note.' });
+    const context = composeVaultContext({
+      vault,
+      guidance: '## Purpose\nOne norm per note.',
+      reservedVocabulary: VOCABULARY,
+    });
 
     expect(context).toContain('# Vault: Normas e Legislacao');
     expect(context).toContain('## Purpose\nOne norm per note.');
@@ -130,7 +141,7 @@ describe('VaultContextComposer', () => {
       parent = child.id;
     }
 
-    const context = composeVaultContext({ vault, guidance: null });
+    const context = composeVaultContext({ vault, guidance: null, reservedVocabulary: VOCABULARY });
 
     for (const id of nested) expect(context).toContain(`\`${id.value}\``);
     // The deepest one is indented and numbered, and still addressable.
@@ -142,16 +153,56 @@ describe('VaultContextComposer', () => {
   it('flags a folder that has a template', () => {
     const { vault, folderId } = rehydratedVaultWithNotes(2);
     unwrap(vault.attachTemplate(folderId, contentRef('f'.repeat(64)), authorship()));
-    const context = composeVaultContext({ vault, guidance: null });
+    const context = composeVaultContext({ vault, guidance: null, reservedVocabulary: VOCABULARY });
     expect(context).toContain('(2 notes, has TEMPLATE.md)');
     // The folder that has a template is exactly the folder get_template needs
     // an identifier for (RN-AGT-020).
     expect(context).toContain(`\`${folderId.value}\`:`);
   });
 
+  it('declares the reserved vocabulary, and exactly the one the pin carries', () => {
+    // RN-AGT-025. An agent landing here has no other way to tell an attribute
+    // name that means something everywhere from one that belongs to this vault
+    // alone, and a list typed beside the specification would be the fourth
+    // copy this cycle removed.
+    const context = composeVaultContext({
+      vault: newVault(),
+      guidance: null,
+      reservedVocabulary: VOCABULARY,
+    });
+
+    expect(context).toContain('## Reserved attributes');
+    for (const key of VOCABULARY) expect(context).toContain(`\`${key}\``);
+    // And no name the specification does not reserve: `maturity` is the
+    // product's own facet and it belongs to whatever Guidance declares it.
+    expect(context).not.toContain('`maturity`');
+    expect(context).not.toContain('`autor`');
+  });
+
+  it('says what author and co-author mean here, and that the product never writes them', () => {
+    const context = composeVaultContext({
+      vault: newVault(),
+      guidance: null,
+      reservedVocabulary: VOCABULARY,
+    });
+
+    expect(context).toContain('the person who authorized the connection');
+    expect(context).toContain('the connector that executed the write');
+    expect(context).toContain('never writes an attribute into the body of a note');
+  });
+
+  it('declares nothing when the vocabulary is empty, rather than an empty heading', () => {
+    const context = composeVaultContext({
+      vault: newVault(),
+      guidance: null,
+      reservedVocabulary: [],
+    });
+    expect(context).not.toContain('## Reserved attributes');
+  });
+
   it('says so when there is no guidance yet, instead of pretending', () => {
     const vault = newVault();
-    const context = composeVaultContext({ vault, guidance: null });
+    const context = composeVaultContext({ vault, guidance: null, reservedVocabulary: VOCABULARY });
     expect(context).toContain('has no guidance yet');
     expect(context).toContain('no folders yet');
   });

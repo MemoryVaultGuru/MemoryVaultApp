@@ -8,7 +8,12 @@ import {
   score,
   type Candidate,
 } from '../src/domain/SearchQuery.js';
-import { RESERVED_KEYS, isReserved } from '../src/domain/FacetExtractor.js';
+import {
+  RESERVED_FRONTMATTER_KEYS,
+  TITLE_KEY as SPECIFIED_TITLE_KEY,
+} from '@memorysmith/contracts';
+import { TITLE_KEY } from '@memorysmith/kernel';
+import { extractFacets } from '../src/domain/FacetExtractor.js';
 
 function note(overrides: Partial<Candidate> = {}): Candidate {
   return {
@@ -219,20 +224,65 @@ describe('The query has a declared ceiling', () => {
   });
 });
 
-describe('The reserved vocabulary of the profile (RN-DSC-030)', () => {
-  it('reserves four keys, in en-US, and nothing else', () => {
-    expect([...RESERVED_KEYS]).toEqual(['aliases', 'tags', 'created', 'updated']);
-    expect(isReserved('tags')).toBe(true);
-    expect(isReserved('created')).toBe(true);
+describe('The reserved vocabulary of the specification (RN-DSC-030)', () => {
+  it('is read from the pin, and this extractor holds no list of it at all', () => {
+    // The names come from the notations whose section is 6.4. Nothing here
+    // knows them: reserving is declaring, and what classifies a value in this
+    // file is the shape of the value.
+    expect(RESERVED_FRONTMATTER_KEYS.length).toBeGreaterThanOrEqual(4);
+    expect(RESERVED_FRONTMATTER_KEYS).toContain('tags');
+    expect(RESERVED_FRONTMATTER_KEYS).toContain('created');
   });
 
-  it('does not reserve title, which is structural and never a key', () => {
-    expect(isReserved('title')).toBe(false);
+  it('agrees with the kernel about which key names a note', () => {
+    // Two constants, because the kernel may not import the contracts package
+    // and the contracts package may not import the kernel. The day the
+    // specification renames the key, one of them fails instead of the two
+    // drifting apart in silence.
+    expect(TITLE_KEY).toBe(SPECIFIED_TITLE_KEY);
   });
 
-  it('does not reserve a translated spelling: the label may travel, the bytes may not', () => {
-    expect(isReserved('etiquetas')).toBe(false);
-    expect(isReserved('criado')).toBe(false);
+  it('is a guarantee and not a prohibition: an attribute the vault invented keeps working', () => {
+    expect(extractFacets('---\nautor: Ana\n---')['autor']).toEqual({
+      facet: 'autor',
+      kind: 'enum',
+      values: ['Ana'],
+    });
+    expect(extractFacets('---\netiquetas: [a, b]\n---')['etiquetas']?.kind).toBe('list');
+  });
+
+  it('indexes author and co-author as ordinary attributes, and never merges them', () => {
+    // What a reserved key buys is the name, not behaviour: the shape of the
+    // value decides the kind here as it does anywhere else, and `co-author` is
+    // its own attribute because the distinction is the whole of what it says.
+    const facets = extractFacets('---\nauthor: Ana\nco-author: [Claude, ChatGPT]\n---\n\nCorpo.');
+    expect(facets['author']).toEqual({ facet: 'author', kind: 'enum', values: ['Ana'] });
+    expect(facets['co-author']).toEqual({
+      facet: 'co-author',
+      kind: 'list',
+      values: ['Claude', 'ChatGPT'],
+    });
+    expect(facets['author']?.values).not.toContain('Claude');
+  });
+
+  it('never makes a facet out of the title, whatever the shape of its value', () => {
+    // RN-DSC-050. Four shapes, and none of them is a category: a note is not a
+    // category of itself, and a facet that appeared only when the value was
+    // the wrong shape would be the surprise the shape rule exists to prevent.
+    const shapes = [
+      '---\ntitle: Lei 14.133\n---',
+      '---\ntitle:\n  - Lei 14.133\n  - Lei 14133\n---',
+      '---\ntitle:\n---',
+      `---\ntitle: ${'a'.repeat(80)}\n---`,
+    ];
+    for (const markdown of shapes) {
+      expect(extractFacets(markdown)['title']).toBeUndefined();
+    }
+    // And the note that carries one alongside an ordinary attribute keeps the
+    // ordinary one.
+    expect(Object.keys(extractFacets('---\ntitle: Lei\nmaturity: seed\n---'))).toEqual([
+      'maturity',
+    ]);
   });
 });
 

@@ -58,6 +58,10 @@ tags: [licitacao, dispensa]
 - A pure CommonMark parser treats the block as content (the first `---` line becomes a horizontal rule or a setext heading, depending on what follows).
 - Any system that **requires** a frontmatter schema is imposing a convention of its own on the content of the user.
 
+**What a tool reserves, it reserves by convention.** No vault editor enforces a frontmatter vocabulary, and the ones that read a key at all read a handful: a name for the note, alternative spellings of it, subjects, and dates. Two vaults that never agreed on a spelling — `autor` in one, `author` in the other — hold the same fact under two names, and no tool reading both can offer one column over them. That is what reserving a name buys and the whole of what it buys: it is a **guarantee about the spelling**, not a prohibition on any other, and a vault that keeps its own vocabulary keeps it working.
+
+**Authorship stated in a file is not authorship observed by a system.** A Markdown file carries no history: `author:` in the frontmatter is what whoever wrote the note says about it, exactly like a `created:` date, and it can be written by anybody, copied with the file and left untouched by ten later edits. A system that also holds a real history — a revision log, an audit trail, a version control system — knows something different and better about the same file, and the two answer different questions. Presenting one in place of the other produces a tool that disagrees with itself in front of the reader: the file says one thing about who wrote it, and the log says another, and both are true.
+
 ### 1.3 Links: wikilinks and relative links
 
 Two forms coexist in file-based knowledge bases:

@@ -22,13 +22,23 @@ import {
   CONFORMANCE_CASES,
   MARKDOWN_PROFILE_VERSION,
   RECOGNISED_NOTATION,
+  SUPERSEDED_BY_A_LATER_SPECIFICATION,
   type ConformanceCase,
 } from '@memorysmith/contracts';
 import { extractLinks } from '../src/domain/LinkExtractor.js';
 import { extractFacets } from '../src/domain/FacetExtractor.js';
 
-const withLinks = CONFORMANCE_CASES.filter((each) => each.links !== undefined);
-const withFacets = CONFORMANCE_CASES.filter((each) => each.facets !== undefined);
+/**
+ * A case this build deliberately fails, because the specification took the
+ * opposite decision in a later version and the product implements that one.
+ * There is exactly one, it is declared with its reason, and the guard below
+ * makes it expire with the pin.
+ */
+const superseded = new Set(SUPERSEDED_BY_A_LATER_SPECIFICATION.map((each) => each.id));
+const run = CONFORMANCE_CASES.filter((each) => !superseded.has(each.id));
+
+const withLinks = run.filter((each) => each.links !== undefined);
+const withFacets = run.filter((each) => each.facets !== undefined);
 
 /** The extractor output reduced to what a case states, and nothing else. */
 function linksOf(markdown: string): Array<{ slug: string; anchor: string | null }> {
@@ -52,6 +62,17 @@ describe(`the published conformance suite, profile ${MARKDOWN_PROFILE_VERSION}`,
 
   it.each(withFacets)('$id reads the declared facets', (each: ConformanceCase) => {
     expect(facetsOf(each.markdown)).toEqual(each.facets ?? {});
+  });
+
+  it('carries no stale exception: every superseded case is still in the suite', () => {
+    // The day the pin moves past the version that stated the opposite, the
+    // case is gone and this fails until the entry is deleted with it. An
+    // exception that outlives its reason is worse than no exception.
+    const ids = new Set(CONFORMANCE_CASES.map((each) => each.id));
+    for (const each of SUPERSEDED_BY_A_LATER_SPECIFICATION) {
+      expect(ids.has(each.id), `${each.id} is no longer in the pinned suite`).toBe(true);
+      expect(each.reason.length).toBeGreaterThan(40);
+    }
   });
 
   it('runs a suite that exists, so a silent empty import cannot pass', () => {

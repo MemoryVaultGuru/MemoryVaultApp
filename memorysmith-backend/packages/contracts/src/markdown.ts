@@ -228,3 +228,92 @@ export const DECLARED_SILENCE: readonly DeclaredSilence[] = [
       'NOTHING, and the characters stay on the page so that is visible. There is no notation for superscript or subscript here, which is why strikethrough accepts two tildes and only two: a single-tilde extension would strike the middle of `H~2~O`, and a wrong answer is worse than none.',
   },
 ];
+
+/**
+ * The attribute names the specification reserves, **derived from the pin and
+ * never typed here**.
+ *
+ * They are exactly the notations whose `spec` field cites §6.4, in the order
+ * the specification declares them, with the key read off the identifier:
+ * `frontmatter-co-author` is `co-author`. So a version that reserves an eighth
+ * name reserves it here on the day the pin moves, and nothing in this
+ * repository has to be remembered — which is the property a hand-written copy
+ * cannot have, and this list used to exist in three copies (RN-DSC-030).
+ *
+ * **Reserved is declared, not enforced.** Nothing treats these keys
+ * differently when it classifies a value: `created: manually` degrades to an
+ * ordinary enum rather than being an error, and `autor:` stays legal and stays
+ * indexed as the ordinary attribute it is. What the reservation buys is the
+ * **name** — the one thing a vault cannot invent for itself without leaving
+ * every other vault behind, because unreserved, one vault writes `autor:` and
+ * another writes `author:` and no interface can offer one column over both.
+ *
+ * `title` is the exception in both directions: it is reserved and it is never
+ * an attribute at all (RN-DSC-050). It names the note (RN-KNW-035), and a note
+ * is not a category of itself.
+ */
+export const RESERVED_FRONTMATTER_KEYS: readonly string[] = RECOGNISED_NOTATION.filter(
+  (notation) =>
+    notation.reader === 'frontmatter' &&
+    (notation.spec ?? '')
+      .split(',')
+      .map((section) => section.trim())
+      .includes('6.4'),
+).map((notation) => notation.id.replace(/^frontmatter-/, ''));
+
+/**
+ * The key that names the note, derived like everything else here: it is the
+ * frontmatter notation whose section is §6.5, the section that says a title
+ * produces no attribute at all.
+ *
+ * The kernel exports a constant of the same name, because it is the reader of
+ * that key and may not import this package. A test asserts the two agree, so
+ * the day the specification renames it, one of them fails rather than both
+ * quietly drifting.
+ */
+export const TITLE_KEY: string =
+  RECOGNISED_NOTATION.find(
+    (notation) =>
+      notation.reader === 'frontmatter' &&
+      (notation.spec ?? '')
+        .split(',')
+        .map((section) => section.trim())
+        .includes('6.5'),
+  )?.id.replace(/^frontmatter-/, '') ?? 'title';
+
+/**
+ * The reserved keys a surface draws as properties: every one but the title.
+ * A note is not a category of itself, so the key that names it is drawn as the
+ * title and never in the property panel (RN-DSC-051).
+ */
+export const DRAWN_RESERVED_KEYS: readonly string[] = RESERVED_FRONTMATTER_KEYS.filter(
+  (key) => key !== TITLE_KEY,
+);
+
+/**
+ * The cases of the PINNED suite this build deliberately fails, because it
+ * implements a decision the specification took in a later version.
+ *
+ * There is normally no such list, and there must not be one for long. It
+ * exists for a single seam: the specification inverted what `title:` does in
+ * the frontmatter — v0.4.0 states it is an ordinary attribute and v0.6.0
+ * states it produces no attribute at all (§6.5) — and the two decisions cannot
+ * both be implemented. The product takes the later one, because it is the one
+ * the title of a note is read by (RN-KNW-035, RN-DSC-050), and says so here
+ * instead of quietly disagreeing with the suite it runs.
+ *
+ * **It expires by itself.** The guard asserts that every id here exists in the
+ * pinned suite, so the day the pin moves to a version that dropped the case,
+ * the build fails until somebody deletes the entry — which is the whole reason
+ * this is data and not a skipped test.
+ */
+export const SUPERSEDED_BY_A_LATER_SPECIFICATION: ReadonlyArray<{
+  readonly id: string;
+  readonly reason: string;
+}> = [
+  {
+    id: 'frontmatter/title-is-an-ordinary-attribute',
+    reason:
+      'Specification 0.6.0 §6.5 states the opposite: `title` never becomes an attribute, whatever the shape of its value. This build implements that decision ahead of the pin, because the title of a note is read from that key (RN-DSC-050).',
+  },
+];

@@ -7,6 +7,8 @@
   "reserved": {
     "aliases": "Apelidos",
     "tags": "Etiquetas",
+    "author": "Autor",
+    "co-author": "Coautor",
     "created": "Criado em",
     "updated": "Atualizado em"
   },

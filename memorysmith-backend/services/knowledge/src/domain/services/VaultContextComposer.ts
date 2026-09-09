@@ -18,7 +18,15 @@
  *    has. The numbering is derived from the current position among siblings,
  *    so reordering changes it and it can never serve as an address. Without
  *    the identifier here it is returned exactly once, by `create_folder`, and
- *    a session that created nothing can read this vault and not write in it.
+ *    a session that created nothing can read this vault and not write in it;
+ *  - and the RESERVED VOCABULARY comes along (RN-AGT-025), because an agent
+ *    landing in a vault has no other way to tell an attribute name that means
+ *    something everywhere from one that belongs to this vault alone.
+ *
+ * The vocabulary arrives as an argument and is never read here: the domain
+ * knows no specification, and the pinned list reaches this function from the
+ * composition root, which is the one layer allowed to know which version the
+ * product implements.
  *
  * The labels are en-US because the MCP surface is the public contract and the
  * canonical locale is en_US (CLAUDE.md, language policy). The vault content
@@ -34,10 +42,15 @@ export interface VaultContextInput {
   readonly vault: Vault;
   /** The guidance Markdown, already read from the ContentStore by the use case. */
   readonly guidance: string | null;
+  /**
+   * The attribute names the specification reserves, in the order it declares
+   * them, read from the pin by whoever wired this up.
+   */
+  readonly reservedVocabulary: readonly string[];
 }
 
 export function composeVaultContext(input: VaultContextInput): string {
-  const { vault, guidance } = input;
+  const { vault, guidance, reservedVocabulary } = input;
   const lines: string[] = [`# Vault: ${vault.name.value}`];
 
   if (guidance && guidance.trim().length > 0) {
@@ -50,6 +63,7 @@ export function composeVaultContext(input: VaultContextInput): string {
     );
   }
 
+  lines.push(...reservedSection(reservedVocabulary));
   lines.push('', '## Structure');
 
   const folders = vault.folders;
@@ -92,6 +106,44 @@ export function composeVaultContext(input: VaultContextInput): string {
   }
 
   return lines.join('\n') + '\n';
+}
+
+/**
+ * What the frontmatter reserves, and what two of those names mean HERE.
+ *
+ * The specification says `author` and `co-author` are what the author
+ * **states**, and that nothing derives them from a session or an account
+ * (§6.4); the audit trail of this product answers a different question and
+ * stays authoritative for the file (non-negotiable rule 7). So this is a
+ * convention the product teaches and never a value the product writes: an
+ * agent that puts them in a note is stating something, and nothing in the
+ * backend reconciles that statement with the history.
+ */
+function reservedSection(vocabulary: readonly string[]): string[] {
+  if (vocabulary.length === 0) return [];
+  return [
+    '',
+    '## Reserved attributes',
+    '',
+    'These attribute names mean the same thing in every vault, in every ' +
+      'language, and are always written in en-US: ' +
+      vocabulary.map((key) => `\`${key}\``).join(', ') +
+      '. Every other attribute belongs to this vault, and its name is whatever ' +
+      'the Guidance says it is.',
+    '',
+    'Reserving a name is a guarantee, not a prohibition: a vault may keep ' +
+      'writing `autor:` and it stays indexed like any other attribute. What ' +
+      'the reserved name buys is that a tool reading two vaults can offer one ' +
+      'column over both.',
+    '',
+    'Here, `author` is **the person who authorized the connection** and ' +
+      '`co-author` is **the connector that executed the write** — the two ' +
+      '`whoami` names. They are what the note states about itself, not what ' +
+      'the server observed: this product records who wrote what in its audit ' +
+      'trail, answers it through `note_history`, and never writes an ' +
+      'attribute into the body of a note. Whether this vault asks for them at ' +
+      'all is its Guidance to say.',
+  ];
 }
 
 /** One level of the numbering is one level of indentation. */

@@ -15,6 +15,7 @@
  *     role check (RN-SUB-016).
  */
 
+import { RESERVED_FRONTMATTER_KEYS } from '@memorysmith/contracts';
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import type { S3Client } from '@aws-sdk/client-s3';
 import {
@@ -94,6 +95,11 @@ export function buildKnowledge(infra: Infrastructure, context: SubscriptionConte
     notes: new DynamoNoteRepository(context, infra.db, infra.knowledgeTable),
     content: new S3ContentStore(context, infra.s3, infra.contentBucket),
     storage: { current: () => readStorageBudget(infra, context) },
+    // The one layer allowed to know which version of the specification the
+    // product implements. The Vault Context declares these names to the agent
+    // (RN-AGT-025), and neither the domain nor the application reads a
+    // specification to find them.
+    reservedVocabulary: RESERVED_FRONTMATTER_KEYS,
   };
 }
 
