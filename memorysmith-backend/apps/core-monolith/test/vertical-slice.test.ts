@@ -143,7 +143,7 @@ describe('The authoring cycle', () => {
 
     const note = await call(`/knowledge/vaults/${vaultId}/notes`, {
       method: 'POST',
-      body: { folderId, title: 'Lei 14.133, art. 75', content: '# Lei 14.133\n\nArt. 75.' },
+      body: { folderId, content: '# Lei 14.133, art. 75\n\nLei 14.133\n\nArt. 75.' },
     });
     expect(note.status).toBe(201);
 
@@ -192,7 +192,7 @@ describe('The authoring cycle', () => {
 
     const created = await call(`/knowledge/vaults/${vaultId}/notes`, {
       method: 'POST',
-      body: { folderId: folderFromContext, title: 'Lei 14.133, art. 75', content: '# Lei' },
+      body: { folderId: folderFromContext, content: '# Lei 14.133, art. 75' },
     });
     expect(created.status).toBe(201);
   });
@@ -242,7 +242,7 @@ describe('Structure operations write nothing they do not have to', () => {
     const created = (await (
       await call(`/knowledge/vaults/${vaultId}/notes`, {
         method: 'POST',
-        body: { folderId, title: 'Lei 14.133', content: '# Lei 14.133' },
+        body: { folderId, content: '# Lei 14.133\n\nLei 14.133' },
       })
     ).json()) as { noteId: string };
 
@@ -269,7 +269,7 @@ describe('Structure operations write nothing they do not have to', () => {
     const { vaultId, folderId } = await seedVault();
     await call(`/knowledge/vaults/${vaultId}/notes`, {
       method: 'POST',
-      body: { folderId, title: 'Lei 14.133', content: '# Lei' },
+      body: { folderId, content: '# Lei 14.133\n\nLei' },
     });
 
     const noPolicy = await call(`/knowledge/vaults/${vaultId}/folders/${folderId}`, {
@@ -312,27 +312,47 @@ describe('Vault lifecycle', () => {
 });
 
 describe('Note lifecycle', () => {
-  it('refuses a duplicate slug and points at the note that already exists', async () => {
+  it('writes a second note with the same title, and both stand', async () => {
+    // RN-AGT-024: create_note always creates. Nothing in a vault is a key, so
+    // two notes may be called the same thing (RN-KNW-037) and a repeated call
+    // writes rather than refusing (RN-AGT-004, removed).
     const { vaultId, folderId } = await seedVault();
     const first = (await (
       await call(`/knowledge/vaults/${vaultId}/notes`, {
         method: 'POST',
-        body: { folderId, title: 'Lei 14.133', content: '# Lei' },
+        body: { folderId, content: '# Lei 14.133\n\nA geral.' },
       })
-    ).json()) as { noteId: string };
+    ).json()) as { noteId: string; title: string };
 
-    const duplicate = await call(`/knowledge/vaults/${vaultId}/notes`, {
+    const second = await call(`/knowledge/vaults/${vaultId}/notes`, {
       method: 'POST',
-      body: { folderId, title: 'Lei 14.133', content: '# Lei outra vez' },
+      body: { folderId, content: '# Lei 14.133\n\nOutra vez.' },
     });
-    expect(duplicate.status).toBe(409);
-    const body = (await duplicate.json()) as {
-      details: { code: string; noteId: string };
-    };
-    // RN-AGT-004: the identifier of the existing note comes back, and the
-    // server never invents a suffix.
-    expect(body.details.code).toBe('ALREADY_EXISTS');
-    expect(body.details.noteId).toBe(first.noteId);
+    expect(second.status).toBe(201);
+    const twin = (await second.json()) as { noteId: string; title: string };
+
+    expect(twin.title).toBe('Lei 14.133');
+    expect(first.title).toBe('Lei 14.133');
+    expect(twin.noteId).not.toBe(first.noteId);
+
+    // And the listing holds both.
+    const listed = (await (
+      await call(`/knowledge/vaults/${vaultId}/notes?folderId=${folderId}`)
+    ).json()) as Array<{ title: string | null }>;
+    expect(listed.filter((note) => note.title === 'Lei 14.133')).toHaveLength(2);
+  });
+
+  it('writes a note whose content states no title, and says so', async () => {
+    // RN-KNW-036: the note exists, it renders and it is searchable; what no
+    // link can do is name it. Refusing the write is how an import loses a
+    // vault, so the absence is reported instead.
+    const { vaultId, folderId } = await seedVault();
+    const created = await call(`/knowledge/vaults/${vaultId}/notes`, {
+      method: 'POST',
+      body: { folderId, content: 'Apenas prosa, sem titulo nenhum.' },
+    });
+    expect(created.status).toBe(201);
+    expect(((await created.json()) as { title: string | null }).title).toBeNull();
   });
 
   it('refuses an update based on a stale revision and returns the current content', async () => {
@@ -340,7 +360,7 @@ describe('Note lifecycle', () => {
     const created = (await (
       await call(`/knowledge/vaults/${vaultId}/notes`, {
         method: 'POST',
-        body: { folderId, title: 'Lei 14.133', content: '# Primeira versao' },
+        body: { folderId, content: '# Lei 14.133\n\nPrimeira versao' },
       })
     ).json()) as { noteId: string };
 
@@ -368,7 +388,7 @@ describe('Note lifecycle', () => {
     const created = (await (
       await call(`/knowledge/vaults/${vaultId}/notes`, {
         method: 'POST',
-        body: { folderId, title: 'Lei 14.133', content: '# Conteudo preservado' },
+        body: { folderId, content: '# Lei 14.133\n\nConteudo preservado' },
       })
     ).json()) as { noteId: string };
 
@@ -384,7 +404,7 @@ describe('Note lifecycle', () => {
     // The slug came back to the vault (RN-KNW-030), and restoring works.
     const reused = await call(`/knowledge/vaults/${vaultId}/notes`, {
       method: 'POST',
-      body: { folderId, title: 'Lei 14.133', content: '# Outra nota' },
+      body: { folderId, content: '# Lei 14.133\n\nOutra nota' },
     });
     expect(reused.status).toBe(201);
   });
@@ -393,7 +413,7 @@ describe('Note lifecycle', () => {
     const { vaultId, folderId } = await seedVault();
     const tooLarge = await call(`/knowledge/vaults/${vaultId}/notes`, {
       method: 'POST',
-      body: { folderId, title: 'Enorme', content: 'x'.repeat(1_048_577) },
+      body: { folderId, content: 'x'.repeat(1_048_577) },
     });
     expect(tooLarge.status).toBe(413);
   });
@@ -408,7 +428,7 @@ describe('Events reach the outbox for every state change', () => {
     });
     await call(`/knowledge/vaults/${vaultId}/notes`, {
       method: 'POST',
-      body: { folderId, title: 'Lei 14.133', content: '# Lei' },
+      body: { folderId, content: '# Lei 14.133\n\nLei' },
     });
 
     const types = harness.events.published.map((event) => event.type);

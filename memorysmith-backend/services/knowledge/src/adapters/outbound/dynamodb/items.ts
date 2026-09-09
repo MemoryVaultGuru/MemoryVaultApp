@@ -26,13 +26,7 @@ import {
 import { Folder } from '../../../domain/vault/Folder.js';
 import { Note } from '../../../domain/note/Note.js';
 import { Vault } from '../../../domain/vault/Vault.js';
-import {
-  FolderDescription,
-  FolderName,
-  NoteTitle,
-  ShortText,
-  VaultName,
-} from '../../../domain/values.js';
+import { FolderDescription, FolderName, ShortText, VaultName } from '../../../domain/values.js';
 
 /** A raw item as the DynamoDB document client hands it over. */
 export type Item = Record<string, unknown>;
@@ -184,8 +178,6 @@ export function noteItem(
     noteId: note.id.value,
     vaultId: note.vaultId.value,
     folderId: note.folderId.value,
-    title: note.title.value,
-    slug: note.slug.value,
     position: note.position.value,
     bodyRef: serializeContentRef(note.bodyRef),
     createdBy: serializeAuthorship(note.createdBy),
@@ -193,6 +185,11 @@ export function noteItem(
     updatedAt: note.updatedBy.at.toISOString(),
     version: note.version + 1,
   };
+  // The title is what the chain read out of the body, and a note may have
+  // none. The attribute is absent rather than empty in that case, because an
+  // empty string is a title somebody wrote and this is the absence of one
+  // (RN-KNW-036).
+  if (note.title !== null) item['title'] = note.title;
   if (note.isDeleted) {
     item['deletedAt'] = note.deletedAt?.toISOString();
     item['deletedBy'] = serializeAuthorship(note.updatedBy);
@@ -212,8 +209,7 @@ export function parseNote(item: Item, subscriptionId: SubscriptionId): Note {
     subscriptionId,
     vaultId: unwrapOrThrow(VaultId.create(String(item['vaultId']))),
     folderId: unwrapOrThrow(FolderId.create(String(item['folderId']))),
-    title: unwrapOrThrow(NoteTitle.create(String(item['title']))),
-    slug: unwrapOrThrow(Slug.create(String(item['slug']))),
+    title: item['title'] === undefined ? null : String(item['title']),
     position: unwrapOrThrow(Position.create(String(item['position']))),
     bodyRef: parseContentRef(item['bodyRef']) as ContentRef,
     createdBy: parseAuthorship(item['createdBy']),

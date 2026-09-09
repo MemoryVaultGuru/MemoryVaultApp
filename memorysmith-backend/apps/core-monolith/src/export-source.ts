@@ -9,7 +9,7 @@
  * is what RN-PRT-006 asks for.
  */
 
-import { VaultId } from '@memorysmith/kernel';
+import { slugify, VaultId } from '@memorysmith/kernel';
 import type {
   ContentStore,
   NoteRepository,
@@ -88,8 +88,14 @@ export class KnowledgeExportSource implements ExportSource {
       notes: notes.map((note, index) => ({
         noteId: note.id.value,
         folderId: note.folderId.value,
-        title: note.title.value,
-        slug: note.slug.value,
+        title: note.title ?? '',
+        // The file name of the export, and nothing else: a note carries no
+        // slug any more, and two notes may carry one title (RN-KNW-037). The
+        // numeric prefix the tree already writes is what keeps two files of
+        // one title apart, and a note with no title falls back to its
+        // identifier. The whole tree goes away in #101, where a vault leaves
+        // as one document.
+        slug: (note.title ? slugify(note.title) : '') || note.id.value.toLowerCase(),
         position: note.position.value,
         content: bodies[index] ?? '',
       })),

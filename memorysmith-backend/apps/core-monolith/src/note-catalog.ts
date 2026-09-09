@@ -7,7 +7,7 @@
  */
 
 import type { NoteCatalog, NoteRef } from '@memorysmith/svc-discovery/domain';
-import { VaultId } from '@memorysmith/kernel';
+import { slugify, VaultId } from '@memorysmith/kernel';
 
 interface KnowledgeSide {
   readonly vaults: {
@@ -17,8 +17,7 @@ interface KnowledgeSide {
     listByVault(vault: VaultId): Promise<
       Array<{
         id: { value: string };
-        title: { value: string };
-        slug: { value: string };
+        title: string | null;
         folderId: { value: string };
       }>
     >;
@@ -38,8 +37,12 @@ export class KnowledgeNoteCatalog implements NoteCatalog {
     const notes = await this.knowledge.notes.listByVault(parsed.value);
     return notes.map((note) => ({
       noteId: note.id.value,
-      title: note.title.value,
-      slug: note.slug.value,
+      title: note.title ?? '',
+      // Discovery still keys a link by slug, and it stops doing so in #97,
+      // where a link resolves against the title itself. Until then the slug is
+      // computed here, from the title the chain read, so the graph of the
+      // branch keeps the edges it had.
+      slug: slugify(note.title ?? ''),
       folderId: note.folderId.value,
       folderName: '',
     }));

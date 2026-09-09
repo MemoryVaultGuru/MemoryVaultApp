@@ -251,12 +251,18 @@ export const templateUpdatedPayload = z.object({
   folderId: ulidSchema,
 });
 
+/**
+ * The title is what the chain read out of the content (§5.3), and it is
+ * `null` when the note has none a link could name (RN-KNW-036). It travels
+ * here because a projector has to show a note before it has read its body, and
+ * it carries no slug: a note is addressed by its identifier, and what a link
+ * resolves against is the title itself.
+ */
 export const noteCreatedPayload = z.object({
   vaultId: ulidSchema,
   noteId: ulidSchema,
   folderId: ulidSchema,
-  title: z.string().min(1),
-  slug: slugSchema,
+  title: z.string().min(1).nullable(),
   position: positionSchema,
 });
 
@@ -264,8 +270,7 @@ export const noteUpdatedPayload = z.object({
   vaultId: ulidSchema,
   noteId: ulidSchema,
   folderId: ulidSchema,
-  title: z.string().min(1),
-  slug: slugSchema,
+  title: z.string().min(1).nullable(),
 });
 
 export const noteReorderedPayload = z.object({
@@ -282,7 +287,6 @@ export const noteMovedPayload = z.object({
   fromFolderId: ulidSchema,
   toVaultId: ulidSchema,
   toFolderId: ulidSchema,
-  slug: slugSchema,
   position: positionSchema,
 });
 
@@ -290,14 +294,12 @@ export const noteDeletedPayload = z.object({
   vaultId: ulidSchema,
   noteId: ulidSchema,
   folderId: ulidSchema,
-  slug: slugSchema,
 });
 
 export const noteRestoredPayload = z.object({
   vaultId: ulidSchema,
   noteId: ulidSchema,
   folderId: ulidSchema,
-  slug: slugSchema,
   position: positionSchema,
 });
 

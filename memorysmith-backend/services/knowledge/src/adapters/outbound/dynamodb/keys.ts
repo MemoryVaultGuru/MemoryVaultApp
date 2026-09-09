@@ -9,8 +9,8 @@
  * The lexicographic order of the sort keys is CHOSEN, not accidental:
  * FSTAT# and LIMIT# fall between FOLDER# and META, so the whole aggregate, the
  * counters AND the role ceilings come back in a single Query over a single
- * partition. EVENT# sorts before that range; NOTE#, NSLUG#, SEEN# and SLUG#
- * sort after it.
+ * partition. EVENT# sorts before that range; NOTE#, SEEN# and SLUG# sort after
+ * it.
  */
 
 import type { FolderId, NoteId, Position, SubscriptionId, VaultId } from '@memorysmith/kernel';
@@ -55,11 +55,6 @@ export class KnowledgeKeys {
   /** I1 in the database: unique among siblings (RN-KNW-002). */
   folderSlugGuard(parentFolderId: FolderId | null, slug: string): string {
     return `SLUG#${parentFolderId?.value ?? 'ROOT'}#${slug}`;
-  }
-
-  /** Unique WITHIN THE VAULT, which is how links resolve (RN-KNW-020). */
-  noteSlugGuard(slug: string): string {
-    return `NSLUG#${slug}`;
   }
 
   /** Outbox item; the ULID orders publication by generation time. */

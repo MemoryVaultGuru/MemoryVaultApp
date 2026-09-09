@@ -123,7 +123,8 @@
     "refusedLink": "This address is not one the reading surface follows, so the text stays and the link does not.",
     "copy": "Copy",
     "copied": "Copied",
-    "copyHint": "Copy the note's Markdown to the clipboard"
+    "copyHint": "Copy the note's Markdown to the clipboard",
+    "untitled": "Untitled note"
   },
   "common": {
     "loading": "Loading…",

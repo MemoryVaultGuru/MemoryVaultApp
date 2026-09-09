@@ -77,13 +77,11 @@ export class InMemoryStorageBudget implements StorageBudget {
 export class InMemoryDatabase {
   readonly vaults = new Map<string, { vault: Vault; version: number }>();
   readonly notes = new Map<string, { note: Note; version: number }>();
-  readonly noteSlugs = new Map<string, string>();
   readonly content = new Map<string, { revisions: Map<string, string>; latest: string }>();
 
   clear(): void {
     this.vaults.clear();
     this.notes.clear();
-    this.noteSlugs.clear();
     this.content.clear();
   }
 }
@@ -94,10 +92,6 @@ function vaultKey(sub: SubscriptionContext, id: VaultId): string {
 
 function noteKey(sub: SubscriptionContext, vault: VaultId, note: NoteId): string {
   return `${vaultKey(sub, vault)}#NOTE#${note.value}`;
-}
-
-function slugKey(sub: SubscriptionContext, vault: VaultId, slug: string): string {
-  return `${vaultKey(sub, vault)}#NSLUG#${slug}`;
 }
 
 export class InMemoryVaultRepository implements VaultRepository {
@@ -159,13 +153,6 @@ export class InMemoryNoteRepository implements NoteRepository {
     return this.db.notes.get(noteKey(this.sub, vault, id))?.note ?? null;
   }
 
-  async findBySlug(vault: VaultId, slug: Slug): Promise<Note | null> {
-    const noteId = this.db.noteSlugs.get(slugKey(this.sub, vault, slug.value));
-    if (!noteId) return null;
-    const found = [...this.db.notes.values()].find((entry) => entry.note.id.value === noteId);
-    return found?.note ?? null;
-  }
-
   async listByFolder(vault: VaultId, folder: FolderId): Promise<Note[]> {
     return (await this.listByVault(vault))
       .filter((note) => note.folderId.equals(folder))
@@ -194,22 +181,6 @@ export class InMemoryNoteRepository implements NoteRepository {
       return { ok: false, error: new ConcurrencyError() };
     }
 
-    const slug = slugKey(this.sub, note.vaultId, note.slug.value);
-    const holder = this.db.noteSlugs.get(slug);
-    if (!note.isDeleted && holder && holder !== note.id.value) {
-      // The NSLUG guard: the slug is unique within the vault (RN-KNW-020).
-      return { ok: false, error: new ConcurrencyError('That slug is already taken in this vault') };
-    }
-
-    // A deleted note releases its slug back to the vault (RN-KNW-030).
-    if (note.isDeleted) this.db.noteSlugs.delete(slug);
-    else this.db.noteSlugs.set(slug, note.id.value);
-
-    // Drop any stale guard this note used to hold under another slug.
-    for (const [existing, owner] of this.db.noteSlugs) {
-      if (owner === note.id.value && existing !== slug) this.db.noteSlugs.delete(existing);
-    }
-
     const events = note.pullEvents();
     note.markPersisted();
     this.db.notes.set(key, { note, version: note.version });
@@ -217,15 +188,10 @@ export class InMemoryNoteRepository implements NoteRepository {
     return ok();
   }
 
-  async saveMoved(
-    note: Note,
-    from: { vaultId: VaultId; slug: Slug },
-  ): Promise<Result<void, ConcurrencyError>> {
+  async saveMoved(note: Note, from: { vaultId: VaultId }): Promise<Result<void, ConcurrencyError>> {
     // The item key itself changes, so the old one is deleted and a new one is
-    // written; the origin slug guard goes with it, or the slug would stay
-    // pinned in the origin vault forever.
+    // written.
     this.db.notes.delete(noteKey(this.sub, from.vaultId, note.id));
-    this.db.noteSlugs.delete(slugKey(this.sub, from.vaultId, from.slug.value));
     return this.save(note);
   }
 }

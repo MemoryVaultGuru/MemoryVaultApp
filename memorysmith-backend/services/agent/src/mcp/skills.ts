@@ -323,8 +323,40 @@ The body of a note is Markdown, and it is stored exactly as you send it. Almost
 all of it is text the product never looks at, which is deliberate: what a
 convention means belongs to the vault, not to the server.
 
-There are exactly two places where the product DOES read your content, and this
-is the whole list. Everything else you write is text, and nothing more.
+There are exactly three places where the product DOES read your content, and
+this is the whole list: **the title of the note, the frontmatter and the
+links**. Everything else you write is text, and nothing more.
+
+## How a note is named
+
+**The title of a note is read from the note.** There is no title argument on
+\`create_note\` and no operation that renames a note apart from its content. The
+chain is:
+
+1. \`title:\` in the frontmatter, when it is a single line of text. Any length.
+2. The plain text of the first level-1 heading, when the frontmatter states none.
+3. Neither, and the note has **no addressable title**: it is written, it renders
+   and it is searchable, and no link can name it.
+
+**State the title in the frontmatter.** A heading is what a note happens to open
+with, and a note whose links were written against one name often opens with a
+shorter one. Writing \`title:\` is the difference between a note links land on
+and a note they do not.
+
+Four characters have no place in a title — \`#\`, \`[\`, \`]\` and \`|\`, the
+delimiters of the form that addresses it. A title carrying one of them leaves the
+note unaddressable, and a \`title:\` that is there does NOT fall through to the
+heading. A \`/\` is fine: \`Reunião 03/09/2026\` is an ordinary title, because
+folders play no part in identity.
+
+A link names a title **exactly**: case for case, after Unicode normalisation, and
+folded in no other way. \`[[Lei 14.133]]\` finds \`Lei 14.133\` and does not find
+\`lei 14133\`.
+
+**Nothing is unique.** Two notes may carry the same title, in one folder or in
+two, and nothing refuses the second one. So \`create_note\` ALWAYS creates: if a
+call fails on the way back, read the folder before calling it again, or you get
+two notes where you meant one.
 
 ## Which Markdown this is
 

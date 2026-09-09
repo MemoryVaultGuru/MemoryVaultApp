@@ -10,8 +10,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { admitWrite } from '../src/domain/services/StorageQuota.js';
-import { FolderId, Slug } from '@memorysmith/kernel';
-import { authorship, contentRef, newNote, newVault, noteTitle, unwrap } from './fixtures.js';
+import { FolderId } from '@memorysmith/kernel';
+import { authorship, contentRef, newNote, newVault, noteBody, unwrap } from './fixtures.js';
 
 const folderId = FolderId.generate();
 
@@ -31,7 +31,7 @@ describe('storage: what each mutation declares', () => {
     note.pullEvents();
 
     const bigger = contentRef('b'.repeat(64), note.bodyRef.bytes + 300);
-    unwrap(note.replaceBody(bigger, authorship()));
+    unwrap(note.replaceBody(bigger, noteBody('Contratação direta'), authorship()));
     const [updated] = note.pullEvents();
 
     expect(updated?.type).toBe('NoteUpdated');
@@ -44,7 +44,7 @@ describe('storage: what each mutation declares', () => {
     note.pullEvents();
 
     const smaller = contentRef('c'.repeat(64), note.bodyRef.bytes - 20);
-    unwrap(note.replaceBody(smaller, authorship()));
+    unwrap(note.replaceBody(smaller, noteBody('Contratação direta'), authorship()));
     const [updated] = note.pullEvents();
 
     expect(updated?.storageDelta).toBe(-20);
@@ -52,17 +52,19 @@ describe('storage: what each mutation declares', () => {
 
   /**
    * The case that makes the delta a declaration rather than something derived
-   * from the event type: a retitle emits NoteUpdated too, and moves nothing.
+   * from the event type: a write of the same length changes the title of the
+   * note and moves no bytes at all.
    */
-  it('a retitle emits NoteUpdated and moves no bytes', () => {
+  it('a rewrite of the same length retitles the note and moves no bytes', () => {
     const vault = newVault();
     const note = newNote(vault, folderId, 'Contratação direta');
     note.pullEvents();
 
-    const title = noteTitle('Contratação direta por dispensa');
-    unwrap(note.retitle(title, unwrap(Slug.from(title.value)), authorship()));
+    const sameSize = contentRef('d'.repeat(64), note.bodyRef.bytes);
+    unwrap(note.replaceBody(sameSize, noteBody('Contratação direta por dispensa'), authorship()));
     const [updated] = note.pullEvents();
 
+    expect(note.title).toBe('Contratação direta por dispensa');
     expect(updated?.type).toBe('NoteUpdated');
     expect(updated?.storageDelta).toBe(0);
   });
@@ -90,12 +92,7 @@ describe('storage: what each mutation declares', () => {
     unwrap(note.reorder(note.position, authorship()));
     unwrap(
       note.moveTo(
-        {
-          vaultId: vault.id,
-          folderId: FolderId.generate(),
-          slug: note.slug,
-          position: note.position,
-        },
+        { vaultId: vault.id, folderId: FolderId.generate(), position: note.position },
         authorship(),
       ),
     );

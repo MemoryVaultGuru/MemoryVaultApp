@@ -116,8 +116,6 @@ export async function handler(event: QueueEvent): Promise<void> {
           vaultId: String(payload['vaultId']),
           noteId: String(payload['noteId']),
           folderId: String(payload['folderId']),
-          title: String(payload['title']),
-          slug: String(payload['slug']),
           contentRef,
         });
         break;
@@ -130,8 +128,6 @@ export async function handler(event: QueueEvent): Promise<void> {
           fromVaultId: String(payload['fromVaultId']),
           noteId: String(payload['noteId']),
           folderId: String(payload['toFolderId']),
-          title: '',
-          slug: String(payload['slug']),
           contentRef,
         });
         break;
@@ -141,8 +137,6 @@ export async function handler(event: QueueEvent): Promise<void> {
           vaultId: String(payload['vaultId']),
           noteId: String(payload['noteId']),
           folderId: String(payload['folderId']),
-          title: '',
-          slug: String(payload['slug']),
           contentRef: null,
         });
         break;
@@ -152,8 +146,6 @@ export async function handler(event: QueueEvent): Promise<void> {
           vaultId: String(payload['vaultId']),
           noteId: String(payload['noteId']),
           folderId: String(payload['folderId']),
-          title: '',
-          slug: String(payload['slug']),
           contentRef,
         });
         break;

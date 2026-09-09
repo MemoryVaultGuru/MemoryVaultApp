@@ -11,6 +11,17 @@ issues each entry cites.
 
 ## [Unreleased]
 
+### Changed
+
+- **The title of a note is read from the note, and no longer given by whoever writes it.** `create_note` takes a folder and a body, and nothing else; the title is `title:` of the frontmatter when it is there, the first level-1 heading when it is not, and neither when the content states neither. The same function reads it on the write and on the resolution of a link, so the two can never disagree about what a note is called. **State the title in the frontmatter**: a heading is what a note happens to open with, and measured over ten real vaults the heading alone resolved 24.7% of the links their authors had written, where the chain resolves 95.1%. A note is retitled by editing its content, and the route that renamed one is gone (RN-KNW-035, RN-KNW-038, RN-KNW-039). (#96)
+- **Nothing in a vault is unique any more, and `create_note` always creates.** Two notes may carry the same title, in one folder or in two, and nothing refuses the second one. The tool declares itself as **not** idempotent: a call that fails on the way back may have written, so read the folder before calling it again, or you get two notes where you meant one. Moving a note between vaults carries no conflict policy, deleting one releases nothing and restoring one requires nothing to be free (RN-KNW-037, RN-AGT-024; RN-KNW-020, RN-KNW-021, RN-KNW-022, RN-KNW-030 and RN-AGT-004 removed). (#96)
+- **A note may have no title a link can name, and every surface says so instead of showing an empty line.** Content that states no title, or a title carrying one of `#`, `[`, `]` and `|` — the four delimiters of the form that addresses a note — leaves the note unaddressable. It is written all the same, it renders and it is searchable: refusing the write is how an import loses a vault (RN-KNW-036). (#96)
+- **`onboard.ps1` writes the file name of a note into its frontmatter as `title:`, where the source states none**, and reports how many it repaired. A tree exported from a vault editor carries its file names nowhere inside the files, and without the repair every note would arrive under the name of a heading nobody linked to. (#96)
+
+### Removed
+
+- **The note carries no slug**, and nothing in the product computes one for it: not the domain, not the DynamoDB item, not the guard that made a name unique within the vault, not the API DTOs, not the domain events and not the MCP tools. The route `GET /vaults/:v/notes/by-slug/:slug` is gone with it. A note is addressed by its identifier and named by its title. The slug of a **vault** and of a **folder** is untouched (RN-KNW-032, RN-KNW-002). (#96)
+
 ## [0.5.7] - 2026-09-07
 
 ### Fixed

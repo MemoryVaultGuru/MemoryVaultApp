@@ -22,7 +22,7 @@ const MAX_HITS = 20;
 interface FlatNote {
   id: string;
   slug: string;
-  title: string;
+  title: string | null;
   folderPath: string;
 }
 

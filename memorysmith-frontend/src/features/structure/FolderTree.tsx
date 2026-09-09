@@ -21,6 +21,7 @@ function TreeNote({
   folder: FolderNode;
   note: FolderNode['notes'][number];
 }) {
+  const { t } = useTranslation();
   const { '*': path } = useParams();
   const active = path === `${folder.slugPath}/${note.slug}`;
   const ref = useRef<HTMLAnchorElement>(null);
@@ -36,7 +37,7 @@ function TreeNote({
         className={`tree-note${active ? ' active' : ''}`}
         to={`/vaults/${vaultSlug}/root/${folder.slugPath}/${note.slug}`}
       >
-        {note.title}
+        {note.title ?? t('note.untitled')}
       </Link>
     </li>
   );

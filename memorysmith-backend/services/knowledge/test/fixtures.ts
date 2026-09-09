@@ -21,13 +21,7 @@ import {
 import { Vault } from '../src/domain/vault/Vault.js';
 import { Folder } from '../src/domain/vault/Folder.js';
 import { Note } from '../src/domain/note/Note.js';
-import {
-  FolderDescription,
-  FolderName,
-  NoteTitle,
-  ShortText,
-  VaultName,
-} from '../src/domain/values.js';
+import { FolderDescription, FolderName, ShortText, VaultName } from '../src/domain/values.js';
 import { NotePlacement, type NoteOrder } from '../src/domain/services/NotePlacement.js';
 
 export function unwrap<T>(result: Result<T, { message: string }>): T {
@@ -70,8 +64,13 @@ export function folderDescription(value: string): FolderDescription {
   return unwrap(FolderDescription.create(value));
 }
 
-export function noteTitle(value: string): NoteTitle {
-  return unwrap(NoteTitle.create(value));
+/**
+ * A note whose content states its title, which is the only place a title comes
+ * from now (RN-KNW-035). The fixtures take a title and write the note that
+ * says it, so a test that cares about a title still reads as one.
+ */
+export function noteBody(title: string): string {
+  return `# ${title}\n\nThe general rule.\n`;
 }
 
 export function newVault(name = 'Normas e Legislacao'): Vault {
@@ -122,8 +121,7 @@ export function newNote(
       subscriptionId: vault.subscriptionId,
       vaultId: vault.id,
       folderId,
-      title: noteTitle(title),
-      slug: unwrap(Slug.from(title)),
+      body: noteBody(title),
       position: NotePlacement.append(siblings),
       bodyRef: contentRef(),
       by: authorship(),

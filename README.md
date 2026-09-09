@@ -137,7 +137,7 @@ sequenceDiagram
     Client->>Server: get_template(vault, folder)
     Server-->>Client: the Template of the notes of that folder
 
-    Client->>Server: create_note(vault, folder, title, content)
+    Client->>Server: create_note(vault, folder, content)
     Server-->>Client: note created, with authorship recorded
 ```
 

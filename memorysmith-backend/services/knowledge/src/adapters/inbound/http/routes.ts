@@ -47,7 +47,6 @@ import type {
   ListNotes,
   MoveNote,
   ReadNote,
-  ReadNoteBySlug,
   ReorderNote,
   RestoreNote,
   UpdateNote,
@@ -82,7 +81,6 @@ export interface KnowledgeUseCases {
   readonly getTemplate: (request: KnowledgeRequest) => GetTemplate;
   readonly listNotes: (request: KnowledgeRequest) => ListNotes;
   readonly readNote: (request: KnowledgeRequest) => ReadNote;
-  readonly readNoteBySlug: (request: KnowledgeRequest) => ReadNoteBySlug;
   readonly createNote: (request: KnowledgeRequest) => CreateNote;
   readonly updateNote: (request: KnowledgeRequest) => UpdateNote;
   readonly reorderNote: (request: KnowledgeRequest) => ReorderNote;
@@ -440,7 +438,6 @@ export function createKnowledgeRoutes(useCases: KnowledgeUseCases): Hono<{ Varia
     if (!vaultId.ok) return fail(c, vaultId.error);
     const body = (await c.req.json().catch(() => ({}))) as {
       folderId?: string;
-      title?: string;
       content?: string;
       afterNoteId?: string | null;
     };
@@ -452,26 +449,11 @@ export function createKnowledgeRoutes(useCases: KnowledgeUseCases): Hono<{ Varia
       ctx: request.ctx,
       vaultId: vaultId.value,
       folderId: folderId.value,
-      title: String(body.title ?? ''),
       content: String(body.content ?? ''),
       afterNoteId: after?.ok ? after.value : null,
       by: request.authorship,
     });
     return present(c, created, (note) => noteToSummary(note), 201);
-  });
-
-  /** The UI and the links navigate by slug, so this resolves one. */
-  app.get('/vaults/:v/notes/by-slug/:slug', async (c) => {
-    const request = c.get('knowledge');
-    const vaultId = parseVaultId(c.req.param('v'));
-    if (!vaultId.ok) return fail(c, vaultId.error);
-
-    const read = await useCases.readNoteBySlug(request).execute({
-      ctx: request.ctx,
-      vaultId: vaultId.value,
-      slug: c.req.param('slug') ?? '',
-    });
-    return present(c, read, ({ note, content }) => noteToDto(note, content));
   });
 
   app.get('/vaults/:v/notes/:n', async (c) => {
@@ -497,7 +479,6 @@ export function createKnowledgeRoutes(useCases: KnowledgeUseCases): Hono<{ Varia
     const body = (await c.req.json().catch(() => ({}))) as {
       content?: string;
       baseRevision?: string;
-      title?: string;
     };
     const content = String(body.content ?? '');
     const updated = await useCases.updateNote(request).execute({
@@ -506,7 +487,6 @@ export function createKnowledgeRoutes(useCases: KnowledgeUseCases): Hono<{ Varia
       noteId: noteId.value,
       content,
       baseRevision: String(body.baseRevision ?? ''),
-      title: body.title,
       by: request.authorship,
     });
     /**
@@ -556,7 +536,6 @@ export function createKnowledgeRoutes(useCases: KnowledgeUseCases): Hono<{ Varia
     const body = (await c.req.json().catch(() => ({}))) as {
       toVaultId?: string;
       toFolderId?: string;
-      onSlugConflict?: string;
       afterNoteId?: string | null;
     };
     const toFolderId = FolderId.create(String(body.toFolderId ?? ''));
@@ -571,7 +550,6 @@ export function createKnowledgeRoutes(useCases: KnowledgeUseCases): Hono<{ Varia
       noteId: noteId.value,
       toVaultId: toVaultId?.ok ? toVaultId.value : null,
       toFolderId: toFolderId.value,
-      onSlugConflict: String(body.onSlugConflict ?? 'REJECT'),
       afterNoteId: after?.ok ? after.value : null,
       by: request.authorship,
     });

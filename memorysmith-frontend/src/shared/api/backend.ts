@@ -28,12 +28,40 @@ import type {
   VaultStructure,
   VaultSummary,
 } from '../types/api';
-import { splitFrontmatter } from './markdown';
+import { slugify, splitFrontmatter } from './markdown';
 import { request } from './http';
 import { ApiError } from './error-mapper';
 
 export async function getSession(): Promise<SessionDto> {
   return request<SessionDto>('/access/session');
+}
+
+/**
+ * The address this interface gives a note, computed from the title the API
+ * answers. A note carries no slug any more, and the API resolves nothing by
+ * name: #98 replaces this whole address with the identifier of the note, and
+ * until then the interface keeps the URLs it has by deriving them here.
+ *
+ * A note with no addressable title falls back to its identifier, which is the
+ * one thing it does have.
+ */
+function addressOf(title: string | null): string {
+  return title ? slugify(title) : '';
+}
+
+/**
+ * Reads a note by the address above: the listing of the vault is what maps an
+ * address to an identifier, since the API has no lookup by name. It is one
+ * extra call, on a response the query client already caches, and it goes away
+ * with the address itself in #98.
+ */
+async function noteByAddress(vaultId: string, address: string): Promise<NoteDto> {
+  const notes = await request<NoteSummaryDto[]>(`/knowledge/vaults/${vaultId}/notes`);
+  const found = notes.find(
+    (note) => addressOf(note.title) === address || note.noteId.toLowerCase() === address,
+  );
+  if (!found) throw new ApiError('NOT_FOUND', 'Note not found', 404);
+  return request<NoteDto>(`/knowledge/vaults/${vaultId}/notes/${found.noteId}`);
 }
 
 function toSummary(vault: VaultSummaryDto): VaultSummary {
@@ -90,7 +118,7 @@ function nest(folders: FolderDto[], notes: NoteSummaryDto[]): FolderNode[] {
           .filter((note) => note.folderId === folder.folderId)
           .map((note) => ({
             id: note.noteId,
-            slug: note.slug,
+            slug: addressOf(note.title),
             title: note.title,
             folderId: note.folderId,
           })),
@@ -134,7 +162,7 @@ export async function getNote(vaultSlug: string, noteSlug: string): Promise<Note
      * cannot check. Taking the DTO is what makes the next divergence a build
      * error instead of a screen that fails.
      */
-    request<NoteDto>(`/knowledge/vaults/${vaultId}/notes/by-slug/${encodeURIComponent(noteSlug)}`),
+    noteByAddress(vaultId, noteSlug),
     request<VaultDetailDto>(`/knowledge/vaults/${vaultId}`),
   ]);
 
@@ -151,7 +179,7 @@ export async function getNote(vaultSlug: string, noteSlug: string): Promise<Note
   return {
     id: note.noteId,
     vaultSlug,
-    slug: note.slug,
+    slug: addressOf(note.title),
     title: note.title,
     folderNames,
     frontmatter,

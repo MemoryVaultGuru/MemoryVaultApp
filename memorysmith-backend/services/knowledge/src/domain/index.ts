@@ -11,16 +11,13 @@ export { Note } from './note/Note.js';
 export {
   FolderDescription,
   FolderName,
-  NoteTitle,
   RemovalPolicy,
   ShortText,
-  SlugConflictPolicy,
   VaultName,
   VAULT_LIMITS,
 } from './values.js';
 export { FolderTreePlacement, type Placement } from './services/FolderTreePlacement.js';
 export { NotePlacement, type NoteOrder } from './services/NotePlacement.js';
-export { NoteRelocation, type SlugTaken } from './services/NoteRelocation.js';
 export { composeVaultContext, type VaultContextInput } from './services/VaultContextComposer.js';
 export { admitWrite, type StorageBudget, type StorageState } from './services/StorageQuota.js';
 export {

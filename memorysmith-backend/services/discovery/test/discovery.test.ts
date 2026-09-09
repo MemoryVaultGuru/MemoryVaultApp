@@ -166,36 +166,29 @@ describe('The projections, driven by events', () => {
     });
   });
 
-  async function write(input: {
-    noteId: string;
-    title: string;
-    slug: string;
-    markdown: string;
-  }): Promise<void> {
+  /**
+   * The title is not passed in: the projector reads it from the markdown, the
+   * way the write did (RN-KNW-035). A note that is meant to be findable by
+   * name says its name in its content, which is what a real one does.
+   */
+  async function write(input: { noteId: string; markdown: string }): Promise<void> {
     const ref = { contentId: `c-${input.noteId}`, versionId: `v-${content.size + 1}` };
     content.set(`${ref.contentId}#${ref.versionId}`, input.markdown);
     await project.onWritten({
       vaultId: VAULT,
       noteId: input.noteId,
       folderId: 'f1',
-      title: input.title,
-      slug: input.slug,
       contentRef: ref,
     });
   }
 
   it('resolves a pending link when the target note is finally created', async () => {
-    await write({
-      noteId: 'n1',
-      title: 'Achado 12',
-      slug: 'achado-12',
-      markdown: 'Fundamento: [[lei-14133]].',
-    });
+    await write({ noteId: 'n1', markdown: '# Achado 12\n\nFundamento: [[lei-14133]].' });
     // The target does not exist yet, so the link waits instead of vanishing.
     expect(await graph.backlinks(VAULT, 'n2')).toHaveLength(0);
     expect(await graph.broken(VAULT)).toHaveLength(1);
 
-    await write({ noteId: 'n2', title: 'Lei 14.133', slug: 'lei-14133', markdown: '# Lei' });
+    await write({ noteId: 'n2', markdown: '# Lei 14.133' });
 
     const backlinks = await graph.backlinks(VAULT, 'n2');
     expect(backlinks.map((note) => note.noteId)).toEqual(['n1']);
@@ -203,23 +196,11 @@ describe('The projections, driven by events', () => {
   });
 
   it('returns backlinks to pending when the target note is deleted', async () => {
-    await write({ noteId: 'n2', title: 'Lei 14.133', slug: 'lei-14133', markdown: '# Lei' });
-    await write({
-      noteId: 'n1',
-      title: 'Achado 12',
-      slug: 'achado-12',
-      markdown: 'Fundamento: [[lei-14133]].',
-    });
+    await write({ noteId: 'n2', markdown: '# Lei 14.133' });
+    await write({ noteId: 'n1', markdown: '# Achado 12\n\nFundamento: [[lei-14133]].' });
     expect(await graph.backlinks(VAULT, 'n2')).toHaveLength(1);
 
-    await project.onDeleted({
-      vaultId: VAULT,
-      noteId: 'n2',
-      folderId: 'f1',
-      title: 'Lei 14.133',
-      slug: 'lei-14133',
-      contentRef: null,
-    });
+    await project.onDeleted({ vaultId: VAULT, noteId: 'n2', folderId: 'f1', contentRef: null });
 
     // RN-DSC-005: the edge is gone and the link is pending again.
     expect(await graph.backlinks(VAULT, 'n2')).toHaveLength(0);
@@ -233,8 +214,6 @@ describe('The projections, driven by events', () => {
       vaultId: VAULT,
       noteId: 'n1',
       folderId: 'f1',
-      title: 'Nota',
-      slug: 'nota',
       contentRef: { contentId: 'c1', versionId: 'v1' },
     });
     await structure.upsertVault('vault-2', 'Outro');
@@ -250,8 +229,6 @@ describe('The projections, driven by events', () => {
       fromVaultId: VAULT,
       noteId: 'n1',
       folderId: 'f9',
-      title: 'Nota',
-      slug: 'nota',
       contentRef: { contentId: 'c1', versionId: 'v1' },
     });
 
@@ -259,18 +236,8 @@ describe('The projections, driven by events', () => {
   });
 
   it('counts facets and withdraws the portrait when the note goes', async () => {
-    await write({
-      noteId: 'n1',
-      title: 'Nota',
-      slug: 'nota',
-      markdown: '---\nmaturity: seed\nreviewed: false\n---\n\n# Nota',
-    });
-    await write({
-      noteId: 'n2',
-      title: 'Outra',
-      slug: 'outra',
-      markdown: '---\nmaturity: seed\nreviewed: true\n---\n\n# Outra',
-    });
+    await write({ noteId: 'n1', markdown: '---\nmaturity: seed\nreviewed: false\n---\n\n# Nota' });
+    await write({ noteId: 'n2', markdown: '---\nmaturity: seed\nreviewed: true\n---\n\n# Outra' });
 
     const stats = await new GetFacetStats({ graph, facets, catalog, content: index }).execute({
       vaultId: VAULT,
@@ -280,14 +247,7 @@ describe('The projections, driven by events', () => {
     const maturity = stats.value.facets.find((facet) => facet.facet === 'maturity');
     expect(maturity?.values).toEqual([{ value: 'seed', count: 2 }]);
 
-    await project.onDeleted({
-      vaultId: VAULT,
-      noteId: 'n1',
-      folderId: 'f1',
-      title: 'Nota',
-      slug: 'nota',
-      contentRef: null,
-    });
+    await project.onDeleted({ vaultId: VAULT, noteId: 'n1', folderId: 'f1', contentRef: null });
     const afterDeletion = await facets.vaultFacetStats(VAULT);
     expect(afterDeletion.facets.find((facet) => facet.facet === 'maturity')?.values).toEqual([
       { value: 'seed', count: 1 },
@@ -300,8 +260,6 @@ describe('The projections, driven by events', () => {
     for (let index = 0; index < 45; index++) {
       await write({
         noteId: `n${index}`,
-        title: `Nota ${index}`,
-        slug: `nota-${index}`,
         markdown: `---\nsource: doc-${index}\nmaturity: seed\n---\n\n# Nota`,
       });
     }

@@ -368,8 +368,7 @@ export class Note {
     private readonly id: NoteId,
     private vaultId: VaultId,
     private folderId: FolderId,
-    private title: NoteTitle,
-    private slug: Slug,
+    private title: string | null,       // read from the body (RN-KNW-035)
     private position: Position,         // order within the folder (§6.4)
     private body: ContentRef,           // opaque pointer to a Content Slot (§9.2)
     private readonly createdBy: Authorship,
@@ -380,10 +379,9 @@ export class Note {
 
   static create(...): Result<Note, DomainError>
 
-  retitle(title: NoteTitle, by: Authorship): Result<void>
-  replaceBody(ref: ContentRef, by: Authorship): Result<void>
+  replaceBody(ref: ContentRef, body: string, by: Authorship): Result<boolean>
   reorder(after: NoteId | null, by: Authorship): Result<void>
-  moveTo(vault: VaultId, folder: FolderId, onSlugConflict: SlugConflictPolicy, by: Authorship): Result<void>
+  moveTo(vault: VaultId, folder: FolderId, by: Authorship): Result<void>
   delete(by: Authorship): Result<void>          // marks; does not destroy content
   pullEvents(): DomainEvent[]
 }
@@ -394,7 +392,8 @@ export class Note {
 Details that follow from it:
 
 - `vaultId` is **not `readonly`**: moving between vaults is a first-class operation and the `NoteId` is preserved (RN-KNW-023). That is what keeps the timeline intact in `svc-audit`, whose key is by subject and not by vault (§12.2). "Moving" implemented as delete plus create would lose the history exactly where it matters.
-- `SlugConflictPolicy` (`REJECT` \| `RENAME`) exists because the slug is unique **within the vault** (RN-KNW-020), and therefore only a change of vault can collide.
+- **There is no `retitle`, and no `NoteTitle` to pass to one.** A note is named by what it says, and `replaceBody` is where the title is read (RN-KNW-035, RN-KNW-038). It takes the body **and** the reference to it, because a use case that passed a title in could pass one the content does not state: the derivation belongs inside the aggregate, where it cannot be skipped.
+- **`moveTo` carries no conflict policy.** A title collides with nothing, in one vault or in two (RN-KNW-037), so a destination has nothing to refuse and `SlugConflictPolicy` is gone with the rule that motivated it (RN-KNW-022, removed).
 - `replaceBody` takes a `ContentRef` that is already written: whoever talks to S3 is the use case, never the aggregate (§10.3).
 - `delete` marks, it does not destroy: the `bodyRef` remains and the timeline stays readable by `NoteId`.
 
@@ -411,7 +410,7 @@ Details that follow from it:
 
 ### 6.4 Value Objects
 
-`SubscriptionId` `VaultId` `FolderId` `NoteId` `ContentId` (ULID) · `Slug` · `Position` · `FolderDescription` (1 to 500 characters, required) · `ContentRef` · `Revision` · `SlugConflictPolicy` · `RemovalPolicy` · `ErasureReason` · `SubscriptionStatus` · `Role` · `VaultRoleLimit` · `Authorship` · `AgentIdentity` · `LinkTarget`.
+`SubscriptionId` `VaultId` `FolderId` `NoteId` `ContentId` (ULID) · `Slug` (of a vault and of a folder only) · `Position` · `FolderDescription` (1 to 500 characters, required) · `ContentRef` · `Revision` · `RemovalPolicy` · `ErasureReason` · `SubscriptionStatus` · `Role` · `VaultRoleLimit` · `Authorship` · `AgentIdentity` · `LinkTarget`.
 
 `Role` is an **ordered** enumeration (`NONE < VIEWER < EDITOR < OWNER`) and exposes `Role.min(a, b)`. It is that ordering that lets the vault ceiling be written as a minimum (§14.2) instead of a chain of conditionals, and it is what makes it impossible, by type, for a ceiling to promote anyone.
 
@@ -470,8 +469,7 @@ export interface VaultRepository {
 
 // domain/ports/NoteRepository.ts
 export interface NoteRepository {
-  findById(vault: VaultId, id: NoteId): Promise<Note | null>;
-  findBySlug(vault: VaultId, slug: Slug): Promise<Note | null>;
+  findById(vault: VaultId, id: NoteId): Promise<Note | null>;   // and by nothing else
   save(note: Note): Promise<Result<void, ConcurrencyError>>;
 }
 
@@ -653,7 +651,6 @@ Moving between vaults is the **only operation in the system that writes to two v
 | Role ceiling in the vault | `S#{s}#VAULT#{v}` | `LIMIT#{userId}` | limit (`VIEWER`), setBy, setAt: the demotion of §5.3 of the product |
 | Note | `S#{s}#VAULT#{v}` | `NOTE#{noteId}` | folderId, title, slug, position, **bodyRef**, createdBy, updatedBy, version, `deletedAt?`, `deletedBy?` |
 | Folder slug guard | `S#{s}#VAULT#{v}` | `SLUG#{parentId}#{slug}` | enforces I1 through `attribute_not_exists` |
-| Note slug guard | `S#{s}#VAULT#{v}` | `NSLUG#{slug}` | a note slug is unique **within the vault** (RN-KNW-020) |
 | Projection dedup | `S#{s}#VAULT#{v}` | `SEEN#{eventUlid}` | ttl; makes the counter exactly-once |
 | Outbox | `S#{s}#VAULT#{v}` | `EVENT#{ulid}` | payload, ttl |
 
@@ -667,7 +664,7 @@ Query  PK = S#{s}#VAULT#{v}   AND   SK BETWEEN 'FOLDER#' AND 'META'
        FOLDER#…    FSTAT / FSTAT#…       LIMIT#…          META
 ```
 
-`EVENT#` falls before the range; `NOTE#`, `NSLUG#`, `SEEN#` and `SLUG#` fall after it. It is that property that makes `get_vault_context` return the annotated tree with the note count of each folder **without one query per folder**.
+`EVENT#` falls before the range; `NOTE#`, `SEEN#` and `SLUG#` fall after it. It is that property that makes `get_vault_context` return the annotated tree with the note count of each folder **without one query per folder**.
 
 > **`LIMIT#` was named to fall in that range, and the name also describes what it is**, a ceiling and not a grant (the ceiling only lowers, RN-ACC-011). The alternative would be a second query per request, on the hottest path of the system, to answer an authorisation question that has to be answered **before** everything else (§14.2). The cost is loading the ceilings of every member along with the vault; since members number in the dozens and the partition is the same, it is free in latency.
 
@@ -717,8 +714,9 @@ Creating, editing, retitling, reordering, moving, deleting.
 
 1. A `Put`/`Update`/`Delete` of the `NOTE` item with `ConditionExpression: version = :expected`, where the lock belongs to the item itself
 2. A `ConditionCheck` with `attribute_exists` on the destination `FOLDER#{f}` item and, on a move between vaults, also on the `META` of the destination vault
-3. A `Put`/`Delete` of the `NSLUG` guard when the slug enters or leaves the vault
-4. A `Put` of the event into the outbox
+3. A `Put` of the event into the outbox
+
+There is no fourth write. The `NSLUG` guard held one name per vault, and a vault has no name to hold: nothing is reserved on a write and nothing is released on a delete (RN-KNW-037).
 
 > **No note transaction writes to the `META` item** (PE8). It is this rule, and not the separation of the aggregates on its own, that keeps the hot path free of contention. `META` is a single item: an agent writing fifty notes in a row would turn it into the bottleneck of the whole vault, and the retry would only turn the contention into latency. The `ConditionCheck` gives the same guarantee that matters, *"the folder existed at the instant of the write"*, without writing to it, and the `FOLDER` item is only written when the folder is renamed or moved, which is a rare event.
 
@@ -782,13 +780,19 @@ None of that happens in the aggregate: whoever talks to the `ContentStore` is th
 
 Three projections over the same events. All of them **derived** (PE5): deleting and rebuilding from zero is a supported operation, and it is the recovery plan for all three. The business rules are in `software-vision.md` §10.
 
+**There are three sanctioned readers of content, and the third one is not here.** `noteTitle`, in `packages/kernel`, reads the title of a note in the chain of the specification: `title:` of the frontmatter, then the first level-1 heading (RN-KNW-035). It lives in the kernel because **Knowledge needs it synchronously, on the write** — a listing cannot wait for a projection to know what a note is called — and Discovery needs the same answer when it resolves a link. One function, two contexts, and no way for them to disagree.
+
+That amends the rule "only the two extractors read content", deliberately and in the open, and it is a smaller amendment than it looks: what the third reader reads is **the same frontmatter block §11.3 already reads**, plus a heading. The reason of the rule is untouched — what is read is the notation the specification declares and nothing else, never a vault convention and never a vocabulary this backend holds a list of (PP4).
+
+The frontmatter block and the YAML subset of §6.2 live in the kernel with it, and `FacetExtractor` reads them from there. **There is exactly one function in this repository that finds the frontmatter of a body**, which is the property `slugify` lost by being written twice.
+
 ### 11.0 The notation, imported rather than declared
 
 **The list of what the product reads is not written in this repository.** It is the [MemorySmith Markdown Profile](https://github.com/memorysmithapp/markdown-profile), a specification with a version of its own, carrying the same notation as prose (`SPEC.md`), as data (`profile.json`) and as an executable suite (`tests/conformance.json`). This build implements a version of it and says which (RN-AGT-022).
 
 **How it enters the build.** It is an ordinary dependency, pinned to a git tag, and the version is declared **once**, in the `catalog:` of `pnpm-workspace.yaml`. Two packages consume it from there — `packages/contracts`, which re-exports it, and `memorysmith-frontend`, whose reading surface is proved against the same cases — and a catalog is what keeps them from pinning two versions of one specification. A bump is a deliberate commit whose proof is the suite going green.
 
-`RECOGNISED_NOTATION` in `packages/contracts` is now a **projection of `profile.json`**, not a list beside it, and it lives there for the reason it always did: two contexts need it and may never import each other. Discovery reads the notation, in its two sanctioned extractors; Agent Access teaches it, in the skill, citing the version.
+`RECOGNISED_NOTATION` in `packages/contracts` is now a **projection of `profile.json`**, not a list beside it, and it lives there for the reason it always did: two contexts need it and may never import each other. Discovery reads the notation, in its two sanctioned extractors; Agent Access teaches it, in the skill, citing the version. The third reader, `noteTitle` in the kernel, reads one form of the same table (§11).
 
 **Three layers, and each one is proved by a test of its own kind (RN-AGT-023):**
 
@@ -991,7 +995,7 @@ No query to Knowledge is needed: **the present lives in `mv-knowledge`, the past
 
 ### 12.4 Deleting is not destroying
 
-**`NoteDeleted` is a soft delete.** The `NOTE` item gains `deletedAt` and `deletedBy`, and **loses the key attributes of `GSI2`**: since the index is sparse (§9.3), the note disappears from the listings without a line of filtering anywhere. The `bodyRef` stays intact, so `read_note(asOf)` and `note_history` keep answering by `NoteId`. The `NSLUG` guard is deleted in the same transaction, giving the slug back to the vault (RN-KNW-030). Restoring is giving the index attributes back, which is free and becomes `NoteRestored`.
+**`NoteDeleted` is a soft delete.** The `NOTE` item gains `deletedAt` and `deletedBy`, and **loses the key attributes of `GSI2`**: since the index is sparse (§9.3), the note disappears from the listings without a line of filtering anywhere. The `bodyRef` stays intact, so `read_note(asOf)` and `note_history` keep answering by `NoteId`. Nothing else is written: there is no guard to release, because a vault reserves no name (RN-KNW-030, removed). Restoring is giving the index attributes back, which is free and becomes `NoteRestored`.
 
 **There is no path that destroys content.** That is why `purge` does not exist on the `ContentStore` port (§7.1), and the absence is declared in the code itself as deliberate. Deleting hides the note and preserves the byte: no port, no route and no administrative act destroys what has already been written (RN-AUD-006, and RN-AUD-007, removed).
 
@@ -1037,7 +1041,7 @@ Cognito implements no automatic client registration mechanism, neither DCR nor C
 
 Both solved with no new mechanism:
 
-- **Idempotency.** `NSLUG#{slug}` is unique within the vault (§9.3), so the second `create_note` call fails on `attribute_not_exists` and the adapter answers `ALREADY_EXISTS` with the existing `noteId` in `details` (RN-AGT-004). The server never generates an automatic suffix.
+- **There is no idempotency, and its absence is the decision.** A note transaction writes no guard item, because a vault holds no key: two notes may carry one title (RN-KNW-037) and a repeated `create_note` writes a second note (RN-AGT-024). The tool says so, and declares itself as not idempotent, which is what lets a client tell a retry that costs nothing from one that costs a duplicate.
 - **Concurrency.** `update_note` requires `baseRevision`, and a divergence answers `CONFLICT` with the current content attached (RN-AGT-005).
 
 ---
@@ -1072,7 +1076,8 @@ svc-knowledge    GET  /vaults · POST /vaults
                  POST /vaults/:v/folders/:f/reorder   { afterFolderId | null }
                  GET|PUT /vaults/:v/folders/:f/template
                  GET|POST /vaults/:v/notes · GET|PUT|DELETE /vaults/:v/notes/:n
-                 GET  /vaults/:v/notes/by-slug/:slug
+                 ── POST takes { folderId, content }: a note is created from its
+                    content, and the title is read from it (RN-AGT-024)
                  ── the three writes of a Content Slot answer THE REVISION THEY
                     PRODUCED, so a caller can write twice without reloading
                     (RN-AGT-005): the guidance and the template as { revision },
@@ -1080,7 +1085,7 @@ svc-knowledge    GET  /vaults · POST /vaults
                     conflict with themselves on the second write.
                  POST /vaults/:v/notes/:n/reorder   { afterNoteId | null }
                  POST /vaults/:v/notes/:n/restore
-                 POST /vaults/:v/notes/:n/move   { toVaultId?, toFolderId, onSlugConflict }
+                 POST /vaults/:v/notes/:n/move   { toVaultId?, toFolderId }
                  PUT|DELETE /vaults/:v/limits/:userId   { limit: VIEWER }   (§9.3)
 svc-discovery    GET  /vaults/:v/graph   (the whole vault graph, edges from the index)
                  GET  /vaults/:v/notes/:n/graph?depth= · GET /vaults/:v/notes/:n/backlinks
@@ -1156,7 +1161,7 @@ export class DomainError {
 | `NOT_FOUND` | 404 | it does not exist |
 | `FORBIDDEN` | **404** | it exists and the requester may not see it, since a `403` would leak the existence |
 | `CONFLICT` | 409 | optimistic lock, slug already taken, diverging `baseRevision` |
-| `PRECONDITION_FAILED` | 412 | a required policy is missing (`RemovalPolicy`, `SlugConflictPolicy`) |
+| `PRECONDITION_FAILED` | 412 | a required policy is missing (`RemovalPolicy`) |
 | `LIMIT_EXCEEDED` | 413 / 429 | a note above the ceiling, the rate limit of the subscription |
 | `INTERNAL` | 500 | the rest, and only the rest |
 

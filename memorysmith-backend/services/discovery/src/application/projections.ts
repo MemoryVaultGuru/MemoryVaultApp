@@ -9,7 +9,7 @@
  * the folder tree would invert the arrow.
  */
 
-import { bodyWithoutFrontmatter } from '@memorysmith/kernel';
+import { bodyWithoutFrontmatter, noteTitle, slugify } from '@memorysmith/kernel';
 
 import { extractLinks } from '../domain/LinkExtractor.js';
 import { extractFacets } from '../domain/FacetExtractor.js';
@@ -68,20 +68,30 @@ export interface ProjectionDependencies {
   readonly content: ContentReader;
 }
 
+/**
+ * What a note event carries. It does NOT carry a title: the title is read from
+ * the content, by the same function Knowledge derives it with, so the two
+ * cannot disagree about what a note is called (RN-KNW-035). An event that
+ * arrives without a content reference — a deletion — is answering about a note
+ * that no longer takes part in the graph anyway.
+ */
 export interface NoteEvent {
   readonly vaultId: string;
   readonly noteId: string;
   readonly folderId: string;
-  readonly title: string;
-  readonly slug: string;
   readonly contentRef: { contentId: string; versionId: string } | null;
 }
 
-function refOf(event: NoteEvent): NoteRef {
+/**
+ * The note as the projections address it. The slug is still what a link is
+ * keyed by here, and it stops being that in #97, where a link resolves against
+ * the title itself.
+ */
+function refOf(event: NoteEvent, title: string): NoteRef {
   return {
     noteId: event.noteId,
-    title: event.title,
-    slug: event.slug,
+    title,
+    slug: slugify(title),
     folderId: event.folderId,
   };
 }
@@ -95,7 +105,8 @@ export class ProjectNote {
    */
   async onWritten(event: NoteEvent): Promise<void> {
     const markdown = event.contentRef ? await this.deps.content.read(event.contentRef) : '';
-    const note = refOf(event);
+    const title = noteTitle(markdown) ?? '';
+    const note = refOf(event, title);
 
     // 1. Links. A target that does not exist yet becomes PENDING and resolves
     // on its own when the note is created (RN-DSC-004).
@@ -116,7 +127,7 @@ export class ProjectNote {
     const body = stripFrontmatter(markdown);
     await this.deps.index.replaceNote(event.vaultId, {
       noteId: event.noteId,
-      title: normalize(event.title),
+      title: normalize(title),
       folderId: event.folderId,
       folderName: normalize(structure?.folders.get(event.folderId)?.name ?? ''),
       sections: headingsOf(body).map(normalize),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FolderId, Slug, VaultId } from '@memorysmith/kernel';
+import { FolderId, VaultId } from '@memorysmith/kernel';
 import { NotePlacement } from '../src/domain/services/NotePlacement.js';
 import {
   authorship,
@@ -7,7 +7,7 @@ import {
   expectErr,
   newNote,
   newVault,
-  noteTitle,
+  noteBody,
   unwrap,
 } from './fixtures.js';
 
@@ -18,7 +18,8 @@ describe('Note: creation', () => {
     const vault = newVault();
     const note = newNote(vault, folderId, 'Lei 14.133, art. 75');
 
-    expect(note.slug.value).toBe('lei-14133-art-75');
+    // The title is what the content says, and nothing was passed in.
+    expect(note.title).toBe('Lei 14.133, art. 75');
     const [event] = note.pullEvents();
     expect(event?.type).toBe('NoteCreated');
     expect(event?.subject).toBe('NOTE');
@@ -40,7 +41,7 @@ describe('Note: editing', () => {
     note.pullEvents();
 
     const next = contentRef('d'.repeat(64), 900);
-    expect(unwrap(note.replaceBody(next, authorship()))).toBe(true);
+    expect(unwrap(note.replaceBody(next, noteBody('Lei 14.133'), authorship()))).toBe(true);
     expect(note.bodyRef.equals(next)).toBe(true);
     const [event] = note.pullEvents();
     expect(event?.type).toBe('NoteUpdated');
@@ -54,55 +55,39 @@ describe('Note: editing', () => {
     note.pullEvents();
 
     const sameBytes = contentRef(note.bodyRef.sha256, note.bodyRef.bytes);
-    expect(unwrap(note.replaceBody(sameBytes, authorship()))).toBe(false);
+    expect(unwrap(note.replaceBody(sameBytes, noteBody('Lei 14.133'), authorship()))).toBe(false);
     expect(note.pullEvents()).toHaveLength(0);
   });
 
-  it('retitles and takes the new slug along', () => {
+  it('retitles a note by editing the content that states the title', () => {
+    // RN-KNW-038: there is no operation that renames a note apart from its
+    // content, and this is what one looks like.
     const vault = newVault();
     const note = newNote(vault, folderId);
     note.pullEvents();
 
-    unwrap(
-      note.retitle(
-        noteTitle('Lei 14.133, art. 76'),
-        unwrap(Slug.from('Lei 14.133, art. 76')),
-        authorship(),
-      ),
-    );
-    expect(note.slug.value).toBe('lei-14133-art-76');
-    expect(note.pullEvents()[0]?.type).toBe('NoteUpdated');
+    const rewritten = contentRef('f'.repeat(64), 1500);
+    unwrap(note.replaceBody(rewritten, noteBody('Lei 14.133, art. 76'), authorship()));
+
+    expect(note.title).toBe('Lei 14.133, art. 76');
+    const [event] = note.pullEvents();
+    expect(event?.type).toBe('NoteUpdated');
+    // The event is the whole truth: the title the chain read AND the live ref.
+    expect(event?.payload['title']).toBe('Lei 14.133, art. 76');
+    expect(event?.contentRef?.equals(rewritten)).toBe(true);
   });
 
-  it('publishes one NoteUpdated for a retitle and a rewrite in the same save', () => {
-    // Two would be one operation told twice, and the earlier of them cites the
-    // revision the later one just superseded. The bus promises delivery, not
-    // order, so a projector could apply them the other way round and reindex
-    // the note from content that is no longer live.
+  it('leaves a note with no addressable title, and writes it anyway', () => {
+    // RN-KNW-036: the content states nothing a link could name. The note is
+    // written, and what is reported is the absence, not an error.
     const vault = newVault();
     const note = newNote(vault, folderId);
     note.pullEvents();
-    const before = note.bodyRef.bytes;
 
-    unwrap(
-      note.retitle(
-        noteTitle('Lei 14.133, art. 76'),
-        unwrap(Slug.from('Lei 14.133, art. 76')),
-        authorship(),
-      ),
-    );
-    const rewritten = contentRef('f'.repeat(64), 1500);
-    expect(unwrap(note.replaceBody(rewritten, authorship()))).toBe(true);
+    unwrap(note.replaceBody(contentRef('b'.repeat(64), 40), 'Just prose.\n', authorship()));
 
-    const events = note.pullEvents();
-    expect(events).toHaveLength(1);
-    const [event] = events;
-    expect(event?.type).toBe('NoteUpdated');
-    // The surviving one is the whole truth: the new title AND the live ref.
-    expect(event?.payload['slug']).toBe('lei-14133-art-76');
-    expect(event?.contentRef?.equals(rewritten)).toBe(true);
-    // The bytes accumulate, because the retitle declared none of them.
-    expect(event?.storageDelta).toBe(1500 - before);
+    expect(note.title).toBeNull();
+    expect(note.pullEvents()[0]?.payload['title']).toBeNull();
   });
 
   it('keeps the two events of a move and a reorder apart', () => {
@@ -114,12 +99,7 @@ describe('Note: editing', () => {
 
     unwrap(
       note.moveTo(
-        {
-          vaultId: vault.id,
-          folderId: FolderId.generate(),
-          slug: note.slug,
-          position: note.position,
-        },
+        { vaultId: vault.id, folderId: FolderId.generate(), position: note.position },
         authorship(),
       ),
     );
@@ -180,12 +160,7 @@ describe('Note: moving', () => {
     const toFolder = FolderId.generate();
     unwrap(
       note.moveTo(
-        {
-          vaultId: toVault,
-          folderId: toFolder,
-          slug: note.slug,
-          position: NotePlacement.append([]),
-        },
+        { vaultId: toVault, folderId: toFolder, position: NotePlacement.append([]) },
         authorship(),
       ),
     );
@@ -204,12 +179,7 @@ describe('Note: moving', () => {
     const vault = newVault();
     const note = newNote(vault, folderId);
     const move = note.moveTo(
-      {
-        vaultId: note.vaultId,
-        folderId: note.folderId,
-        slug: note.slug,
-        position: note.position,
-      },
+      { vaultId: note.vaultId, folderId: note.folderId, position: note.position },
       authorship(),
     );
     expect(expectErr(move).code).toBe('VALIDATION');
@@ -237,11 +207,8 @@ describe('Note: deleting is not destroying', () => {
     unwrap(note.delete(authorship()));
     note.pullEvents();
 
-    expect(expectErr(note.replaceBody(contentRef('e'.repeat(64)), authorship())).code).toBe(
-      'NOT_FOUND',
-    );
     expect(
-      expectErr(note.retitle(noteTitle('Other'), unwrap(Slug.from('Other')), authorship())).code,
+      expectErr(note.replaceBody(contentRef('e'.repeat(64)), noteBody('Other'), authorship())).code,
     ).toBe('NOT_FOUND');
     expect(expectErr(note.reorder(NotePlacement.append([]), authorship())).code).toBe('NOT_FOUND');
     expect(expectErr(note.delete(authorship())).code).toBe('NOT_FOUND');

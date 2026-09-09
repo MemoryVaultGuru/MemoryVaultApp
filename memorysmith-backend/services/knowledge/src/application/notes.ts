@@ -2,16 +2,16 @@
  * Note use cases: form B of the transaction, the hot path
  * (architecture-guide.md, section 10.2).
  *
- * Two rules of the public contract live here, because they are what make an
- * agent safe to point at a vault:
+ * One rule of the public contract lives here, and it is what makes an agent
+ * safe to point at a vault: update_note requires baseRevision, and a
+ * divergence answers CONFLICT WITH THE CURRENT CONTENT attached, so the caller
+ * can choose between redoing and merging (RN-AGT-005).
  *
- *  - create_note with an existing slug answers ALREADY_EXISTS WITH THE
- *    IDENTIFIER of the existing note and never creates a second one. The
- *    server never invents a suffix, because that is what would turn a
- *    transport retry into a silent duplicate (RN-AGT-004).
- *  - update_note requires baseRevision, and a divergence answers CONFLICT
- *    WITH THE CURRENT CONTENT attached, so the caller can choose between
- *    redoing and merging (RN-AGT-005).
+ * The other one used to be idempotency, and it is gone with the key it stood
+ * on: **create_note always creates** (RN-AGT-024). Nothing in a vault is
+ * unique, two notes may carry one title (RN-KNW-037), and a repeated call
+ * writes a second note. Answering ALREADY_EXISTS would mean the API refusing
+ * what the model allows.
  */
 
 import {
@@ -21,15 +21,13 @@ import {
   type FolderId,
   NoteId,
   ok,
-  Slug,
   type VaultId,
   type Result,
 } from '@memorysmith/kernel';
 import type { RequestContext } from '../domain/access/AuthorizationPolicy.js';
 import { Note } from '../domain/note/Note.js';
 import { NotePlacement } from '../domain/services/NotePlacement.js';
-import { NoteRelocation } from '../domain/services/NoteRelocation.js';
-import { NoteTitle, SlugConflictPolicy, VAULT_LIMITS } from '../domain/values.js';
+import { VAULT_LIMITS } from '../domain/values.js';
 import type { NoteRepository } from '../domain/ports/index.js';
 import { loadAuthorized, type VaultDependencies } from './vaults.js';
 import { admitWrite } from '../domain/services/StorageQuota.js';
@@ -89,32 +87,6 @@ export class ReadNote {
   }
 }
 
-/**
- * Resolves a note by its slug, which is what a link and a URL carry. It is a
- * GetItem on the NSLUG guard plus a GetItem on the note: the guard is already
- * the index from slug to note (RN-KNW-020), so no listing is involved.
- */
-export class ReadNoteBySlug {
-  constructor(private readonly deps: NoteDependencies) {}
-
-  async execute(input: {
-    ctx: RequestContext;
-    vaultId: VaultId;
-    slug: string;
-  }): Promise<Result<{ note: Note; content: string }, DomainError>> {
-    const vault = await loadAuthorized(this.deps, input.ctx, input.vaultId, 'read');
-    if (!vault.ok) return vault;
-
-    const slug = Slug.create(input.slug);
-    if (!slug.ok) return err(DomainError.notFound('Note not found'));
-
-    const note = await this.deps.notes.findBySlug(input.vaultId, slug.value);
-    if (!note || note.isDeleted) return err(DomainError.notFound('Note not found'));
-
-    return ok({ note, content: await this.deps.content.read(note.bodyRef) });
-  }
-}
-
 export class CreateNote {
   constructor(private readonly deps: NoteDependencies) {}
 
@@ -122,7 +94,6 @@ export class CreateNote {
     ctx: RequestContext;
     vaultId: VaultId;
     folderId: FolderId;
-    title: string;
     content: string;
     afterNoteId: NoteId | null;
     by: Authorship;
@@ -147,24 +118,6 @@ export class CreateNote {
     );
     if (!admitted.ok) return admitted;
 
-    const title = NoteTitle.create(input.title);
-    if (!title.ok) return title;
-    const slug = Slug.from(title.value.value);
-    if (!slug.ok) return slug;
-
-    // Idempotency: the slug is unique in the vault, so the second call finds
-    // the first note instead of writing a duplicate.
-    const existing = await this.deps.notes.findBySlug(input.vaultId, slug.value);
-    if (existing && !existing.isDeleted) {
-      return err(
-        DomainError.conflict('A note with this slug already exists in this vault', {
-          code: 'ALREADY_EXISTS',
-          noteId: existing.id.value,
-          slug: slug.value.value,
-        }),
-      );
-    }
-
     // Content first, pointer second (section 10.5).
     const body = await this.deps.content.create(input.content);
     const siblings = await this.deps.notes.siblingOrder(input.vaultId, input.folderId);
@@ -178,8 +131,7 @@ export class CreateNote {
       subscriptionId: vault.value.subscriptionId,
       vaultId: input.vaultId,
       folderId: input.folderId,
-      title: title.value,
-      slug: slug.value,
+      body: input.content,
       position: position.value,
       bodyRef: body,
       by: input.by,
@@ -187,17 +139,7 @@ export class CreateNote {
     if (!note.ok) return note;
 
     const saved = await this.deps.notes.save(note.value);
-    if (!saved.ok) {
-      const holder = await this.deps.notes.findBySlug(input.vaultId, slug.value);
-      return err(
-        DomainError.conflict('A note with this slug already exists in this vault', {
-          code: 'ALREADY_EXISTS',
-          ...(holder ? { noteId: holder.id.value } : {}),
-          slug: slug.value.value,
-        }),
-      );
-    }
-    return ok(note.value);
+    return saved.ok ? ok(note.value) : err(saved.error);
   }
 }
 
@@ -210,7 +152,6 @@ export class UpdateNote {
     noteId: NoteId;
     content: string;
     baseRevision: string;
-    title?: string | undefined;
     by: Authorship;
   }): Promise<Result<Note, DomainError>> {
     const vault = await loadAuthorized(this.deps, input.ctx, input.vaultId, 'write');
@@ -235,23 +176,6 @@ export class UpdateNote {
         );
       }
 
-      if (input.title !== undefined) {
-        const title = NoteTitle.create(input.title);
-        if (!title.ok) return title;
-        const slug = Slug.from(title.value.value);
-        if (!slug.ok) return slug;
-        const clash = await this.deps.notes.findBySlug(input.vaultId, slug.value);
-        if (clash && !clash.id.equals(note.id)) {
-          return err(
-            DomainError.conflict('Another note already uses that slug in this vault', {
-              noteId: clash.id.value,
-            }),
-          );
-        }
-        const retitled = note.retitle(title.value, slug.value, input.by);
-        if (!retitled.ok) return retitled;
-      }
-
       // Only the difference between the revision that is live and the one
       // being written: an edit that shortens a note never costs anything.
       const admitted = admitWrite(
@@ -261,7 +185,7 @@ export class UpdateNote {
       if (!admitted.ok) return admitted;
 
       const ref = await this.deps.content.overwrite(note.bodyRef.contentId, input.content);
-      const replaced = note.replaceBody(ref, input.by);
+      const replaced = note.replaceBody(ref, input.content, input.by);
       if (!replaced.ok) return replaced;
       if (!note.hasChanges) return ok(note); // identical bytes (RN-KNW-028)
 
@@ -303,6 +227,9 @@ export class ReorderNote {
  * Moving between folders costs zero bytes in S3. Moving between vaults is the
  * only operation that writes into two vault partitions in one transaction, and
  * it preserves the NoteId, and with it the whole timeline (RN-KNW-023).
+ *
+ * Nothing is resolved against the destination on the way in: a title collides
+ * with nothing there, so the move carries no policy (RN-KNW-022, removed).
  */
 export class MoveNote {
   constructor(private readonly deps: NoteDependencies) {}
@@ -313,7 +240,6 @@ export class MoveNote {
     noteId: NoteId;
     toVaultId: VaultId | null;
     toFolderId: FolderId;
-    onSlugConflict: string;
     afterNoteId: NoteId | null;
     by: Authorship;
   }): Promise<Result<Note, DomainError>> {
@@ -334,26 +260,6 @@ export class MoveNote {
     const note = await this.deps.notes.findById(input.vaultId, input.noteId);
     if (!note || note.isDeleted) return err(DomainError.notFound('Note not found'));
 
-    const fromSlug = note.slug;
-    let slug = note.slug;
-    if (crossVault) {
-      const policy = SlugConflictPolicy.create(input.onSlugConflict);
-      if (!policy.ok) return policy;
-      // The predicate is supplied by the use case; the rule lives in the
-      // domain service (RN-KNW-022).
-      const taken = new Set<string>();
-      for (const candidate of await this.deps.notes.listByVault(destinationVaultId)) {
-        taken.add(candidate.slug.value);
-      }
-      const resolved = NoteRelocation.resolveSlug(
-        note.slug,
-        (each) => taken.has(each.value),
-        policy.value,
-      );
-      if (!resolved.ok) return resolved;
-      slug = resolved.value;
-    }
-
     const siblings = await this.deps.notes.siblingOrder(destinationVaultId, input.toFolderId);
     const position = input.afterNoteId
       ? NotePlacement.place(siblings, input.afterNoteId, note.id)
@@ -364,7 +270,6 @@ export class MoveNote {
       {
         vaultId: destinationVaultId,
         folderId: input.toFolderId,
-        slug,
         position: position.value,
       },
       input.by,
@@ -372,7 +277,7 @@ export class MoveNote {
     if (!moved.ok) return moved;
 
     const saved = crossVault
-      ? await this.deps.notes.saveMoved(note, { vaultId: input.vaultId, slug: fromSlug })
+      ? await this.deps.notes.saveMoved(note, { vaultId: input.vaultId })
       : await this.deps.notes.save(note);
     return saved.ok ? ok(note) : err(saved.error);
   }
@@ -417,16 +322,10 @@ export class RestoreNote {
     const note = await this.deps.notes.findById(input.vaultId, input.noteId);
     if (!note) return err(DomainError.notFound('Note not found'));
 
-    // Restoring requires the slug to be free again (RN-KNW-030).
-    const holder = await this.deps.notes.findBySlug(input.vaultId, note.slug);
-    if (holder && !holder.id.equals(note.id)) {
-      return err(
-        DomainError.conflict('That slug was taken by another note while this one was deleted', {
-          noteId: holder.id.value,
-        }),
-      );
-    }
-
+    // Nothing has to be free for a note to come back: another note may have
+    // been written under the same title in the meantime, and both stand
+    // (RN-KNW-037, and RN-KNW-030, removed).
+    //
     // Bringing a note back puts its bytes back on the count, so it is a write
     // that grows the stored content and is refused when there is no room.
     const admitted = admitWrite(await this.deps.storage.current(), note.bodyRef.bytes);

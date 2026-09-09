@@ -177,12 +177,28 @@ describe('The tool catalog is the public contract', () => {
     }
   });
 
-  it('declares create_note as idempotent and update_note as destructive', () => {
+  it('declares create_note as NOT idempotent, and update_note as destructive', () => {
+    // RN-AGT-024: a repeated call writes a second note, because nothing in a
+    // vault is a key. Declaring it idempotent would tell a client that a retry
+    // is free, and it is not.
     const create = TOOL_CATALOG.find((tool) => tool.name === 'create_note');
     const update = TOOL_CATALOG.find((tool) => tool.name === 'update_note');
-    expect(create?.annotations.idempotentHint).toBe(true);
+    expect(create?.annotations.idempotentHint).toBe(false);
     expect(create?.annotations.destructiveHint).toBe(false);
+    expect(create?.description).toContain('ALWAYS CREATES');
     expect(update?.annotations.destructiveHint).toBe(true);
+  });
+
+  it('tells the agent that the title is read from the content it writes', () => {
+    // RN-KNW-035: there is no title argument anywhere, and an agent that
+    // leaves the title to a heading it may not write gets a note no link can
+    // name (RN-KNW-036).
+    const create = TOOL_CATALOG.find((tool) => tool.name === 'create_note');
+    expect(create?.inputSchema.required).toEqual(['vault', 'folder', 'content']);
+    expect(create?.description).toContain('frontmatter');
+    expect(TOOL_CATALOG.find((tool) => tool.name === 'update_note')?.description).toContain(
+      'retitled',
+    );
   });
 
   it('tells the agent to read the template before writing', () => {
@@ -374,28 +390,7 @@ describe('The tool adapter translates in both directions', () => {
     const result = await gateways().call('create_note', { vault: 'v1' }, caller);
     expect(result.isError).toBe(true);
     expect(result.content[0]?.text).toContain('create_note requires the argument "folder"');
-    expect(result.content[0]?.text).toContain('title');
-  });
-
-  it('passes ALREADY_EXISTS through with the identifier of the existing note', async () => {
-    const adapter = gateways({
-      knowledge: {
-        createNote: async () => {
-          throw new GatewayError('CONFLICT', 'A note with this slug already exists', {
-            code: 'ALREADY_EXISTS',
-            noteId: 'n1',
-          });
-        },
-      },
-    });
-    const result = await adapter.call(
-      'create_note',
-      { vault: 'v1', folder: 'f1', title: 'Lei 14.133', content: '# Lei' },
-      caller,
-    );
-    expect(result.isError).toBe(true);
-    expect(result.content[0]?.text).toContain('ALREADY_EXISTS');
-    expect(result.content[0]?.text).toContain('n1');
+    expect(result.content[0]?.text).toContain('content');
   });
 
   it('passes a revision conflict through with the current content', async () => {

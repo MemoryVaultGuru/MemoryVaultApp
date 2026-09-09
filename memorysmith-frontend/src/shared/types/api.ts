@@ -13,8 +13,14 @@ export interface VaultSummary {
 
 export interface NoteSummary {
   id: string;
+  /**
+   * The address of the note in this interface, computed here from the title.
+   * It is a client-side convenience and not a property of the note: the API
+   * carries none, and #98 replaces it with the identifier of the note.
+   */
   slug: string;
-  title: string;
+  /** `null` when the content of the note states no title a link could name. */
+  title: string | null;
   folderId: string;
 }
 
@@ -46,7 +52,8 @@ export interface NoteDetail {
   id: string;
   vaultSlug: string;
   slug: string;
-  title: string;
+  /** `null` when the content of the note states no title a link could name. */
+  title: string | null;
   folderNames: string[];
   frontmatter: Record<string, string>;
   /** Which of those the vault wrote as a list; they are drawn as chips. */

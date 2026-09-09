@@ -139,7 +139,7 @@ Decisions that hold for the whole product and that any new feature has to answer
 | **PP1** | **In the end it is all Markdown** | The backend organises and serves; it does not generate Markdown from a typed schema, and it does not impose structure on the content |
 | **PP2** | **An autonomous vault** | Each vault describes itself in its own Guidance. No inheritance between vaults and therefore no links between vaults |
 | **PP3** | **A mould is a suggestion, not a contract** | The Template guides the writing; a note is not required to follow it, and the server does not validate against it |
-| **PP4** | **The backend does not interpret the content** | What goes inside a note, frontmatter included, is decided by the Guidance and the Template. The backend reads only universal Markdown syntax (links, headings), never a vault convention. The two sanctioned exceptions live in Discovery projections: the link extractor and the facet extractor (§10.3), which aggregate without assigning meaning and never feed a rule of the core |
+| **PP4** | **The backend does not interpret the content** | What goes inside a note, frontmatter included, is decided by the Guidance and the Template. The backend reads only the notation the specification declares, never a vault convention. There are three sanctioned readers: the link extractor and the facet extractor, in Discovery projections (§10.3), which aggregate without assigning meaning; and the reader that names a note (RN-KNW-035), which reads a heading and one reserved key and decides identity, never behaviour |
 | **PP5** | **Discovery is derived** | The graph, the search and the facets are never the source of truth; they are rebuildable from the `.md` files |
 | **PP6** | **The past is immutable** | Deleting a note does not destroy the history. Destroying content is a recorded administrative act, never a side effect |
 | **PP7** | **Portable by construction** | Export returns plain `.md` in a readable file tree, with no proprietary format |
@@ -528,7 +528,7 @@ created_by (Authorship), created_at, updated_at
 
 ```
 id, vault_id, folder_id,
-title, slug,
+title?,                      -- derived from the content, never given (RN-KNW-035)
 position,                    -- order within the folder
 body_ref,                    -- pointer to the Content Slot playing the body role
 created_by (Authorship),
@@ -536,6 +536,8 @@ updated_by (Authorship),
 deleted_at?, deleted_by?,    -- soft delete
 version                      -- concurrency control
 ```
+
+The title is **not a field a caller writes**: it is read from the body on every write, and it is absent when the content states none a link could name (RN-KNW-036). Nothing about it is unique, and there is no slug: a note is addressed by its identifier and named by what it says.
 
 `Note` is an aggregate of its own and not part of the `Vault`. The technical justification is in `architecture-guide.md` §6.2; the product consequence is what matters here: **writing a note is cheap and concurrent**, which is the path through which the agent feeds the vault.
 
@@ -591,9 +593,9 @@ Alphabetical ordering stays available as a display option in the client, without
 
 ### 8.3 Business rules: the note
 
-- **RN-KNW-020:** The `slug` of a note is unique **within the vault**, and not within the folder, because that is how links resolve (§10.1).
-- **RN-KNW-021:** Moving a note between folders of the same vault never produces a slug conflict.
-- **RN-KNW-022:** Moving a note between vaults requires an explicit policy for a slug collision (`REJECT` or `RENAME`).
+- **RN-KNW-020:** *Removed in 0.6.0.* The `slug` of a note was unique within the vault. A note carries no slug: it is addressed by its identifier and named by its title (RN-KNW-035).
+- **RN-KNW-021:** *Removed in 0.6.0.* There is no slug conflict to be free of when a note changes folder.
+- **RN-KNW-022:** *Removed in 0.6.0.* Moving a note between vaults carries no conflict policy, because a title collides with nothing (RN-KNW-037).
 - **RN-KNW-023:** Moving a note between vaults preserves the `NoteId` and, with it, the whole timeline of the note.
 - **RN-KNW-024:** Moving a note out of a vault **breaks every backlink that pointed at it in that vault**. It is the semantically correct consequence (PP2), and the links that break start showing up as broken in Discovery (§10.1).
 - **RN-KNW-025:** A note holds at most 1 MB of content.
@@ -601,9 +603,14 @@ Alphabetical ordering stays available as a display option in the client, without
 - **RN-KNW-027:** Every content change produces a new, immutable revision, referenced by the corresponding event.
 - **RN-KNW-028:** If the content sent is byte for byte identical to the current one, there is no new revision, no event and no reindexing.
 - **RN-KNW-029:** Deleting a note is reversible: the note leaves the listings and the search, and the history stays readable by the identifier of the note.
-- **RN-KNW-030:** Deleting a note frees its `slug` in the vault; restoring it requires the slug to be free again.
+- **RN-KNW-030:** *Removed in 0.6.0.* Deleting a note freed its slug and restoring it required the slug to be free. Nothing is reserved and nothing is released: a note that comes back stands beside whatever was written while it was gone (RN-KNW-037).
 - **RN-KNW-031:** The backend does not validate the note against the Template of the folder (PP3), and does not interpret frontmatter or any content convention (PP4).
 - **RN-KNW-033:** Deleting a vault is reversible and destroys no byte: the vault leaves every listing and starts answering `404` in every context, while folders, notes and revisions stay intact and the history stays readable. The operation belongs to the vault administration role, like renaming. Deleting frees the name of the vault in the subscription, for the same reason as RN-KNW-030, and that is why restoring it requires the name to be free again.
+- **RN-KNW-035:** **The title of a note is read from its content, in a chain**, and never given by the caller: `title:` of the frontmatter when it is a single text value of any length, and otherwise the plain text of the first level-1 heading, trimmed and normalised to NFC. It is derived on every write, by one function shared by Knowledge and Discovery, so the two cannot disagree about what a note is called. The frontmatter comes first because it is the only place a title can be *stated*: measured over ten real vaults, the heading alone resolved 24.7% of the links their authors had written and the chain resolves 95.1%.
+- **RN-KNW-036:** A note that reaches the end of the chain with nothing, or whose title carries one of `#`, `[`, `]` or `|` — the four delimiters of the form that addresses it — **has no addressable title**. It is written, it renders, it links outward and it is searchable, and no link can name it. The write is never refused, because refusing content is how an import loses a vault; the absence is reported, the way a pending link is. A `/` is not one of the four: `Reunião 03/09/2026` is an ordinary title, because folders play no part in identity.
+- **RN-KNW-037:** **Two notes of a vault may carry the same title**, in one folder or in two, and nothing refuses the second one. Nothing in a vault is a key.
+- **RN-KNW-038:** A note is retitled by editing its content — the `title:` of its frontmatter, or the heading when it has none. There is no operation that renames a note apart from its content.
+- **RN-KNW-039:** A `title:` whose value is of any other shape — a list, a nested block, an empty value — means the frontmatter stated no title, and the chain falls to the heading. It is never an error, the note is never reported as malformed, and no title is invented out of the value that was not used. A `title:` that is there otherwise **ends the chain**, the four unaddressable characters included: the heading is where a title is read when the frontmatter states none, and not a repair for one the author wrote.
 - **RN-KNW-034:** Writing the Guidance and the Template requires the **base revision**, as writing a note already does, and a diverging revision answers `CONFLICT` with the current content instead of overwriting. `null` is a legitimate value and asserts that the slot is empty: it is not the absence of the argument, it is a statement about the current state. The reason behind RN-AGT-005 holds here with more force, not less, because the Guidance is the most shared document of a vault and the one most likely to be written by two hands at once, one on the web and an agent over MCP.
 
 ---
@@ -629,8 +636,8 @@ Alphabetical ordering stays available as a display option in the client, without
 | `set_template` | `(vault, folder, content, baseRevision)` | Writes the Template of the folder, with conflict detection (RN-KNW-034) |
 | `list_notes` | `(vault, folder?)` | The index of notes, in the defined order |
 | `read_note` | `(vault, note, asOf?)` | The full Markdown and the current revision; with `asOf`, the revision in force on that date |
-| `create_note` | `(vault, folder, title, content)` | The ingestion path (§1.3) |
-| `update_note` | `(vault, note, content, baseRevision)` | An update with conflict detection |
+| `create_note` | `(vault, folder, content)` | The ingestion path (§1.3). The title is read from the content, and a repeated call writes a second note (RN-AGT-024) |
+| `update_note` | `(vault, note, content, baseRevision)` | An update with conflict detection, and the only way to retitle a note (RN-KNW-038) |
 | `delete_note` | `(vault, note)` | Deletes a note, reversibly (RN-KNW-029) |
 | `search_notes` | `(vault, query)` | Literal search over the text of the vault, with fields and operators (§10.2) |
 | `related_notes` | `(vault, note, depth?)` | A dependency tree through the link graph |
@@ -668,7 +675,8 @@ The identifier is **the one element the Vault Context carries that `STRUCTURE.md
 - **RN-AGT-001:** Every write over MCP records complete authorship: the human who owns the authorisation and the identity of the agent that executed it.
 - **RN-AGT-002:** The server does not validate the content against the Template (PP3), but the tool description instructs the caller to fetch `get_template` before writing.
 - **RN-AGT-003:** An error about a missing argument returns, along with the message, the information needed for the next attempt, the Template of the folder included when relevant (PP10).
-- **RN-AGT-004:** `create_note` with a slug that already exists in the vault answers `ALREADY_EXISTS` **with the identifier of the existing note**, and never creates a second note. The server never generates an automatic suffix, because that is what would turn a transport retry into a silent duplicate.
+- **RN-AGT-004:** *Removed in 0.6.0.* `create_note` answered `ALREADY_EXISTS` on a repeated slug. There is no slug and no key, so there is nothing to be repeated (RN-AGT-024).
+- **RN-AGT-024:** **`create_note` takes the body of the note and no title, and always creates.** The title is read from what was written (RN-KNW-035), and a repeated call writes a second note, because nothing in a vault is unique (RN-KNW-037). The tool declares itself as **not** idempotent and says so in its description: a retry after a transport failure is not free, and the honest answer is to read the folder back before calling again. Answering `ALREADY_EXISTS` would mean the API refusing what the model allows.
 - **RN-AGT-005:** `update_note` requires `baseRevision`. If the current revision diverges, the server answers `CONFLICT` **with the current content attached**, so the agent can decide between redoing and merging. Blind overwrite is not accepted in a vault that sustains auditing.
 - **RN-AGT-006:** A user with the `VIEWER` role is refused on `create_note` and `update_note`.
 - **RN-AGT-007:** The connector always operates on the subscription fixed at consent (RN-SUB-014); no tool takes the subscription as an argument.

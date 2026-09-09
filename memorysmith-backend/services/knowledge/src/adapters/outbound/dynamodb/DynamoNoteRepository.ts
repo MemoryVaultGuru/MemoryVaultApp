@@ -7,8 +7,11 @@
  *      is on the item itself;
  *   2. a ConditionCheck with attribute_exists on the destination FOLDER item
  *      and, on a cross-vault move, on the destination META item too;
- *   3. the NSLUG guard, put or deleted as the slug enters or leaves the vault;
- *   4. the event, into the outbox.
+ *   3. the event, into the outbox.
+ *
+ * There is no third write any more. The NSLUG guard held one name per vault,
+ * and a vault has no key to guard: two notes may carry one title (RN-KNW-037),
+ * so nothing is reserved on a write and nothing is released on a delete.
  *
  * NO NOTE TRANSACTION EVER WRITES TO THE META ITEM (PE8). That single rule,
  * and not the aggregate split by itself, is what keeps the hot path free of
@@ -23,7 +26,6 @@ import {
   Position,
   type FolderId,
   type Result,
-  type Slug,
   type SubscriptionContext,
   type VaultId,
 } from '@memorysmith/kernel';
@@ -40,7 +42,6 @@ type TransactItem = NonNullable<TransactWriteCommandInput['TransactItems']>[numb
 
 interface NoteSnapshot {
   version: number;
-  slug: string;
   vaultId: string;
   deleted: boolean;
 }
@@ -68,19 +69,6 @@ export class DynamoNoteRepository implements NoteRepository {
     const note = parseNote(response.Item as Item, this.sub.subscriptionId);
     this.remember(note);
     return note;
-  }
-
-  /** Resolves through the NSLUG guard, which is the index of slug to note. */
-  async findBySlug(vault: VaultId, slug: Slug): Promise<Note | null> {
-    const guard = await this.db.send(
-      new GetCommand({
-        TableName: this.tableName,
-        Key: { PK: this.keys.vault(vault), SK: this.keys.noteSlugGuard(slug.value) },
-      }),
-    );
-    const noteId = guard.Item?.['noteId'];
-    if (!noteId) return null;
-    return this.findById(vault, unwrapOrThrow(NoteId.create(String(noteId))));
   }
 
   /** GSI2 already returns the notes of a folder IN THE DEFINED ORDER. */
@@ -139,13 +127,9 @@ export class DynamoNoteRepository implements NoteRepository {
    * The cross-vault move: the only operation that writes into two vault
    * partitions in one transaction (section 9.2). It does not lock either
    * vault, since the tree does not change; existence ConditionChecks are
-   * enough. Forgetting the origin slug guard would pin that slug in the origin
-   * vault forever.
+   * enough.
    */
-  async saveMoved(
-    note: Note,
-    from: { vaultId: VaultId; slug: Slug },
-  ): Promise<Result<void, ConcurrencyError>> {
+  async saveMoved(note: Note, from: { vaultId: VaultId }): Promise<Result<void, ConcurrencyError>> {
     const snapshot = this.snapshots.get(note.id.value);
     const items: TransactItem[] = [
       {
@@ -158,15 +142,6 @@ export class DynamoNoteRepository implements NoteRepository {
                 ExpressionAttributeValues: { ':expected': snapshot.version },
               }
             : {}),
-        },
-      },
-      {
-        Delete: {
-          TableName: this.tableName,
-          Key: {
-            PK: this.keys.vault(from.vaultId),
-            SK: this.keys.noteSlugGuard(from.slug.value),
-          },
         },
       },
       // The destination vault must exist at the instant of the write.
@@ -214,39 +189,6 @@ export class DynamoNoteRepository implements NoteRepository {
       },
     });
 
-    // 3. The slug guard enters or leaves the vault with the note.
-    const previousSlug = snapshot?.slug;
-    if (note.isDeleted) {
-      // Deleting releases the slug back to the vault (RN-KNW-030).
-      items.push({
-        Delete: {
-          TableName: this.tableName,
-          Key: { PK: pk, SK: this.keys.noteSlugGuard(note.slug.value) },
-        },
-      });
-    } else if (!snapshot || snapshot.deleted || previousSlug !== note.slug.value) {
-      items.push({
-        Put: {
-          TableName: this.tableName,
-          Item: {
-            PK: pk,
-            SK: this.keys.noteSlugGuard(note.slug.value),
-            entity: 'NSLUG',
-            noteId: note.id.value,
-          },
-          ConditionExpression: 'attribute_not_exists(SK)',
-        },
-      });
-      if (previousSlug && previousSlug !== note.slug.value) {
-        items.push({
-          Delete: {
-            TableName: this.tableName,
-            Key: { PK: pk, SK: this.keys.noteSlugGuard(previousSlug) },
-          },
-        });
-      }
-    }
-
     return items;
   }
 
@@ -282,7 +224,6 @@ export class DynamoNoteRepository implements NoteRepository {
   private remember(note: Note): void {
     this.snapshots.set(note.id.value, {
       version: note.version,
-      slug: note.slug.value,
       vaultId: note.vaultId.value,
       deleted: note.isDeleted,
     });

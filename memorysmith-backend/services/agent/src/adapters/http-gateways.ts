@@ -215,7 +215,7 @@ export class HttpKnowledgeGateway implements KnowledgeGateway {
   async listNotes(caller: AgentCaller, vaultId: string, folderId?: string): Promise<NoteListing[]> {
     const query = folderId ? `?folderId=${encodeURIComponent(folderId)}` : '';
     const notes = await callApi<
-      Array<{ noteId: string; title: string; slug: string; folderId: string; position: string }>
+      Array<{ noteId: string; title: string | null; folderId: string; position: string }>
     >(this.origin, caller, `/knowledge/vaults/${vaultId}/notes${query}`);
     return notes;
   }
@@ -223,7 +223,7 @@ export class HttpKnowledgeGateway implements KnowledgeGateway {
   async readNote(caller: AgentCaller, vaultId: string, noteId: string): Promise<NoteContent> {
     const note = await callApi<{
       noteId: string;
-      title: string;
+      title: string | null;
       content: string;
       revision: { versionId: string };
       updatedAt: string;
@@ -239,15 +239,15 @@ export class HttpKnowledgeGateway implements KnowledgeGateway {
 
   async createNote(
     caller: AgentCaller,
-    input: { vaultId: string; folderId: string; title: string; content: string },
+    input: { vaultId: string; folderId: string; content: string },
   ): Promise<NoteContent> {
     const created = await callApi<{
       noteId: string;
-      title: string;
+      title: string | null;
       updatedAt: string;
     }>(this.origin, caller, `/knowledge/vaults/${input.vaultId}/notes`, {
       method: 'POST',
-      body: { folderId: input.folderId, title: input.title, content: input.content },
+      body: { folderId: input.folderId, content: input.content },
     });
     return this.readNote(caller, input.vaultId, created.noteId);
   }
@@ -341,7 +341,9 @@ export class HttpAuditGateway implements AuditGateway {
     );
     return {
       noteId: revision.noteId,
-      title: '',
+      // A revision answers content, not identity: what the note is called now
+      // is what its current content says, and this is an older one.
+      title: null,
       content: revision.content,
       revision: revision.contentRef.versionId,
       updatedAt: revision.occurredAt,

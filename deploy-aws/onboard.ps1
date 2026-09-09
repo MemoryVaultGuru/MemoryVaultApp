@@ -132,6 +132,7 @@ $script:ApiOrigin = ''
 $script:FolderCount = 0
 $script:NoteCount = 0
 $script:SkippedNotes = 0
+$script:RepairedTitles = 0
 
 # --- Helpers -----------------------------------------------------------------
 
@@ -331,6 +332,42 @@ function Get-VaultText {
   return [System.IO.File]::ReadAllText($Path, [System.Text.UTF8Encoding]::new($false))
 }
 
+function Add-StatedTitle {
+  <#
+    The title of a note is read from the note itself: `title:` in the
+    frontmatter first, and the first level-1 heading when the frontmatter
+    states none (RN-KNW-035). A vault tree that came from an editor keyed by
+    file name carries that name nowhere inside the file, so a note that opens
+    with a shorter heading - or with none at all - would arrive under a name
+    nobody linked to, or with no addressable title at all (RN-KNW-036).
+
+    So the file name is written into the frontmatter as `title:`, and only
+    where the source states none. It is the same repair `build-vaults.mjs`
+    applies to a committed tree and the migration applies to a live vault, and
+    it never overwrites a title the author wrote.
+  #>
+  param([Parameter(Mandatory)][string]$Text, [Parameter(Mandatory)][string]$FileName)
+
+  $title = $FileName -replace '["\\]', ''
+  $opens = $Text -match '^---\r?\n'
+  if ($opens) {
+    $end = [regex]::Match($Text, '^---\r?\n([\s\S]*?)\r?\n---')
+    if ($end.Success) {
+      $block = $end.Groups[1].Value
+      # A `title:` with a value on the same line is a stated title; anything
+      # else - absent, empty, a list - is not, and falls to the repair.
+      if ($block -match '(?m)^title:[ \t]*\S') {
+        return [pscustomobject]@{ Text = $Text; Repaired = $false }
+      }
+      $withoutTitle = ($block -split '\r?\n' | Where-Object { $_ -notmatch '(?m)^title:[ \t]*$' }) -join "`n"
+      $rest = $Text.Substring($end.Length)
+      $head = if ($withoutTitle.Trim()) { "title: $title`n$withoutTitle" } else { "title: $title" }
+      return [pscustomobject]@{ Text = "---`n$head`n---$rest"; Repaired = $true }
+    }
+  }
+  return [pscustomobject]@{ Text = "---`ntitle: $title`n---`n`n$Text"; Repaired = $true }
+}
+
 function Limit-Description {
   <#
     A description is MANDATORY and capped at 500 characters (RN-KNW-006): a
@@ -476,10 +513,13 @@ function Write-VaultFolders {
         continue
       }
       if (-not $Preview) {
+        $stated = Add-StatedTitle `
+          -Text (Get-VaultText -Path $note.FullName) `
+          -FileName ([System.IO.Path]::GetFileNameWithoutExtension($note.Name))
+        if ($stated.Repaired) { $script:RepairedTitles++ }
         Invoke-Api -Method 'POST' -Path "/knowledge/vaults/$VaultId/notes" -Token $Token -Body @{
           folderId = $folderId
-          title    = [System.IO.Path]::GetFileNameWithoutExtension($note.Name)
-          content  = (Get-VaultText -Path $note.FullName)
+          content  = $stated.Text
         } | Out-Null
       }
       $script:NoteCount++
@@ -579,6 +619,9 @@ if ($PreviewVault) {
   Write-Host ''
   Write-Ok "$($script:FolderCount) folder(s), $($script:NoteCount) note(s)"
   if ($StructureOnly) { Write-Detail 'notes left out by -StructureOnly' }
+  if ($script:RepairedTitles -gt 0) {
+    Write-Detail "$($script:RepairedTitles) note(s) got their file name written as title:"
+  }
   if ($script:SkippedNotes -gt 0) {
     Write-Detail "$($script:SkippedNotes) note(s) left out by -MaxNotes $MaxNotes"
   }
@@ -823,6 +866,9 @@ if ($writesVault) {
   Write-VaultFolders -Nodes $structure -VaultId $vaultId -Token $token
   Write-Ok "$($script:FolderCount) folder(s), $($script:NoteCount) note(s)"
   if ($StructureOnly) { Write-Detail 'notes left out by -StructureOnly' }
+  if ($script:RepairedTitles -gt 0) {
+    Write-Detail "$($script:RepairedTitles) note(s) got their file name written as title:"
+  }
   if ($script:SkippedNotes -gt 0) {
     Write-Detail "$($script:SkippedNotes) note(s) left out by -MaxNotes $MaxNotes"
   }

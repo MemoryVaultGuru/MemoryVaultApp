@@ -158,7 +158,7 @@ These are the structural decisions of the system, and violating any of them is n
 | 2 | **The `subscriptionId` comes from the JWT claim, never from the request**, and therefore never from the path, the query, the body or a header | §8.2, §8.5 |
 | 3 | **`domain/` and `application/` do not import the AWS SDK**, without exception, "just to get a type" included | §5.5 |
 | 4 | **The S3 key is opaque**: only a `ContentId`, never a vault, a folder, a name or a role. Renaming, moving and reordering never write a byte to S3 | §9.2 |
-| 5 | **The backend never interprets the content of a note.** Frontmatter and convention belong to the Guidance and the Template. The backend reads only universal Markdown syntax, and only in the two sanctioned Discovery extractors | §11.1 and §11.3; PP4 in `software-vision.md` §2 |
+| 5 | **The backend never interprets the content of a note.** Frontmatter and convention belong to the Guidance and the Template. The backend reads only the notation the specification declares, and only in **three** sanctioned readers: the two Discovery extractors, and `noteTitle` in the kernel, which reads the frontmatter block and the first level-1 heading in order to name a note (RN-KNW-035) | §11, §11.1 and §11.3; PP4 in `software-vision.md` §2 |
 | 6 | **The audit trail is append-only by IAM, not by discipline** | §12.2 |
 | 7 | **Every domain operation that changes state takes an `Authorship`.** There is no anonymous mutation | §12.1 |
 | 8 | **Deleting a note never destroys bytes**, and there is no path that destroys them: no domain port, no route, no administrative act | §12.4 |

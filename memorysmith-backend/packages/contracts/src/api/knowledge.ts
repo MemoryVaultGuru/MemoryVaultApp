@@ -18,7 +18,6 @@ import {
   positionSchema,
   removalPolicySchema,
   roleSchema,
-  slugConflictPolicySchema,
   slugSchema,
   ulidSchema,
 } from '../common.js';
@@ -104,8 +103,12 @@ export const noteSummarySchema = z.object({
   noteId: ulidSchema,
   vaultId: ulidSchema,
   folderId: ulidSchema,
-  title: z.string(),
-  slug: slugSchema,
+  /**
+   * What the chain read out of the content (§5.3), and `null` when the note
+   * has no title a link could name (RN-KNW-036). A surface that shows a title
+   * has to say so rather than draw an empty string.
+   */
+  title: z.string().min(1).nullable(),
   position: positionSchema,
   bytes: z.number().int().nonnegative(),
   updatedAt: instantSchema,
@@ -119,29 +122,40 @@ export const noteSchema = noteSummarySchema.extend({
   deletedAt: instantSchema.nullable(),
 });
 
+/**
+ * A note is created from its content and nothing else: the title is read out
+ * of what was written, in the frontmatter or in the first level-1 heading
+ * (RN-AGT-024). A repeated call writes a second note, because nothing in a
+ * vault is a key.
+ */
 export const createNoteRequestSchema = z.object({
   folderId: ulidSchema,
-  title: z.string().min(1).max(200),
   content: z.string().max(1_048_576),
   afterNoteId: ulidSchema.nullable().default(null),
 });
 
+/**
+ * There is no title here either, and no route that renames a note: a note is
+ * retitled by editing its content (RN-KNW-038).
+ */
 export const updateNoteRequestSchema = z.object({
   content: z.string().max(1_048_576),
   /** The revision the edit was based on; divergence answers CONFLICT. */
   baseRevision: z.string().min(1),
-  title: z.string().min(1).max(200).optional(),
 });
 
 export const reorderNoteRequestSchema = z.object({
   afterNoteId: ulidSchema.nullable(),
 });
 
+/**
+ * Nothing collides on a move any more, in either direction: two notes may
+ * carry one title in one vault (RN-KNW-037), so a destination has nothing to
+ * refuse and no policy to be given (RN-KNW-022, removed).
+ */
 export const moveNoteRequestSchema = z.object({
   toVaultId: ulidSchema.optional(),
   toFolderId: ulidSchema,
-  /** Only a vault change can collide, since the slug is unique per vault. */
-  onSlugConflict: slugConflictPolicySchema.default('REJECT'),
   afterNoteId: ulidSchema.nullable().default(null),
 });
 

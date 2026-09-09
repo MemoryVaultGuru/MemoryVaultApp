@@ -40,7 +40,7 @@ import {
   s3Client,
   TABLE_NAME,
 } from './harness.js';
-import { folderDescription, folderName, noteTitle, unwrap, user } from '../fixtures.js';
+import { folderDescription, folderName, unwrap, user } from '../fixtures.js';
 
 let db: DynamoDBDocumentClient;
 let s3: S3Client;
@@ -371,7 +371,8 @@ describe('DynamoNoteRepository: form B, and never a write to META', () => {
     title: string,
   ) {
     const { notes, content } = repositories(context);
-    const body = await content.create(`# ${title}\n\nCorpo.`);
+    const markdown = `# ${title}\n\nCorpo.`;
+    const body = await content.create(markdown);
     const siblings = await notes.siblingOrder(vault.id, folderId);
     const note = unwrap(
       Note.create({
@@ -379,8 +380,7 @@ describe('DynamoNoteRepository: form B, and never a write to META', () => {
         subscriptionId: context.subscriptionId,
         vaultId: vault.id,
         folderId,
-        title: noteTitle(title),
-        slug: unwrap(Slug.from(title)),
+        body: markdown,
         position: NotePlacement.append(siblings),
         bodyRef: body,
         by: authorshipOf(context),
@@ -399,26 +399,23 @@ describe('DynamoNoteRepository: form B, and never a write to META', () => {
     await createNote(context, vault, folder.id, 'Lei 8.666');
 
     const listed = await notes.listByFolder(vault.id, folder.id);
-    expect(listed.map((note) => note.title.value)).toEqual(['Lei 14.133', 'Lei 8.666']);
+    expect(listed.map((note) => note.title)).toEqual(['Lei 14.133', 'Lei 8.666']);
   });
 
-  it('refuses a second note with the same slug and points at the existing one', async () => {
-    // RN-AGT-004: the guard makes create_note idempotent, and the server never
-    // invents a suffix.
+  it('writes a second note with the same title, and both stand', async () => {
+    // RN-KNW-037: nothing in a vault is a key, so a repeated call creates
+    // rather than refusing (RN-AGT-024, and RN-AGT-004, removed).
     const context = contextFor();
     const { vault, folder } = await seedVault(context);
 
     const first = await createNote(context, vault, folder.id, 'Lei 14.133');
+    const second = await createNote(context, vault, folder.id, 'Lei 14.133');
     expect(first.saved.ok).toBe(true);
+    expect(second.saved.ok).toBe(true);
+    expect(second.note.id.value).not.toBe(first.note.id.value);
 
-    const duplicate = await createNote(context, vault, folder.id, 'Lei 14.133');
-    expect(duplicate.saved.ok).toBe(false);
-
-    const existing = await repositories(context).notes.findBySlug(
-      vault.id,
-      unwrap(Slug.from('Lei 14.133')),
-    );
-    expect(existing?.id.value).toBe(first.note.id.value);
+    const listed = await repositories(context).notes.listByFolder(vault.id, folder.id);
+    expect(listed.filter((note) => note.title === 'Lei 14.133')).toHaveLength(2);
   });
 
   it('refuses a note in a folder that does not exist', async () => {
@@ -469,28 +466,25 @@ describe('DynamoNoteRepository: form B, and never a write to META', () => {
 
     const created = await createNote(context, origin.vault, origin.folder.id, 'Lei 14.133');
     const loaded = (await notes.findById(origin.vault.id, created.note.id)) as Note;
-    const fromSlug = loaded.slug;
 
     unwrap(
       loaded.moveTo(
         {
           vaultId: destination.vault.id,
           folderId: destination.folder.id,
-          slug: fromSlug,
           position: NotePlacement.append([]),
         },
         authorshipOf(context),
       ),
     );
-    const moved = await notes.saveMoved(loaded, { vaultId: origin.vault.id, slug: fromSlug });
+    const moved = await notes.saveMoved(loaded, { vaultId: origin.vault.id });
     expect(moved.ok).toBe(true);
 
     const fresh = repositories(context).notes;
     expect(await fresh.findById(origin.vault.id, created.note.id)).toBeNull();
     const arrived = await fresh.findById(destination.vault.id, created.note.id);
     expect(arrived?.id.value).toBe(created.note.id.value);
-    // The origin slug went with it, instead of staying pinned there forever.
-    expect(await fresh.findBySlug(origin.vault.id, fromSlug)).toBeNull();
+    expect(arrived?.title).toBe('Lei 14.133');
   });
 
   it('writes zero bytes to S3 when a note only moves or is reordered', async () => {
@@ -521,7 +515,8 @@ describe('Delivery 4 done criteria', () => {
     // Twenty notes in one folder.
     const created: Note[] = [];
     for (let index = 0; index < 20; index++) {
-      const body = await content.create(`# Nota ${index}`);
+      const markdown = `# Nota ${index}`;
+      const body = await content.create(markdown);
       const siblings = await notes.siblingOrder(vault.id, folder.id);
       const note = unwrap(
         Note.create({
@@ -529,8 +524,7 @@ describe('Delivery 4 done criteria', () => {
           subscriptionId: context.subscriptionId,
           vaultId: vault.id,
           folderId: folder.id,
-          title: noteTitle(`Nota ${index}`),
-          slug: unwrap(Slug.from(`Nota ${index}`)),
+          body: markdown,
           position: NotePlacement.append(siblings),
           bodyRef: body,
           by: authorshipOf(context),
@@ -583,15 +577,15 @@ describe('Delivery 4 done criteria', () => {
     const outcomes = await Promise.all(
       Array.from({ length: 50 }, async (_unused, index) => {
         const { notes, content } = repositories(context);
-        const body = await content.create(`# Ingestao ${index}\n\nCorpo.`);
+        const markdown = `# Ingestao ${index}\n\nCorpo.`;
+        const body = await content.create(markdown);
         const note = unwrap(
           Note.create({
             id: NoteId.generate(),
             subscriptionId: context.subscriptionId,
             vaultId: vault.id,
             folderId: folder.id,
-            title: noteTitle(`Ingestao ${index}`),
-            slug: unwrap(Slug.from(`Ingestao ${index}`)),
+            body: markdown,
             // Position is computed without reading the siblings: appending at
             // the end of a batch would serialize the whole ingestion.
             position: NotePlacement.append([]),

@@ -36,9 +36,14 @@ export interface VaultRepository {
   save(vault: Vault): Promise<Result<void, ConcurrencyError>>;
 }
 
+/**
+ * A note is found by its identifier and by nothing else. There is no lookup by
+ * name here, because a vault holds no key: two notes may carry one title
+ * (RN-KNW-037), and what resolves a title is Discovery, over its own
+ * projection.
+ */
 export interface NoteRepository {
   findById(vault: VaultId, id: NoteId): Promise<Note | null>;
-  findBySlug(vault: VaultId, slug: Slug): Promise<Note | null>;
   /** Notes of a folder, in the defined order, straight from GSI2. */
   listByFolder(vault: VaultId, folder: FolderId): Promise<Note[]>;
   listByVault(vault: VaultId): Promise<Note[]>;
@@ -51,10 +56,7 @@ export interface NoteRepository {
    * the item key itself changes, so it is a Delete plus a Put and not an
    * Update.
    */
-  saveMoved(
-    note: Note,
-    from: { vaultId: VaultId; slug: Slug },
-  ): Promise<Result<void, ConcurrencyError>>;
+  saveMoved(note: Note, from: { vaultId: VaultId }): Promise<Result<void, ConcurrencyError>>;
 }
 
 /**

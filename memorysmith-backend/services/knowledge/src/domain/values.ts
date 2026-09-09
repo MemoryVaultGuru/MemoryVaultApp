@@ -107,23 +107,13 @@ export class FolderDescription {
   }
 }
 
-export class NoteTitle {
-  private readonly __noteTitle!: void;
-  private constructor(readonly value: string) {}
-
-  static create(raw: string): Result<NoteTitle, DomainError> {
-    const bounds = bounded(raw, 1, 200, 'The note title');
-    return bounds.ok ? ok(new NoteTitle(bounds.value)) : bounds;
-  }
-
-  equals(other: unknown): boolean {
-    return other instanceof NoteTitle && other.value === this.value;
-  }
-
-  toString(): string {
-    return this.value;
-  }
-}
+/**
+ * There is no NoteTitle value object, and the absence is the decision: a title
+ * is not given, it is read out of the content by the chain of the
+ * specification, so there is nothing here to validate or refuse. A note whose
+ * content states no title has none, and it is written all the same
+ * (RN-KNW-035, RN-KNW-036).
+ */
 
 /**
  * Removing a folder that holds folders or notes requires an EXPLICIT policy
@@ -149,36 +139,6 @@ export class RemovalPolicy {
 
   get cascades(): boolean {
     return this.value === 'CASCADE';
-  }
-
-  toString(): string {
-    return this.value;
-  }
-}
-
-/**
- * Only a vault change can collide, since the slug is unique WITHIN THE VAULT
- * (RN-KNW-020, RN-KNW-022).
- */
-export class SlugConflictPolicy {
-  private readonly __slugConflictPolicy!: void;
-  private constructor(readonly value: 'REJECT' | 'RENAME') {}
-
-  static readonly REJECT = new SlugConflictPolicy('REJECT');
-  static readonly RENAME = new SlugConflictPolicy('RENAME');
-
-  static create(raw: string): Result<SlugConflictPolicy, DomainError> {
-    if (raw === 'REJECT') return ok(SlugConflictPolicy.REJECT);
-    if (raw === 'RENAME') return ok(SlugConflictPolicy.RENAME);
-    return err(
-      DomainError.preconditionFailed(
-        'Moving a note between vaults requires an explicit slug conflict policy: REJECT or RENAME',
-      ),
-    );
-  }
-
-  get renames(): boolean {
-    return this.value === 'RENAME';
   }
 
   toString(): string {

@@ -64,10 +64,14 @@ export function NotePage({ noteSlug }: { noteSlug: string }) {
             items={[
               { label: t('structure.root'), to: `/vaults/${vaultSlug}/root` },
               ...folderCrumbs(vaultSlug, folderTrailForNote(structure.folders, noteSlug)),
-              { label: data.title },
+              { label: data.title ?? t('note.untitled') },
             ]}
           />
-          <h1>{data.title}</h1>
+          {/* A note whose content states no title says so, rather than
+              drawing an empty heading (RN-KNW-036). */}
+          <h1 className={data.title === null ? 'note-untitled' : undefined}>
+            {data.title ?? t('note.untitled')}
+          </h1>
         </div>
         <button
           type="button"

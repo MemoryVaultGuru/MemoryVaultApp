@@ -50,6 +50,9 @@ export function Transclusion({
   if (isPending) return <TransclusionSkeleton />;
 
   const whole = data.body;
+  // The caption names the note the content came from, and a note may have no
+  // addressable title (RN-KNW-036).
+  const sourceLabel = data.title ?? t('note.untitled');
   // `#^id` addresses a BLOCK and `#Section` a heading. The two are told apart
   // by the marker and not by trying one and falling back to the other, or a
   // section named `^x` and a block called `x` would answer for each other.
@@ -80,7 +83,7 @@ export function Transclusion({
         )}
       </div>
       <figcaption className="embed-source">
-        <Link to={url}>{anchor ? `${data.title} › ${anchor}` : data.title}</Link>
+        <Link to={url}>{anchor ? `${sourceLabel} › ${anchor}` : sourceLabel}</Link>
       </figcaption>
     </figure>
   );

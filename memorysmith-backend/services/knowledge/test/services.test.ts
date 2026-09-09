@@ -1,15 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { FolderId } from '@memorysmith/kernel';
-import { NoteId, Position, Role, Slug, VaultRoleLimit } from '@memorysmith/kernel';
+import { NoteId, Position, Role, VaultRoleLimit } from '@memorysmith/kernel';
 import type { Folder } from '../src/domain/vault/Folder.js';
 import { NotePlacement } from '../src/domain/services/NotePlacement.js';
-import { NoteRelocation } from '../src/domain/services/NoteRelocation.js';
 import { composeVaultContext } from '../src/domain/services/VaultContextComposer.js';
 import {
   AuthorizationPolicy,
   type RequestContext,
 } from '../src/domain/access/AuthorizationPolicy.js';
-import { SlugConflictPolicy } from '../src/domain/values.js';
 import {
   authorship,
   contentRef,
@@ -54,44 +52,6 @@ describe('NotePlacement', () => {
     // between the neighbours.
     const placed = unwrap(NotePlacement.place(siblings, null, first.noteId));
     expect(placed.value < second.position.value).toBe(true);
-  });
-});
-
-describe('NoteRelocation: the slug conflict policy', () => {
-  const slug = unwrap(Slug.from('lei-14133'));
-
-  it('keeps the slug when the destination vault has it free', () => {
-    const resolved = unwrap(
-      NoteRelocation.resolveSlug(slug, () => false, SlugConflictPolicy.REJECT),
-    );
-    expect(resolved.value).toBe('lei-14133');
-  });
-
-  it('answers CONFLICT under REJECT', () => {
-    const error = expectErr(
-      NoteRelocation.resolveSlug(slug, () => true, SlugConflictPolicy.REJECT),
-    );
-    expect(error.code).toBe('CONFLICT');
-    expect(error.details).toEqual({ slug: 'lei-14133' });
-  });
-
-  it('suffixes only when RENAME was asked for explicitly', () => {
-    const taken = new Set(['lei-14133', 'lei-14133-2']);
-    const resolved = unwrap(
-      NoteRelocation.resolveSlug(slug, (s) => taken.has(s.value), SlugConflictPolicy.RENAME),
-    );
-    expect(resolved.value).toBe('lei-14133-3');
-  });
-
-  it('gives up rather than looping forever', () => {
-    const error = expectErr(
-      NoteRelocation.resolveSlug(slug, () => true, SlugConflictPolicy.RENAME),
-    );
-    expect(error.code).toBe('CONFLICT');
-  });
-
-  it('requires an explicit policy: there is no implicit default', () => {
-    expect(expectErr(SlugConflictPolicy.create('')).code).toBe('PRECONDITION_FAILED');
   });
 });
 

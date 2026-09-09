@@ -7,6 +7,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
+import { slugify } from '@memorysmith/kernel';
 import { buildTestApp } from './wiring.js';
 
 type App = ReturnType<typeof buildTestApp>;
@@ -61,8 +62,6 @@ async function drainEvents(): Promise<void> {
         vaultId: String(payload['vaultId']),
         noteId: String(payload['noteId']),
         folderId: String(payload['folderId']),
-        title: String(payload['title']),
-        slug: String(payload['slug']),
         contentRef: event.contentRef
           ? { contentId: event.contentRef.contentId.value, versionId: event.contentRef.versionId }
           : null,
@@ -75,10 +74,14 @@ async function drainEvents(): Promise<void> {
        */
       const vaultId = String(payload['vaultId']);
       const known = await harness.discovery.catalog.listNotes(vaultId);
+      // The title travels on the event because the write read it from the
+      // content, and the slug is what the catalogue is still keyed by until
+      // #97 keys it by the title itself.
+      const title = payload['title'] === null ? '' : String(payload['title']);
       const entry = {
         noteId: String(payload['noteId']),
-        title: String(payload['title']),
-        slug: String(payload['slug']),
+        title,
+        slug: slugify(title),
         folderId: String(payload['folderId']),
         folderName: '',
       };
@@ -118,7 +121,6 @@ async function seed(): Promise<{
       method: 'POST',
       body: {
         folderId: folder.folderId,
-        title: 'Achado 12',
         content:
           '---\nmaturity: seed\nreviewed: false\n---\n\n# Achado 12\n\nFundamento: [[lei-14133]].',
       },
@@ -130,7 +132,6 @@ async function seed(): Promise<{
       method: 'POST',
       body: {
         folderId: folder.folderId,
-        title: 'Lei 14.133',
         content: '---\nmaturity: evergreen\nreviewed: true\n---\n\n# Lei 14.133\n\nArt. 75.',
       },
     })
@@ -444,7 +445,7 @@ describe('The plan limits how much a subscription can store', () => {
 
     const refused = await call(`/knowledge/vaults/${vaultId}/notes`, {
       method: 'POST',
-      body: { folderId, title: 'Nota longa', content: 'x'.repeat(500) },
+      body: { folderId, content: 'x'.repeat(500) },
     });
     expect(refused.status).toBe(413);
     const body = (await refused.json()) as { code: string; details?: Record<string, number> };
@@ -483,7 +484,7 @@ describe('The plan limits how much a subscription can store', () => {
     // Growing one is not.
     const grown = await call(`/knowledge/vaults/${vaultId}/notes`, {
       method: 'POST',
-      body: { folderId, title: 'Mais uma', content: 'y'.repeat(100) },
+      body: { folderId, content: 'y'.repeat(100) },
     });
     expect(grown.status).toBe(413);
   });

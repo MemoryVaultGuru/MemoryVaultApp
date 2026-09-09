@@ -28,17 +28,21 @@ export interface VaultListing {
   readonly noteCount: number;
 }
 
+/**
+ * The title is what the chain read out of the content, and it is `null` when
+ * the note has none a link could name (RN-KNW-036). It is reported rather than
+ * shown as an empty string, which is what an agent needs in order to say so.
+ */
 export interface NoteListing {
   readonly noteId: string;
-  readonly title: string;
-  readonly slug: string;
+  readonly title: string | null;
   readonly folderId: string;
   readonly position: string;
 }
 
 export interface NoteContent {
   readonly noteId: string;
-  readonly title: string;
+  readonly title: string | null;
   readonly content: string;
   readonly revision: string;
   readonly updatedAt: string;
@@ -120,7 +124,7 @@ export interface KnowledgeGateway {
   readNote(caller: AgentCaller, vaultId: string, noteId: string): Promise<NoteContent>;
   createNote(
     caller: AgentCaller,
-    input: { vaultId: string; folderId: string; title: string; content: string },
+    input: { vaultId: string; folderId: string; content: string },
   ): Promise<NoteContent>;
   updateNote(
     caller: AgentCaller,

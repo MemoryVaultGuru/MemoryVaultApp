@@ -290,10 +290,12 @@ export const TOOL_CATALOG: readonly ToolDefinition[] = [
     name: 'create_note',
     title: 'Create a note',
     description:
-      'Creates a note in a folder. Read get_template for that folder first. If a note with ' +
-      'the same slug already exists, this fails with ALREADY_EXISTS and returns the identifier ' +
-      'of the existing note: no second note is ever created and no suffix is ever invented, so ' +
-      'a retry is safe.',
+      'Creates a note in a folder. Read get_template for that folder first. There is no title ' +
+      'argument: the title is what the content says, read from `title:` in the frontmatter and ' +
+      'otherwise from the first level-1 heading. State it in the frontmatter rather than ' +
+      'leaving it to a heading you may not write. THIS TOOL ALWAYS CREATES: calling it twice ' +
+      'writes two notes, because a vault may hold two notes with one title, so a retry after a ' +
+      'transport failure is NOT safe. Read the note back before retrying.',
     inputSchema: object(
       {
         vault: vaultArgument,
@@ -303,12 +305,11 @@ export const TOOL_CATALOG: readonly ToolDefinition[] = [
             'Folder that will hold the note, by the identifier get_vault_context prints ' +
             'next to its name.',
         },
-        title: { type: 'string', description: 'Title; the slug is derived from it.' },
         content: { type: 'string', description: 'The Markdown body of the note.' },
       },
-      ['vault', 'folder', 'title', 'content'],
+      ['vault', 'folder', 'content'],
     ),
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
   },
   {
     name: 'update_note',
@@ -316,7 +317,9 @@ export const TOOL_CATALOG: readonly ToolDefinition[] = [
     description:
       'Replaces the body of a note. baseRevision is REQUIRED and must be the revision you read: ' +
       'if the note changed meanwhile, this fails with CONFLICT and returns the current content, ' +
-      'so you can choose between redoing and merging. Blind overwrite is not accepted.',
+      'so you can choose between redoing and merging. Blind overwrite is not accepted. This is ' +
+      'also how a note is retitled: the title is read from the content, so changing `title:` in ' +
+      'the frontmatter, or the first level-1 heading, is what renames it.',
     inputSchema: object(
       {
         vault: vaultArgument,
@@ -337,7 +340,7 @@ export const TOOL_CATALOG: readonly ToolDefinition[] = [
     description:
       'Removes a note from the listings and from the search. It is REVERSIBLE and destroys no ' +
       'byte: the history of the note stays readable by its identifier, and the links that ' +
-      'pointed at it become pending rather than lost. The slug goes back to being available.',
+      'pointed at it become pending rather than lost.',
     inputSchema: object(
       { vault: vaultArgument, note: { type: 'string', description: 'Note identifier.' } },
       ['vault', 'note'],

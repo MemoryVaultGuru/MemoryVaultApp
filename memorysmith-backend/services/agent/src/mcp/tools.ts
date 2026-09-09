@@ -264,7 +264,6 @@ export class McpToolAdapter {
         const created = await knowledge.createNote(caller, {
           vaultId: requireString(args, 'vault', 'create_note'),
           folderId: requireString(args, 'folder', 'create_note'),
-          title: requireString(args, 'title', 'create_note'),
           content: requireString(args, 'content', 'create_note'),
         });
         return json(created);
