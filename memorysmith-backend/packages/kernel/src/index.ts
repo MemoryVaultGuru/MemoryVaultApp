@@ -10,6 +10,16 @@ export { ulid, isUlid, ulidTime } from './ulid.js';
 export { sha256Hex } from './hash.js';
 export { SubscriptionId, VaultId, FolderId, NoteId, ContentId, UserId } from './ids.js';
 export { Slug, slugify } from './slug.js';
+export {
+  frontmatterBlock,
+  bodyWithoutFrontmatter,
+  parseFrontmatter,
+  frontmatterOf,
+  type Frontmatter,
+  type FrontmatterEntry,
+  type FrontmatterForm,
+} from './frontmatter.js';
+export { noteTitle } from './note-title.js';
 export { Instant } from './instant.js';
 export { Position, rebalancedPositions, REBALANCE_THRESHOLD } from './position.js';
 export { Role, VaultRoleLimit, type RoleName } from './role.js';

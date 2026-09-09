@@ -9,22 +9,21 @@
  * the folder tree would invert the arrow.
  */
 
+import { bodyWithoutFrontmatter } from '@memorysmith/kernel';
+
 import { extractLinks } from '../domain/LinkExtractor.js';
-import { extractFacets, extractFrontmatter } from '../domain/FacetExtractor.js';
+import { extractFacets } from '../domain/FacetExtractor.js';
 import { normalize } from '../domain/SearchQuery.js';
 import type { ContentIndex, FacetIndex, LinkGraph, NoteRef } from '../domain/ports.js';
 
 /**
  * The frontmatter is the facet projector's business (RN-DSC-018) and has no
  * place in the searchable body: leaving it in would make every note match its
- * own metadata, and `maturity` would be findable as prose.
+ * own metadata, and `maturity` would be findable as prose. Where the block
+ * ends is the kernel's answer, which is the one reader of it in this
+ * repository and the one the title of a note is read through.
  */
-function stripFrontmatter(markdown: string): string {
-  const block = extractFrontmatter(markdown);
-  if (block === null) return markdown;
-  const end = markdown.indexOf('---', markdown.indexOf('---') + 3);
-  return markdown.slice(end + 3).replace(/^\r?\n/, '');
-}
+const stripFrontmatter = bodyWithoutFrontmatter;
 
 /** Headings, which are universal Markdown syntax and so fair game (PP4). */
 function headingsOf(markdown: string): string[] {
