@@ -154,7 +154,7 @@
     "unavailableVaults": "{{count}} vault(s) não responderam, então estes totais estão incompletos."
   },
   "portability": {
-    "download": "Baixar vault (.zip)",
+    "download": "Baixar o vault (.vault)",
     "preparing": "Preparando o arquivo…",
     "failed": "Não foi possível preparar o arquivo"
   },

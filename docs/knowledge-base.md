@@ -528,6 +528,10 @@ What characterises an honest export:
 
 A file system does not have some concepts a base has: order among siblings, a folder description, special document roles. Materialising them in the export is always an **edge concession**, with naming conventions that exist in the exported file and not in the original model.
 
+**And the concession has a limit, which is where the two honest formats part ways.** A tree of files is readable with no tool at all, and it is a *one-way door*: what a folder cannot hold is dropped at it, so nothing can be brought back — not a backup, not a move between installations, not a vault handed to somebody else. A single document can hold everything, and it costs a parser to read one note. Neither is more honest than the other; what is dishonest is claiming one and delivering the other, or quietly encoding a document inside what looks like a folder of files.
+
+Both are open by the same test, and it is not the file extension: is the format written down, is the content plain text, and can somebody who does not have the tool read it with a parser they already own?
+
 ---
 
 ## 11. Glossary

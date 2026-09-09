@@ -1194,11 +1194,13 @@ The domain returns `Result<T, DomainError>`; **exceptions exist only at the edge
 
 ## 16. Export
 
-`svc-portability` consumes the events, assembles the zip and returns a pre-signed URL. The tree format and the rules are in `software-vision.md` §12.
+`svc-portability` assembles a `.vault` archive and returns a pre-signed URL. The format and the rules are in `software-vision.md` §12.
 
-**Implementation:** the materialised tree is built from the `Vault` aggregate and the notes; the content comes from the `ContentStore` through the current `ContentRef`s. The numeric prefix is derived from the `Position` order at export time, and is not stored.
+**Implementation:** the document is built from the `Vault` aggregate and the notes; the bodies come from the `ContentStore` through the current `ContentRef`s and are copied, never processed. The archive is a zip with **one entry**, `vault.json`, and the object key ends in `.vault` like the file the browser saves.
 
-**This is where reserved names come back into existence.** In storage there is no name at all (§9.2); in the materialised tree, `GUIDANCE.md` and `TEMPLATE.md` are taken by the guidance and the template, and `STRUCTURE.md` by the annotated tree, written once at the root. The description of a folder is an attribute of the `FOLDER` item and never reached the `ContentStore`, so it travels in that document and not in one file per folder. A note whose slug collides with one of the three names is exported with a suffix, and the links to it are rewritten along with it (RN-PRT-005). It is the only concession of the export, and it belongs to the edge, not to the model.
+**This is where file names used to come back into existence, and they do not any more.** `GUIDANCE.md`, `TEMPLATE.md`, `STRUCTURE.md`, the numeric prefix, the reserved-name renaming and the link rewriting were all **derivations**, and a derivation on the way out is a second source of truth for what the vault says (RN-PRT-010). What is written is what is held.
+
+**The schema lives in the contracts package and the validation happens at the edge.** `domain/` imports only the kernel and a zod schema is not the kernel, so the document is shaped in the domain, and the composition root is what serialises it through `vaultDocumentSchema` — which is what makes "the export writes nothing the schema does not describe" a fact rather than an intention (RN-PRT-011).
 
 ---
 

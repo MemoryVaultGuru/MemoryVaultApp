@@ -844,24 +844,31 @@ payload
 
 Zero lock-in is a requirement, not a courtesy: it is what makes the product safe to adopt in a context where the base has to outlive the vendor (`knowledge-base.md` §10).
 
-**The export is where file names come into existence.** Inside the system there are opaque identifiers and roles (§8.1); it is here that `guidance` becomes `GUIDANCE.md`, `template` becomes `TEMPLATE.md` and the slug of the note becomes a file name. The annotated tree comes out next to the Guidance, as `STRUCTURE.md`: the two are exactly the two halves of the Vault Context (§9.2), the one a human writes and the one the product derives. `STRUCTURE.md` reproduces that tree line by line **except for the folder identifier** (RN-AGT-020), which is an address for calling a tool and has nothing to address in a folder of files.
+**A vault leaves as one document, and comes back as one.** It is a single JSON file, zipped, with the extension `.vault`: the vault, its Guidance, every folder with its parent, position, description and Template, and every note with its folder, its position, its dates and its body byte for byte.
 
-```
-Normas e Legislação/
-├── GUIDANCE.md             ← the Guidance of the vault, as a human wrote it
-├── STRUCTURE.md            ← the annotated tree: order, description of each folder and where a Template lives
-├── 01 Normas/
-│   ├── TEMPLATE.md
-│   └── lei-14133-art-75.md
-└── 02 Achados/
-    └── TEMPLATE.md
+```json
+{
+  "documentVersion": "1.0",
+  "specVersion": "0.6.0",
+  "exportedAt": "2026-09-09T12:00:00.000Z",
+  "vault": { "name": "Normas e Legislação", "description": "…", "guidance": "# Propósito…" },
+  "folders": [{ "folderId": "01J…", "parentFolderId": null, "name": "Normas", "description": "…", "position": "a0", "template": "# {{título}}…" }],
+  "notes": [{ "noteId": "01J…", "folderId": "01J…", "position": "a0", "createdAt": "…", "updatedAt": "…", "body": "---\ntitle: Lei 14.133\n---\n\nArt. 75." }]
+}
 ```
 
-- **RN-PRT-001:** The export contains only `.md` files, with no proprietary component and no index required for reading.
-- **RN-PRT-002:** The order of folders and notes is encoded as a numeric prefix in the name, which is the only way to preserve it in a file system, since a file system has no order of its own.
-- **RN-PRT-003:** *(revised)* The annotated tree of the vault is materialised as `STRUCTURE.md` at the root, with the order, the description of each folder, the note count and which folders carry a Template. The description is an attribute of the folder and never a document, so no file is written inside the folder to carry it. A folder with no Template and no note therefore leaves no directory in the exported tree and survives only in `STRUCTURE.md`. *(Up to 0.2.0 the rule said the description was materialised as a `README.md` inside each folder.)*
-- **RN-PRT-004:** Links come out intact in the text of the notes.
-- **RN-PRT-005:** *(revised)* A note whose slug is exactly `guidance`, `structure` or `template` is exported with a suffix, and every link to it is rewritten along with it. It is the only concession of the export, and it belongs to the edge, not to the model. *(Up to 0.2.0 the reserved names were `readme` and `template`.)*
+**It used to be a tree of `.md` files, and that was a one-way door.** Everything the product knows that a folder of files cannot hold was dropped at it: the identity of a note, its fractional position, the description of a folder, the Guidance, the Template, when each thing was written. Restoring a backup, moving a vault between environments and seeding an account were none of them served — which is why the deploy script rebuilt a vault by replaying API calls over a tree of files.
+
+**The cost is real and it is stated rather than hidden.** RN-PRT-001 promised only `.md` files, readable with no parser, and that promise is spent: reading a note out of the archive now takes a JSON parser. What is kept is everything that made the promise worth making — the format is open, it is specified here, every body is Markdown in plain text and no part of the document is encoded, escaped beyond JSON or obfuscated. What is lost is unzipping the archive straight into a vault editor, and turning the document back into a tree of `.md` files is a conversion this product does not perform.
+
+- **RN-PRT-009:** A vault is exported as **one JSON document inside a zip whose extension is `.vault`**. It carries the vault, its Guidance, every folder with its parent, position, description and Template, and every note with its folder, its position, its dates and its body.
+- **RN-PRT-010:** The document **stores nothing derived**. A note body is Markdown byte for byte, frontmatter included, and the title is read from it by the chain of RN-KNW-035 wherever it is needed. Two sources of truth for what a note is called is the defect this cycle exists to end.
+- **RN-PRT-011:** The format is **open and fully specified**, every body is plain-text Markdown, and no part of the document is encoded or obfuscated beyond the zip. The document declares the version of its own shape and the version of the Markdown specification the build that wrote it implements. Converting it back into a vault of `.md` files is a conversion this product does not perform.
+- **RN-PRT-001:** *Removed in 0.6.0.* The export contained only `.md` files and promised to be readable with no parser. Spent deliberately, for what a folder of files could not carry (RN-PRT-011).
+- **RN-PRT-002:** *Removed in 0.6.0.* Order is a field of the document, so it is no longer encoded as a numeric prefix in a file name.
+- **RN-PRT-003:** *Removed in 0.6.0.* The annotated tree is data in the document and is no longer materialised as `STRUCTURE.md`.
+- **RN-PRT-005:** *Removed in 0.6.0.* There are no file names, so there are no reserved ones and nothing is renamed on the way out.
+- **RN-PRT-004:** *(revised in 0.6.0)* A link comes out exactly as it was written, because the body is copied and never processed. Rewriting a destination was correct while a link addressed a file and is corruption now that it addresses a title, and this is a consequence of RN-PRT-010 rather than a rule of its own.
 - **RN-PRT-006:** Deleted notes do not enter the export.
 - **RN-PRT-007:** A vault arriving with inline `#tags` is offered the conversion into the reserved `tags:`, **as a method the product teaches and never as an operation it performs**. The product serves the agent a skill: how to tell a tag from a heading, a hex colour, `C#`, an issue number and a URL fragment; to propose per note, in full, showing what would be written and what was rejected; to wait for a person to accept; to write one note at a time with `update_note` carrying its `baseRevision`, so each conversion is an ordinary authored write with its own revision in the history; and to leave the body untouched, because the inline tag is the author's bytes. It is a skill and not an endpoint for a structural reason: reading `#subject` for meaning would make the backend a third sanctioned reader of content, against PP4 and RN-DSC-033, and buying back the cost of a rejection by spending the guarantee that motivated it is not a trade this product makes. Nothing runs on import, nothing runs over a vault unasked, and a false positive is cheap **only** because a person reads the proposal first.
 

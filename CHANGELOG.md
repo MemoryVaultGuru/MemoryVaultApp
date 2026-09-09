@@ -41,8 +41,11 @@ issues each entry cites.
 
 - **The graph draws a note and never a title.** A node is identified by the note, so two notes carrying one title are two nodes — both labelled with it, told apart by the folder written beside the label — and a link into that title is two edges leaving one note. It used to key a node by the slug, which under one title would have drawn one node and silently lost the other. Clicking a node opens that note directly and never the choice, because the graph already knows which one it drew (RN-DSC-047). (#99)
 
+- **A vault leaves as one document.** The export is a single open JSON file, zipped, with the extension `.vault`: the vault, its Guidance, every folder with its parent, position, description and Template, and every note with its folder, its position, its dates and its **body byte for byte**. It used to be a tree of `.md` files, which was a one-way door — the identity of a note, its fractional position, the description of a folder, the Guidance, the Template and the dates were all dropped at it, which is why nothing could be brought back. **Nothing derived is stored**: no title, no slug, no numeric prefix, and no link destination is rewritten (RN-PRT-009, RN-PRT-010, RN-PRT-011). (#101)
+
 ### Removed
 
+- **The export is no longer a tree of `.md` files**, and reading a note out of the archive now takes a JSON parser. The promise that made RN-PRT-001 worth making is kept — the format is open and specified, every body is plain-text Markdown, nothing is encoded or obfuscated — and what is spent is unzipping the archive straight into a vault editor. Turning a `.vault` document back into a tree of `.md` files is a conversion this product does not perform (RN-PRT-001, RN-PRT-002, RN-PRT-003 and RN-PRT-005 removed). (#101)
 - **The note carries no slug**, and nothing in the product computes one for it: not the domain, not the DynamoDB item, not the guard that made a name unique within the vault, not the API DTOs, not the domain events and not the MCP tools. The route `GET /vaults/:v/notes/by-slug/:slug` is gone with it. A note is addressed by its identifier and named by its title. The slug of a **vault** and of a **folder** is untouched (RN-KNW-032, RN-KNW-002). (#96)
 
 ## [0.5.7] - 2026-09-07

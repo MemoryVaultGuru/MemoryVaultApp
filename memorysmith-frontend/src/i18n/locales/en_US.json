@@ -154,7 +154,7 @@
     "unavailableVaults": "{{count}} vault(s) did not answer, so these totals are short."
   },
   "portability": {
-    "download": "Download vault (.zip)",
+    "download": "Download vault (.vault)",
     "preparing": "Preparing the archive…",
     "failed": "Could not prepare the archive"
   },

@@ -96,6 +96,8 @@ import {
 } from './composition-root.js';
 import { KnowledgeNoteCatalog } from './note-catalog.js';
 import { KnowledgeExportSource } from './export-source.js';
+import { MARKDOWN_SPEC_VERSION } from '@memorysmith/contracts';
+import { serializeVaultDocument } from './composition-root.js';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -239,6 +241,8 @@ const portabilityUseCases: PortabilityUseCases = {
       new S3ArchiveStore(infra.s3, infra.contentBucket),
       createZip,
       request.subscription.subscriptionId.value,
+      serializeVaultDocument,
+      MARKDOWN_SPEC_VERSION,
     ),
 };
 

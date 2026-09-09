@@ -13,4 +13,5 @@ export * from './api/access.js';
 export * from './api/knowledge.js';
 export * from './api/discovery.js';
 export * from './api/audit.js';
+export * from './api/vault-document.js';
 export * from './api/portability.js';

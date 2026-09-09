@@ -48,7 +48,7 @@ Vault
 
 The Guidance and the Template are not documentation: they are **executable instructions**. They are what makes the agent write the right note, in the right folder, in the right shape. A weak Guidance or a vague folder description degrades what comes in, and the effect only shows up later, at the moment of consuming it.
 
-And they are not files. They are **roles**: the vault points at a document as its Guidance, the folder points at another as its Template. File names only appear at the edge, when the vault is exported: there the Guidance comes out as `GUIDANCE.md`, the folder tree with its descriptions comes out as `STRUCTURE.md` next to it, and the Template comes out as `TEMPLATE.md` inside the folder.
+And they are not files. They are **roles**: the vault points at a document as its Guidance, the folder points at another as its Template. Neither ever has a file name inside the product, and neither gets one on the way out: a vault leaves as **one document**, where the Guidance is a field of the vault and the Template a field of the folder that holds it.
 
 ## Day to day
 
@@ -71,7 +71,7 @@ What changes in practice:
 - **What was written is defensible.** Every revision records who wrote it, when and with which agent, and an opinion issued in March can be demonstrated with the base as it stood in March.
 - **Two people can work on it.** The base lives in a subscription with roles, and concurrent writing is detected instead of overwriting in silence. At this stage, whoever adds somebody to the subscription is platform operations.
 - **Everyone stays in the tool they prefer.** The vault is served over MCP, which is an open standard, so any client that speaks the protocol reaches the same vault, with the same content and under the same role.
-- **It comes out whole whenever you want.** The export returns plain `.md` in a readable tree, with no proprietary format.
+- **It comes out whole whenever you want, and it goes back in.** The export is one open, specified JSON document — every note body plain Markdown, byte for byte — zipped as a `.vault` file, and the product reads it back: a backup that restores, a vault that moves between installations, an account seeded from another.
 
 ## Two interfaces over the same vault
 
@@ -155,7 +155,7 @@ The human reading surface, and that is what raises the bar for the note screen a
 | Note | Reading, with the frontmatter properties and the wikilinks navigable |
 | Graph | The link graph of the vault, coloured by frontmatter attribute and with the tags drawn |
 | Search | A single field over the text of the vault, with the same query language as `search_notes` |
-| Export | Downloads the whole vault as a `.zip`, in the readable file tree |
+| Export | Downloads the whole vault as a `.vault` file: one open JSON document, every note body plain Markdown |
 ## Why there is a proxy in front of Cognito
 
 This is the risk that nearly killed the thesis, and the reason it was attacked before anything else, back in 0.1.0.
@@ -383,7 +383,7 @@ Two things the script does that are worth understanding:
 
 ## The example vaults
 
-The trees committed in [`deploy-aws/vaults/`](deploy-aws/vaults/) are what `onboard.ps1` writes into the first vault of a new account. They are in the **export format of the product**: a numeric prefix encodes the order of the folders, `GUIDANCE.md` plays the Guidance role at the root, `STRUCTURE.md` next to it carries the annotated tree with the description of each folder, `TEMPLATE.md` plays the Template role of the folder, and the notes carry the body byte for byte, with the wikilinks intact.
+The trees committed in [`deploy-aws/vaults/`](deploy-aws/vaults/) are what `onboard.ps1` writes into the first vault of a new account. They are a **tree of files, and no longer the export format**: a numeric prefix encodes the order of the folders, `GUIDANCE.md` carries the Guidance at the root, `STRUCTURE.md` next to it the annotated tree with the description of each folder, `TEMPLATE.md` the Template of a folder, and the notes their body byte for byte, wikilinks intact. It is the shape a vault arrives in from an editor, which is what makes it the right shape for a script that writes one by replaying API calls.
 
 Writing those trees **through the API**, and not straight into DynamoDB and S3, is what makes a freshly created environment have the same domain events and the same audit trail the product would have produced in normal use.
 

@@ -15,7 +15,11 @@
  *     role check (RN-SUB-016).
  */
 
-import { RESERVED_FRONTMATTER_KEYS } from '@memorysmith/contracts';
+import {
+  RESERVED_FRONTMATTER_KEYS,
+  VAULT_DOCUMENT_ENTRY,
+  vaultDocumentSchema,
+} from '@memorysmith/contracts';
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import type { S3Client } from '@aws-sdk/client-s3';
 import {
@@ -89,6 +93,21 @@ export function buildAccess(infra: Infrastructure, context: SubscriptionContext 
  * Knowledge repositories. The signature is what carries the guarantee: it
  * takes a SubscriptionContext, so a platform session has nothing to pass.
  */
+/**
+ * The one entry of a `.vault` archive, validated against the schema the
+ * contracts package publishes before a byte of it is written (RN-PRT-011).
+ *
+ * It lives here because the schema is zod and neither `domain/` nor
+ * `application/` may import it — and because the version of the specification
+ * the build implements is a fact of the composition root, not of the export.
+ */
+export function serializeVaultDocument(document: unknown): { entry: string; content: string } {
+  return {
+    entry: VAULT_DOCUMENT_ENTRY,
+    content: JSON.stringify(vaultDocumentSchema.parse(document), null, 2),
+  };
+}
+
 export function buildKnowledge(infra: Infrastructure, context: SubscriptionContext) {
   return {
     vaults: new DynamoVaultRepository(context, infra.db, infra.knowledgeTable),

@@ -7,7 +7,8 @@
  * differ, which is the point of the hexagon.
  */
 
-import { RESERVED_FRONTMATTER_KEYS } from '@memorysmith/contracts';
+import { MARKDOWN_SPEC_VERSION, RESERVED_FRONTMATTER_KEYS } from '@memorysmith/contracts';
+import { serializeVaultDocument } from '../src/composition-root.js';
 import {
   Authorship,
   DomainError,
@@ -321,6 +322,8 @@ export function buildTestApp() {
         },
         createZip,
         request.subscription.subscriptionId.value,
+        serializeVaultDocument,
+        MARKDOWN_SPEC_VERSION,
       ),
   };
 

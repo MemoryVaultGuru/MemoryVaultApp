@@ -323,7 +323,7 @@ describe('Audit answers over the API', () => {
 });
 
 describe('Portability answers over the API', () => {
-  it('exports the vault as an archive of Markdown, reachable by a link', async () => {
+  it('exports the vault as one document, reachable by a link', async () => {
     const { vaultId } = await seed();
 
     const job = (await (
@@ -345,15 +345,16 @@ describe('Portability answers over the API', () => {
 
     // Every key of this system begins with the subscription, this one too.
     const [key] = [...harness.archives.keys()];
-    expect(key).toMatch(/^s\/[0-9A-HJKMNP-TV-Z]{26}\/exports\/[0-9A-HJKMNP-TV-Z]{26}\.zip$/);
+    expect(key).toMatch(/^s\/[0-9A-HJKMNP-TV-Z]{26}\/exports\/[0-9A-HJKMNP-TV-Z]{26}\.vault$/);
 
-    // What came out is a real ZIP: the local file header is its first bytes,
-    // and the names inside are the vault as a folder of .md files.
+    // What came out is a real ZIP carrying ONE document (RN-PRT-009): the
+    // local file header is its first bytes, and the only entry is the vault.
     const archive = harness.archives.get(key ?? '') as Buffer;
     expect(archive.subarray(0, 4)).toEqual(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
-    const names = archive.toString('latin1');
-    expect(names).toContain('Normas e Legislacao/GUIDANCE.md');
-    expect(names).toContain('Normas e Legislacao/STRUCTURE.md');
+    const inside = archive.toString('latin1');
+    expect(inside).toContain('vault.json');
+    expect(inside).not.toContain('GUIDANCE.md');
+    expect(inside).not.toContain('STRUCTURE.md');
   });
 
   it('answers 404 for a vault this session cannot read', async () => {
