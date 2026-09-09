@@ -39,6 +39,8 @@ issues each entry cites.
 - **A wikilink that answers with none or with several notes has an address of its own**, under `/vaults/:vault/links/<target>`: the choice lists every candidate with the folder it lives in and says whether they match by title or by alias — because an edge held by an alias is one somebody takes back the day they write a note under that title (RN-DSC-046, RN-DSC-056). (#98)
 - **The note page draws the title exactly once.** When the frontmatter stated it the frame draws it and a heading in the body is an ordinary heading; when the heading is what the chain read the body draws it and the frame draws nothing; when there is none the frame says so (RN-DSC-054). (#98)
 
+- **The graph draws a note and never a title.** A node is identified by the note, so two notes carrying one title are two nodes — both labelled with it, told apart by the folder written beside the label — and a link into that title is two edges leaving one note. It used to key a node by the slug, which under one title would have drawn one node and silently lost the other. Clicking a node opens that note directly and never the choice, because the graph already knows which one it drew (RN-DSC-047). (#99)
+
 ### Removed
 
 - **The note carries no slug**, and nothing in the product computes one for it: not the domain, not the DynamoDB item, not the guard that made a name unique within the vault, not the API DTOs, not the domain events and not the MCP tools. The route `GET /vaults/:v/notes/by-slug/:slug` is gone with it. A note is addressed by its identifier and named by its title. The slug of a **vault** and of a **folder** is untouched (RN-KNW-032, RN-KNW-002). (#96)

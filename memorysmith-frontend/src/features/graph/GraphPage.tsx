@@ -22,13 +22,30 @@ import { getVaultGraph } from '../../shared/api/backend';
 import { CloseIcon, GearIcon } from '../../shared/components/icons';
 
 interface GraphFile {
-  nodes: { id: string; title: string; facets: Record<string, string[]> }[];
+  nodes: {
+    id: string;
+    title: string;
+    folderId: string;
+    facets: Record<string, string[]>;
+  }[];
   edges: [number, number][];
 }
 
+/**
+ * **A node is a NOTE, and it always was.** The identifier is the `NoteId`,
+ * which is the one thing two notes with the same title do not share; the title
+ * is the label, and a label may repeat (RN-DSC-047). That is the honest
+ * picture: a vault does hold two notes called `Índice`, and collapsing them
+ * into one node would draw one and silently lose the other.
+ *
+ * What the drawing owes them is a way to tell them apart, and it is the folder
+ * trail — which is what a hover writes beside the label.
+ */
 interface GraphNode extends SimulationNodeDatum {
   id: string;
   title: string;
+  /** Where the note lives, which is what tells two of one title apart. */
+  folder: string;
   kind: 'note' | 'value';
   /** What this note says about itself; empty on a value node. */
   facets: Record<string, string[]>;
@@ -313,9 +330,14 @@ export function GraphPage() {
 
   const filtered = useMemo(() => {
     if (!data) return null;
+    const folderNameOf = (noteId: string): string => {
+      const trail = folderTrailForNote(structure.folders, noteId);
+      return trail[trail.length - 1]?.name ?? '';
+    };
     const nodes: GraphNode[] = data.nodes.map((n) => ({
       id: n.id,
       title: n.title,
+      folder: folderNameOf(n.id),
       kind: 'note' as const,
       facets: n.facets,
       degree: 0,
@@ -350,6 +372,9 @@ export function GraphPage() {
             nodes.push({
               id: key,
               title: value,
+              // A value node lives in no folder: it is what the vault says
+              // about its notes, not one of them.
+              folder: '',
               kind: 'value',
               facets: {},
               slot,
@@ -534,7 +559,13 @@ export function GraphPage() {
       */
       const written: { x0: number; y0: number; x1: number; y1: number }[] = [];
       for (const node of labelTargets) {
-        const label = node.title;
+        // The focused node names the folder it lives in, which is what makes
+        // two nodes carrying one title distinguishable without clicking
+        // either of them (RN-DSC-047).
+        const label =
+          node === focus && node.kind === 'note' && node.folder
+            ? `${node.title} · ${node.folder}`
+            : node.title;
         const lx = (node.x ?? 0) + node.radius + 3 / k;
         const ly = node.y ?? 0;
         const box = {

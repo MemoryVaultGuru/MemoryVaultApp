@@ -496,6 +496,52 @@ describe('Discovery queries', () => {
     expect(byId.get('n4')?.facets).toEqual({});
   });
 
+  it('draws one node per note and never one per title', async () => {
+    // RN-DSC-047: two notes called `Índice` are two nodes, both labelled with
+    // it, and a link into that title leaves one note as two edges. Collapsing
+    // them would draw one and silently lose the other.
+    const graph = new InMemoryLinkGraph();
+    const both = [
+      { noteId: 'i1', title: 'Índice', aliases: [], folderId: 'f1' },
+      { noteId: 'i2', title: 'Índice', aliases: [], folderId: 'f2' },
+    ];
+    for (const note of both) await graph.replaceOutgoing(VAULT, note, []);
+    await graph.replaceOutgoing(
+      VAULT,
+      { noteId: 'n9', title: 'Achado', aliases: [], folderId: 'f1' },
+      [{ title: 'Índice', anchor: null }],
+    );
+
+    const drawn = await graph.wholeGraph(VAULT);
+    expect(drawn.nodes.filter((node) => node.title === 'Índice')).toHaveLength(2);
+    expect(drawn.edges).toHaveLength(2);
+    expect(drawn.pending).toHaveLength(0);
+    // And each of the two is reachable on its own, by its identifier.
+    expect(new Set(drawn.edges.map(([, to]) => drawn.nodes[to]?.noteId))).toEqual(
+      new Set(['i1', 'i2']),
+    );
+  });
+
+  it('draws an edge found by alias like any other, and two aliases as two edges', async () => {
+    const graph = new InMemoryLinkGraph();
+    const holders = [
+      { noteId: 'a1', title: 'Primeira', aliases: ['RPO'], folderId: 'f1' },
+      { noteId: 'a2', title: 'Segunda', aliases: ['RPO'], folderId: 'f2' },
+    ];
+    for (const note of holders) await graph.replaceOutgoing(VAULT, note, []);
+    await graph.replaceOutgoing(
+      VAULT,
+      { noteId: 'n9', title: 'Achado', aliases: [], folderId: 'f1' },
+      [{ title: 'RPO', anchor: null }],
+    );
+
+    const drawn = await graph.wholeGraph(VAULT);
+    // §5.4 makes no distinction between an edge found by a title and one found
+    // by an alias, not even by counting.
+    expect(drawn.edges).toHaveLength(2);
+    expect(drawn.pending).toHaveLength(0);
+  });
+
   it('keeps an unresolved link in the graph instead of dropping it', async () => {
     await deps.graph.replaceOutgoing(
       VAULT,
