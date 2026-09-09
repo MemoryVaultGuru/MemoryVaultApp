@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useOutletContext, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { canWrite, getTemplate, putTemplate, resolveNoteUrl } from '../../shared/api/source';
+import { canWrite, getTemplate, putTemplate } from '../../shared/api/source';
+import { noteAddress } from '../../shared/api/note-address';
 import { WritableContent } from '../../shared/components/WritableContent';
 import type { VaultOutletContext } from './VaultLayout';
 import { folderTrail } from './trail';
@@ -65,7 +66,7 @@ export function FolderPage() {
         ))}
         {folder.notes.map((note) => (
           <li key={note.id}>
-            <Link to={resolveNoteUrl(vaultSlug, note.slug) ?? '#'}>
+            <Link to={noteAddress(vaultSlug, folder.slugPath, note.title, note.id)}>
               {note.title ?? t('note.untitled')}
             </Link>
           </li>

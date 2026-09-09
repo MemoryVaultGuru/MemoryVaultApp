@@ -11,7 +11,8 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import type { FolderNode, SearchHit, VaultStructure } from '../../shared/types/api';
-import { resolveNoteUrl, searchNotes } from '../../shared/api/source';
+import { searchNotes } from '../../shared/api/source';
+import { noteAddress } from '../../shared/api/note-address';
 import { ApiError } from '../../shared/api/error-mapper';
 import { highlight } from './highlight';
 
@@ -21,22 +22,23 @@ const MAX_HITS = 20;
 
 interface FlatNote {
   id: string;
-  slug: string;
+  /** Where the note lives, built from its identifier (RN-DSC-045). */
+  address: string;
   title: string | null;
   folderPath: string;
 }
 
-function flatten(folders: FolderNode[], trail: string[] = []): FlatNote[] {
+function flatten(vaultSlug: string, folders: FolderNode[], trail: string[] = []): FlatNote[] {
   return folders.flatMap((folder) => {
     const path = [...trail, folder.name];
     return [
       ...folder.notes.map((note) => ({
         id: note.id,
-        slug: note.slug,
+        address: noteAddress(vaultSlug, folder.slugPath, note.title, note.id),
         title: note.title,
         folderPath: path.join(' / '),
       })),
-      ...flatten(folder.children, path),
+      ...flatten(vaultSlug, folder.children, path),
     ];
   });
 }
@@ -88,8 +90,8 @@ export function SearchBox({ vaultSlug, structure }: SearchBoxProps) {
   // A hit names a note by identifier; the tree the page is already showing is
   // what turns it into a title, a path and a link.
   const byId = useMemo(
-    () => new Map(flatten(structure.folders).map((note) => [note.id, note])),
-    [structure],
+    () => new Map(flatten(vaultSlug, structure.folders).map((note) => [note.id, note])),
+    [structure, vaultSlug],
   );
 
   const { data, isFetching, error } = useQuery({
@@ -107,11 +109,9 @@ export function SearchBox({ vaultSlug, structure }: SearchBoxProps) {
     () =>
       (data ?? []).flatMap((hit) => {
         const note = byId.get(hit.noteId);
-        if (!note) return [];
-        const url = resolveNoteUrl(vaultSlug, note.slug);
-        return url ? [{ hit, note, url }] : [];
+        return note ? [{ hit, note, url: note.address }] : [];
       }),
-    [data, byId, vaultSlug],
+    [data, byId],
   );
 
   const typed = query.trim();

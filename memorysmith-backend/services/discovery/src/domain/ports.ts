@@ -35,6 +35,19 @@ export interface GraphNode {
   readonly children: GraphNode[];
 }
 
+/**
+ * What a link target names. `by` says which of the two answered, because the
+ * two are not equally durable: an edge held by an alias is one somebody takes
+ * back the day they write a note under that title (RN-DSC-053), and a reader
+ * deciding where a link goes is entitled to know the answer is provisional.
+ */
+export interface ResolvedTarget {
+  readonly target: string;
+  readonly kind: 'note' | 'attachment' | 'pending';
+  readonly by: 'title' | 'alias' | null;
+  readonly notes: readonly NoteRef[];
+}
+
 export interface BrokenLink {
   readonly fromNote: NoteRef;
   readonly targetTitle: string;
@@ -103,6 +116,12 @@ export interface LinkGraph {
    * Answers how many pending links stopped being pending.
    */
   resolvePending(vaultId: string, note: NoteRef): Promise<number>;
+  /**
+   * What one target resolves to in this vault: every note whose title matches
+   * it, or — when none does — every note carrying it as an alias, with which
+   * of the two answered (RN-DSC-046).
+   */
+  resolveTarget(vaultId: string, target: string): Promise<ResolvedTarget>;
   dependencyTree(vaultId: string, rootNoteId: string, depth: number): Promise<GraphNode | null>;
   backlinks(vaultId: string, noteId: string): Promise<NoteRef[]>;
   broken(vaultId: string): Promise<BrokenLink[]>;

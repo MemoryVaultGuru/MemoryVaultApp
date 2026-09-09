@@ -16,6 +16,7 @@ import {
   type IndexedNote,
   type NoteCatalog,
   type NoteRef,
+  type ResolvedTarget,
   type VaultGraph,
 } from '../domain/ports.js';
 import type { FacetSnapshot } from '../domain/FacetExtractor.js';
@@ -117,6 +118,19 @@ export class InMemoryLinkGraph implements LinkGraph {
     const before = this.resolved(vaultId).pending.length;
     this.vault(vaultId).notes.set(note.noteId, note);
     return Math.max(0, before - this.resolved(vaultId).pending.length);
+  }
+
+  async resolveTarget(vaultId: string, target: string): Promise<ResolvedTarget> {
+    const state = this.vault(vaultId);
+    const answer = resolveTarget(target, this.names(vaultId));
+    return {
+      target: answer.target,
+      kind: answer.kind,
+      by: answer.by,
+      notes: answer.noteIds
+        .map((noteId) => state.notes.get(noteId))
+        .filter((note): note is NoteRef => note !== undefined),
+    };
   }
 
   async dependencyTree(

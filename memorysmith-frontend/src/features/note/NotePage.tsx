@@ -18,14 +18,14 @@ import { folderTrailForNote } from '../structure/trail';
 import { VaultBreadcrumb, folderCrumbs } from '../structure/VaultBreadcrumb';
 import type { VaultOutletContext } from '../structure/VaultLayout';
 
-export function NotePage({ noteSlug }: { noteSlug: string }) {
+export function NotePage({ noteId }: { noteId: string }) {
   const { t } = useTranslation();
   const { vaultSlug = '' } = useParams();
   const { structure } = useOutletContext<VaultOutletContext>();
   const [copied, setCopied] = useState(false);
   const { data, isPending, isError } = useQuery({
-    queryKey: ['note', vaultSlug, noteSlug],
-    queryFn: () => getNote(vaultSlug, noteSlug),
+    queryKey: ['note', vaultSlug, noteId],
+    queryFn: () => getNote(vaultSlug, noteId),
   });
 
   async function copyNote() {
@@ -73,15 +73,23 @@ export function NotePage({ noteSlug }: { noteSlug: string }) {
           <VaultBreadcrumb
             items={[
               { label: t('structure.root'), to: `/vaults/${vaultSlug}/root` },
-              ...folderCrumbs(vaultSlug, folderTrailForNote(structure.folders, noteSlug)),
+              ...folderCrumbs(vaultSlug, folderTrailForNote(structure.folders, noteId)),
               { label: data.title ?? t('note.untitled') },
             ]}
           />
-          {/* A note whose content states no title says so, rather than
-              drawing an empty heading (RN-KNW-036). */}
-          <h1 className={data.title === null ? 'note-untitled' : undefined}>
-            {data.title ?? t('note.untitled')}
-          </h1>
+          {/**
+           * The title is drawn EXACTLY ONCE, and it is whatever the chain read
+           * (RN-DSC-054). When the frontmatter stated it, the frame draws it
+           * and a heading in the body is an ordinary heading of the note; when
+           * the heading is what the chain read, the body is already drawing it
+           * and the frame draws nothing; and when there is none, the frame
+           * says so where the title would be (RN-KNW-036).
+           */}
+          {data.titleFrom !== 'heading' && (
+            <h1 className={data.title === null ? 'note-untitled' : undefined}>
+              {data.title ?? t('note.untitled')}
+            </h1>
+          )}
         </div>
         <button
           type="button"
@@ -127,7 +135,7 @@ export function NotePage({ noteSlug }: { noteSlug: string }) {
             { keepalive: keepalive ?? false },
           )
         }
-        invalidates={['note', vaultSlug, noteSlug]}
+        invalidates={['note', vaultSlug, noteId]}
       />
     </article>
   );

@@ -127,7 +127,12 @@
     "copied": "Copied",
     "copyHint": "Copy the note's Markdown to the clipboard",
     "untitled": "Untitled note",
-    "attachmentMissing": "This vault holds no file by that name. Attachments are not stored here."
+    "attachmentMissing": "This vault holds no file by that name. Attachments are not stored here.",
+    "targetPending": "No note carries the title “{{target}}” yet. The link is kept and resolves on its own when one does.",
+    "targetAmbiguous_one": "One note answers this target.",
+    "targetAmbiguous_other": "{{count}} notes carry this title, so the link reaches all of them. Which one did you mean?",
+    "targetByTitle": "They match by title.",
+    "targetByAlias": "No title matched, so these match by alias — and one of them gives the link up the day somebody writes a note under this title."
   },
   "common": {
     "loading": "Loading…",

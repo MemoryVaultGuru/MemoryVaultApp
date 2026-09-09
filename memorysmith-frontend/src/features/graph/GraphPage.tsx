@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   forceCenter,
@@ -15,7 +15,9 @@ import {
 import { usePreferences } from '../../shared/store/preferences';
 import { VaultBreadcrumb } from '../structure/VaultBreadcrumb';
 import { GraphSkeleton } from '../../shared/components/skeletons';
-import { resolveNoteUrl } from '../../shared/api/source';
+import { noteAddress } from '../../shared/api/note-address';
+import { folderTrailForNote } from '../structure/trail';
+import type { VaultOutletContext } from '../structure/VaultLayout';
 import { getVaultGraph } from '../../shared/api/backend';
 import { CloseIcon, GearIcon } from '../../shared/components/icons';
 
@@ -155,6 +157,22 @@ export function GraphPage() {
   const touchOnly = useTouchOnly();
   const navigate = useNavigate();
   const { vaultSlug = '' } = useParams();
+  const { structure } = useOutletContext<VaultOutletContext>();
+  /**
+   * The address of a node, built from the identifier the graph draws: the
+   * folder trail and the label are decoration, and the tree the page already
+   * loaded is where they come from (RN-DSC-045).
+   */
+  const addressOfNote = useCallback(
+    (noteId: string): string | null => {
+      const trail = folderTrailForNote(structure.folders, noteId);
+      const folder = trail[trail.length - 1];
+      if (!folder) return null;
+      const note = folder.notes.find((each) => each.id === noteId);
+      return noteAddress(vaultSlug, folder.slugPath, note?.title ?? null, noteId);
+    },
+    [structure, vaultSlug],
+  );
   const theme = usePreferences((s) => s.theme);
   const [truncated, setTruncated] = useState(false);
   /**
@@ -226,8 +244,11 @@ export function GraphPage() {
         if (!live) return;
         setData({
           nodes: graph.nodes.map((note) => ({
-            id: note.slug,
+            // The identifier, because two notes may carry one title and the
+            // graph draws a note and never a title (RN-DSC-047).
+            id: note.noteId,
             title: note.title,
+            folderId: note.folderId,
             facets: note.facets ?? {},
           })),
           edges: graph.edges,
@@ -698,7 +719,7 @@ export function GraphPage() {
       const hit = hitTest(gx, gy);
 
       if (hit?.kind === 'note') {
-        const url = resolveNoteUrl(vaultSlug, hit.id);
+        const url = addressOfNote(hit.id);
         if (url) void navigate(url);
         return;
       }
@@ -780,7 +801,7 @@ export function GraphPage() {
       const hit = hitTest(gx, gy);
 
       if (hit?.kind === 'note') {
-        const url = resolveNoteUrl(vaultSlug, hit.id);
+        const url = addressOfNote(hit.id);
         if (url) void navigate(url);
         return;
       }

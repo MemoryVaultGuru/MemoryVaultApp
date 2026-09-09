@@ -1,6 +1,6 @@
 import { splitEmbeds } from '../api/transclusion';
 import { resolveWikilinks } from '../api/markdown';
-import { resolveNoteUrl } from '../api/source';
+import { wikilinkUrl } from '../api/source';
 import { Markdown } from './Markdown';
 import { Transclusion } from './Transclusion';
 
@@ -17,7 +17,7 @@ export function NoteContent({ body, vaultSlug }: { body: string; vaultSlug: stri
       {segments.map((segment, index) =>
         segment.kind === 'text' ? (
           <Markdown key={index}>
-            {resolveWikilinks(segment.text, (slug) => resolveNoteUrl(vaultSlug, slug))}
+            {resolveWikilinks(segment.text, (title) => wikilinkUrl(vaultSlug, title))}
           </Markdown>
         ) : (
           <Transclusion

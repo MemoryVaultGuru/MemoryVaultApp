@@ -8,6 +8,7 @@ import { ResumeReading } from '../features/structure/ResumeReading';
 import { TemplatesPage } from '../features/structure/TemplatesPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { GraphPage } from '../features/graph/GraphPage';
+import { LinkTargetPage } from '../features/note/LinkTargetPage';
 import { VaultLayout } from '../features/structure/VaultLayout';
 import { RequireSession, RootLayout } from './RootLayout';
 
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
                   { path: 'templates', element: <TemplatesPage /> },
                   { path: 'graph', element: <GraphPage /> },
                   { path: 'root/*', element: <FolderRoute /> },
+                  { path: 'links/:target', element: <LinkTargetPage /> },
                 ],
               },
             ],

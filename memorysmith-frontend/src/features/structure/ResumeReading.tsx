@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Navigate, useOutletContext, useParams } from 'react-router-dom';
 import { lastNoteOf, forgetNote } from '../../shared/store/last-note';
-import { noteAt } from './trail';
+import { folderTrailForNote, noteAt } from './trail';
 import { VaultContextPage } from './VaultContextPage';
 import type { VaultOutletContext } from './VaultLayout';
 
@@ -49,14 +49,16 @@ export function ResumeReading() {
  * The remembered note, if it is still a note of this vault.
  *
  * The structure is already in hand, so this costs no request and cannot
- * flash: a note that was deleted, renamed or moved never gets navigated to,
- * and the tree is shown instead of a not-found line. The stale entry is
- * dropped on the way, because it will never be right again.
+ * flash, and a remembered address now **survives a retitle and a move**: it
+ * carries the identifier, so what changed is the decoration and the route
+ * corrects it (RN-DSC-045). Only a deleted note lands on the tree, and its
+ * stale entry is dropped on the way, because it will never be right again.
  */
 function resumable(structure: VaultOutletContext['structure'], vaultSlug: string): string | null {
   const path = lastNoteOf(vaultSlug);
   if (!path) return null;
-  if (noteAt(structure.folders, path)) return path;
+  const noteId = noteAt(structure.folders, path);
+  if (noteId && folderTrailForNote(structure.folders, noteId).length) return path;
   forgetNote(vaultSlug);
   return null;
 }

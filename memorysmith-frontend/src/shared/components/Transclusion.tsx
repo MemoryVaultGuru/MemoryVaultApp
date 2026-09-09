@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getNote, resolveNoteUrl } from '../api/source';
+import { getNote, resolveNoteUrl, wikilinkUrl } from '../api/source';
+import { noteIdOf } from '../api/note-address';
 import { demoteEmbeds, blockOf, isBlockAnchor, sectionOf } from '../api/transclusion';
 import { resolveWikilinks } from '../api/markdown';
-import { slugify } from '../api/markdown';
 import { Markdown } from './Markdown';
 import { TransclusionSkeleton } from './skeletons';
 
@@ -26,12 +26,15 @@ export function Transclusion({
 }) {
   const { t } = useTranslation();
   const title = target.normalize('NFC');
+  // A transclusion expands ONE note, so it expands what a wikilink would
+  // navigate to: an ambiguous target is a choice a reader makes and not a
+  // passage the page can inline on their behalf.
   const url = resolveNoteUrl(vaultSlug, title);
-  const slug = slugify(title);
+  const noteId = url ? (noteIdOf(url.split('/').pop() ?? '') ?? '') : '';
 
   const { data, isPending, isError } = useQuery({
-    queryKey: ['note', vaultSlug, slug],
-    queryFn: () => getNote(vaultSlug, slug),
+    queryKey: ['note', vaultSlug, noteId],
+    queryFn: () => getNote(vaultSlug, noteId),
     enabled: url !== null,
   });
 
@@ -79,7 +82,7 @@ export function Transclusion({
            * implemented halfway.
            */
           <Markdown>
-            {resolveWikilinks(demoteEmbeds(cut), (slug) => resolveNoteUrl(vaultSlug, slug))}
+            {resolveWikilinks(demoteEmbeds(cut), (each) => wikilinkUrl(vaultSlug, each))}
           </Markdown>
         )}
       </div>

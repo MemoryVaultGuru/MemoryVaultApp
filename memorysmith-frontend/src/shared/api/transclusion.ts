@@ -24,7 +24,7 @@ import {
   insideCode,
   insideTable,
   outsideCode,
-  slugify,
+  headingKey,
   tableRegions,
 } from './markdown';
 
@@ -142,7 +142,7 @@ function escapeRegExp(value: string): string {
  * PP4.
  */
 export function sectionOf(markdown: string, anchor: string): string | null {
-  const wanted = slugify(anchor);
+  const wanted = headingKey(anchor);
   const lines = markdown.split('\n');
   let start = -1;
   let level = 0;
@@ -152,7 +152,7 @@ export function sectionOf(markdown: string, anchor: string): string | null {
     if (!heading) continue;
 
     if (start === -1) {
-      if (slugify(heading[2] ?? '') === wanted) {
+      if (headingKey(heading[2] ?? '') === wanted) {
         start = index;
         level = (heading[1] ?? '').length;
       }

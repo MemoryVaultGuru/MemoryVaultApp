@@ -127,7 +127,12 @@
     "copied": "Copiado",
     "copyHint": "Copiar o Markdown da nota para a área de transferência",
     "untitled": "Nota sem título",
-    "attachmentMissing": "Este vault não tem arquivo com esse nome. Anexos não são guardados aqui."
+    "attachmentMissing": "Este vault não tem arquivo com esse nome. Anexos não são guardados aqui.",
+    "targetPending": "Nenhuma nota se chama “{{target}}” ainda. O link fica guardado e resolve sozinho quando alguma se chamar.",
+    "targetAmbiguous_one": "Uma nota responde a este alvo.",
+    "targetAmbiguous_other": "{{count}} notas carregam este título, então o link chega a todas. Qual delas você queria?",
+    "targetByTitle": "Casam por título.",
+    "targetByAlias": "Nenhum título casou, então estas casam por apelido — e uma delas devolve o link no dia em que alguém escrever uma nota com este título."
   },
   "common": {
     "loading": "Carregando…",

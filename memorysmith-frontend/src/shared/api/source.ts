@@ -10,6 +10,7 @@
 
 import type { ExportJobDto } from '@memorysmith/contracts';
 import * as backend from './backend';
+import { linkTargetAddress, noteAddress } from './note-address';
 import type {
   NoteDetail,
   SearchHit,
@@ -48,16 +49,27 @@ function resolveFromStructure(
 ): string | null {
   if (!structure) return null;
   const wanted = target.normalize('NFC');
-  const walk = (nodes: VaultStructure['folders']): string | null => {
+  const found: Array<{ folder: VaultStructure['folders'][number]; noteId: string; title: string }> =
+    [];
+
+  const walk = (nodes: VaultStructure['folders']): void => {
     for (const node of nodes) {
-      const found = node.notes.find((note) => (note.title ?? '').normalize('NFC') === wanted);
-      if (found) return `/vaults/${vaultSlug}/root/${node.slugPath}/${found.slug}`;
-      const deeper = walk(node.children);
-      if (deeper) return deeper;
+      for (const note of node.notes) {
+        if ((note.title ?? '').normalize('NFC') === wanted) {
+          found.push({ folder: node, noteId: note.id, title: note.title ?? '' });
+        }
+      }
+      walk(node.children);
     }
-    return null;
   };
-  return walk(structure.folders);
+  walk(structure.folders);
+
+  // Exactly one note answers: the link goes straight to it. None or several,
+  // and what gets the address is the TARGET, because a name may be carried by
+  // more than one note and an address may not (RN-DSC-046).
+  const only = found.length === 1 ? found[0] : undefined;
+  if (!only) return null;
+  return noteAddress(vaultSlug, only.folder.slugPath, only.title, only.noteId);
 }
 
 /**
@@ -85,14 +97,58 @@ export function getTemplate(vaultSlug: string, folderId: string): Promise<Templa
   return backend.getTemplate(vaultSlug, folderId);
 }
 
-/** Null means the target does not exist yet, which the UI shows as pending. */
+/**
+ * The address a wikilink navigates to, or `null` when the target does not
+ * resolve to exactly one note — which is where the reading surface writes a
+ * `pending:` link and the link target page takes over (RN-DSC-046).
+ */
 export function resolveNoteUrl(vaultSlug: string, target: string): string | null {
   return resolveFromStructure(vaultSlug, target, loaded.get(vaultSlug));
+}
+
+/**
+ * Where a wikilink goes: the note when exactly one carries the title, the
+ * address of the TARGET when several do, and `null` — the pending state — when
+ * none does (RN-DSC-046).
+ *
+ * The interface can tell the three apart without asking the server, because
+ * the structure it drew the page from already carries every title. What it
+ * cannot tell from here is an alias, and it does not have to: an alias only
+ * ever resolves what no title matched, so a target no title answers goes to
+ * the target page, which asks Discovery.
+ */
+export function wikilinkUrl(vaultSlug: string, target: string): string | null {
+  const carried = notesTitled(vaultSlug, target);
+  if (carried === 1) return resolveNoteUrl(vaultSlug, target);
+  return linkTargetAddress(vaultSlug, target);
+}
+
+/**
+ * How many notes of the loaded structure carry that title. One is a link, none
+ * is pending, and several is the choice.
+ */
+export function notesTitled(vaultSlug: string, target: string): number {
+  const structure = loaded.get(vaultSlug);
+  if (!structure) return 0;
+  const wanted = target.normalize('NFC');
+  const count = (nodes: VaultStructure['folders']): number =>
+    nodes.reduce(
+      (total, node) =>
+        total +
+        node.notes.filter((note) => (note.title ?? '').normalize('NFC') === wanted).length +
+        count(node.children),
+      0,
+    );
+  return count(structure.folders);
 }
 
 /** The whole vault as a downloadable archive, prepared on demand. */
 export function exportVault(vaultSlug: string): Promise<ExportJobDto> {
   return backend.exportVault(vaultSlug);
+}
+
+export function resolveLinkTarget(vaultSlug: string, target: string) {
+  return backend.resolveLinkTarget(vaultSlug, target);
 }
 
 export function searchNotes(vaultSlug: string, query: string, k: number): Promise<SearchHit[]> {

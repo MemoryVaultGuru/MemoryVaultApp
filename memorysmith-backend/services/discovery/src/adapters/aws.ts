@@ -45,6 +45,7 @@ import type {
   LinkGraph,
   LinkTarget,
   NoteRef,
+  ResolvedTarget,
   VaultGraph,
 } from '../domain/ports.js';
 import { GRAPH_LIMITS } from '../domain/ports.js';
@@ -344,6 +345,30 @@ export class DynamoLinkGraph implements LinkGraph {
         return from === note.noteId ? [] : this.edgeItems(vaultId, from, note.noteId);
       }),
     );
+  }
+
+  async resolveTarget(vaultId: string, target: string): Promise<ResolvedTarget> {
+    const items = await this.query(vaultId, 'NOTE#');
+    const answer = resolveTarget(target, this.namesOf(items));
+    const byId = new Map(items.map((item) => [String(item['noteId']), item]));
+    return {
+      target: answer.target,
+      kind: answer.kind,
+      by: answer.by,
+      notes: answer.noteIds.flatMap((noteId) => {
+        const item = byId.get(noteId);
+        return item
+          ? [
+              {
+                noteId,
+                title: item['title'] === undefined ? '' : String(item['title']),
+                aliases: Array.isArray(item['aliases']) ? (item['aliases'] as string[]) : [],
+                folderId: String(item['folderId']),
+              },
+            ]
+          : [];
+      }),
+    };
   }
 
   async dependencyTree(

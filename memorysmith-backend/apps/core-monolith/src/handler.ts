@@ -72,6 +72,7 @@ import { GetNoteHistory, GetVaultActivity, ReadRevision } from '@memorysmith/svc
 import type { DiscoveryUseCases } from '@memorysmith/svc-discovery/adapters/http';
 import {
   Backlinks,
+  ResolveLinkTarget,
   GetFacetStats,
   RelatedNotes,
   SearchNotes,
@@ -219,6 +220,7 @@ const auditUseCases: AuditUseCases = {
 const discoveryUseCases: DiscoveryUseCases = {
   related: (request) => new RelatedNotes(discoveryFor(request.subscription)),
   backlinks: (request) => new Backlinks(discoveryFor(request.subscription)),
+  resolveLinkTarget: (request) => new ResolveLinkTarget(discoveryFor(request.subscription)),
   health: (request) => new VaultHealth(discoveryFor(request.subscription)),
   graph: (request) => new VaultGraphQuery(discoveryFor(request.subscription)),
   search: (request) => new SearchNotes(discoveryFor(request.subscription)),

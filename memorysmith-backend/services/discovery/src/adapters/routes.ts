@@ -4,6 +4,7 @@
  *   GET  /vaults/:v/graph
  *   GET  /vaults/:v/notes/:n/graph?depth=
  *   GET  /vaults/:v/notes/:n/backlinks
+ *   GET  /vaults/:v/links/:target      what one wikilink target resolves to
  *   GET  /vaults/:v/health
  *   GET  /vaults/:v/facets
  *   POST /vaults/:v/search   { query }   lexical, over titles and folders
@@ -23,6 +24,7 @@ import type {
   Backlinks,
   GetFacetStats,
   RelatedNotes,
+  ResolveLinkTarget,
   SearchNotes,
   VaultGraphQuery,
   VaultHealth,
@@ -41,6 +43,7 @@ export interface DiscoveryRequest {
 export interface DiscoveryUseCases {
   readonly related: (request: DiscoveryRequest) => RelatedNotes;
   readonly backlinks: (request: DiscoveryRequest) => Backlinks;
+  readonly resolveLinkTarget: (request: DiscoveryRequest) => ResolveLinkTarget;
   readonly health: (request: DiscoveryRequest) => VaultHealth;
   readonly graph: (request: DiscoveryRequest) => VaultGraphQuery;
   readonly search: (request: DiscoveryRequest) => SearchNotes;
@@ -105,6 +108,24 @@ export function createDiscoveryRoutes(useCases: DiscoveryUseCases): Hono<{ Varia
       .backlinks(request)
       .execute({ vaultId, noteId: c.req.param('n') ?? '' });
     return present(c, found, (backlinks) => ({ backlinks }));
+  });
+
+  /**
+   * The target is percent-decoded by the router before it reaches here, which
+   * is the first of the three steps §5.2 fixes; the other two — NFC and
+   * case-exact — belong to the resolver, so both surfaces compare the same
+   * way (RN-DSC-056).
+   */
+  app.get('/vaults/:v/links/:target', async (c) => {
+    const request = c.get('discovery');
+    const vaultId = c.req.param('v') ?? '';
+    const denied = await guard(request, vaultId);
+    if (denied) return fail(c, denied);
+
+    const resolved = await useCases
+      .resolveLinkTarget(request)
+      .execute({ vaultId, target: c.req.param('target') ?? '' });
+    return present(c, resolved, (answer) => answer);
   });
 
   app.get('/vaults/:v/health', async (c) => {

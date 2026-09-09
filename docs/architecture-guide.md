@@ -826,7 +826,18 @@ The frontmatter block and the YAML subset of §6.2 live in the kernel with it, a
 
 A block embed resolves through `blockOf` in `transclusion.ts`, told apart from a section anchor by the `^` marker rather than by trying one and falling back — a section named `^x` and a block called `x` would otherwise answer for each other.
 
-**The slug is computed twice, and that is a boundary with a price.** `packages/kernel/src/slug.ts` produces it for storage and for the link extractor; `memorysmith-frontend/src/shared/api/markdown.ts` produces it again to turn a wikilink into a URL, because the frontend takes types from `@memorysmith/contracts` and nothing else from the backend (§5.1), and sharing six lines is not worth dragging the kernel into the browser bundle. The price is that two copies of one rule drift in silence, and they did: the interface was missing the digit-separator step of the profile's §5.3, so `[[Lei 14.133]]` addressed `lei-14-133`, found no note, and drew a real edge as a pending link. **Neither implementation is pinned to the other; both are pinned to the published conformance cases**, which is the only arrangement where the drift is a failing build instead of a screen that lies.
+**The slug was computed twice, and it is computed nowhere now.** Two copies of one rule — `packages/kernel/src/slug.ts` and one inside the frontend — drifted in silence and produced the defect that opened the last cycle: the interface was missing the digit-separator step, so `[[Lei 14.133]]` addressed `lei-14-133`, found no note, and drew a real edge as a pending link. A link resolves against the title now (RN-DSC-041), and the two surfaces are pinned to the same published cases for the **reading** of a target rather than for a computation over it.
+
+**The two addresses of the interface are a decision, not a detail.** A **URL is an address**: the product writes it, a person copies it, and pasting it back has to land on the note it was copied from. A **wikilink is a name**: it names a title, and a title may be carried by several notes (RN-KNW-037). Merging the two made the address inherit the ambiguity of the name, so they are separate:
+
+| Address | What it names | Ambiguous? |
+|---|---|---|
+| `/vaults/:vaultSlug/root/<trail>/<label>--<noteId>` | One note. The identifier answers; the trail and the label are decoration, corrected on load (RN-DSC-045, RN-DSC-055) | Never, by construction |
+| `/vaults/:vaultSlug/links/<target>` | A link target. It leads to the note when one answers, renders the choice when several do and the pending state when none does (RN-DSC-046) | By design |
+
+The first is ASCII end to end and carries no percent escape, which is what removes a whole class of routing problem: `useParams()['*']` hands an inner `%2F` back as `/` and would cut `Reunião 03/09/2026` in half. The second is where the encoding of a name legitimately lives — a route reached by clicking and never by typing.
+
+**The label is a slug and it is not called `slugify`.** It lives in `shared/api/note-address.ts`, it is never compared, never stored and never sent to the API, and the name is what keeps that true: called `slugify`, it would be compared with the kernel's again within the year.
 
 The split is not tidiness. A rendering assertion cannot live in a JSON file — what a callout looks like is not something a suite can state — so those entries come from the profile and the expectation is written once, beside the components, and a declared entry with no expectation fails the test rather than being discovered later in a browser. That test earned its place on its first run, the same way the published suite did against the extractors.
 
@@ -1095,7 +1106,11 @@ svc-knowledge    GET  /vaults · POST /vaults
                  POST /vaults/:v/notes/:n/restore
                  POST /vaults/:v/notes/:n/move   { toVaultId?, toFolderId }
                  PUT|DELETE /vaults/:v/limits/:userId   { limit: VIEWER }   (§9.3)
-svc-discovery    GET  /vaults/:v/graph   (the whole vault graph, edges from the index)
+svc-discovery    GET  /vaults/:v/links/:target   what one wikilink target resolves
+                    to: the notes it reaches and whether a title or an alias
+                    answered. The interface asks it for the two cases an
+                    address cannot answer — none and several (RN-DSC-046)
+                 GET  /vaults/:v/graph   (the whole vault graph, edges from the index)
                  GET  /vaults/:v/notes/:n/graph?depth= · GET /vaults/:v/notes/:n/backlinks
                  GET  /vaults/:v/health   (broken links, orphans)
                  GET  /vaults/:v/facets  (content distribution, feeds the Overview)

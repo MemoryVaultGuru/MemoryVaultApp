@@ -15,6 +15,7 @@ import {
   type LinkGraph,
   type NoteCatalog,
   type NoteRef,
+  type ResolvedTarget,
   type ScoredNote,
   type BrokenLink,
 } from '../domain/ports.js';
@@ -96,6 +97,28 @@ export class Backlinks {
     noteId: string;
   }): Promise<Result<NoteRef[], DomainError>> {
     return ok(await this.deps.graph.backlinks(input.vaultId, input.noteId));
+  }
+}
+
+/**
+ * What a link target names, for the interface that has to show it.
+ *
+ * A wikilink that resolves to exactly one note navigates to that note; when it
+ * resolves to none or to several, the target itself gets an address, and this
+ * is what answers it (RN-DSC-046). The comparison is the one §5.2 fixes —
+ * NFC, case-exact — so the URL and the wikilink cannot disagree about which
+ * note is which.
+ */
+export class ResolveLinkTarget {
+  constructor(private readonly deps: QueryDependencies) {}
+
+  async execute(input: {
+    vaultId: string;
+    target: string;
+  }): Promise<Result<ResolvedTarget, DomainError>> {
+    const target = input.target.trim();
+    if (target.length === 0) return err(DomainError.validation('A link target cannot be empty'));
+    return ok(await this.deps.graph.resolveTarget(input.vaultId, target));
   }
 }
 

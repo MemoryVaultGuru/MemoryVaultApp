@@ -104,6 +104,7 @@ import {
 } from '@memorysmith/svc-discovery/adapters/memory';
 import {
   Backlinks,
+  ResolveLinkTarget,
   GetFacetStats,
   RelatedNotes,
   SearchNotes,
@@ -295,6 +296,7 @@ export function buildTestApp() {
   const discoveryUseCases: DiscoveryUseCases = {
     related: () => new RelatedNotes(discoveryDeps),
     backlinks: () => new Backlinks(discoveryDeps),
+    resolveLinkTarget: () => new ResolveLinkTarget(discoveryDeps),
     health: () => new VaultHealth(discoveryDeps),
     graph: () => new VaultGraphQuery(discoveryDeps),
     search: () => new SearchNotes(discoveryDeps),

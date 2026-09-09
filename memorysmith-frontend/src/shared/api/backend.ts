@@ -13,6 +13,7 @@ import type {
   ContentDto,
   NoteDto,
   NoteSummaryDto,
+  ResolvedTargetDto,
   SessionDto,
   FacetStatsDto,
   VaultDetailDto,
@@ -28,40 +29,12 @@ import type {
   VaultStructure,
   VaultSummary,
 } from '../types/api';
-import { slugify, splitFrontmatter } from './markdown';
+import { splitFrontmatter, statedInFrontmatter } from './markdown';
 import { request } from './http';
 import { ApiError } from './error-mapper';
 
 export async function getSession(): Promise<SessionDto> {
   return request<SessionDto>('/access/session');
-}
-
-/**
- * The address this interface gives a note, computed from the title the API
- * answers. A note carries no slug any more, and the API resolves nothing by
- * name: #98 replaces this whole address with the identifier of the note, and
- * until then the interface keeps the URLs it has by deriving them here.
- *
- * A note with no addressable title falls back to its identifier, which is the
- * one thing it does have.
- */
-function addressOf(title: string | null): string {
-  return title ? slugify(title) : '';
-}
-
-/**
- * Reads a note by the address above: the listing of the vault is what maps an
- * address to an identifier, since the API has no lookup by name. It is one
- * extra call, on a response the query client already caches, and it goes away
- * with the address itself in #98.
- */
-async function noteByAddress(vaultId: string, address: string): Promise<NoteDto> {
-  const notes = await request<NoteSummaryDto[]>(`/knowledge/vaults/${vaultId}/notes`);
-  const found = notes.find(
-    (note) => addressOf(note.title) === address || note.noteId.toLowerCase() === address,
-  );
-  if (!found) throw new ApiError('NOT_FOUND', 'Note not found', 404);
-  return request<NoteDto>(`/knowledge/vaults/${vaultId}/notes/${found.noteId}`);
 }
 
 function toSummary(vault: VaultSummaryDto): VaultSummary {
@@ -118,7 +91,6 @@ function nest(folders: FolderDto[], notes: NoteSummaryDto[]): FolderNode[] {
           .filter((note) => note.folderId === folder.folderId)
           .map((note) => ({
             id: note.noteId,
-            slug: addressOf(note.title),
             title: note.title,
             folderId: note.folderId,
           })),
@@ -145,7 +117,22 @@ export async function getVaultStructure(vaultSlug: string): Promise<VaultStructu
   };
 }
 
-export async function getNote(vaultSlug: string, noteSlug: string): Promise<NoteDetail> {
+/**
+ * What one wikilink target resolves to in this vault: the notes it reaches and
+ * whether a title or an alias answered (RN-DSC-046). Resolution belongs to
+ * Discovery, which is the context that holds the index a vault answers with.
+ */
+export async function resolveLinkTarget(
+  vaultSlug: string,
+  target: string,
+): Promise<ResolvedTargetDto> {
+  const vaultId = await vaultIdOf(vaultSlug);
+  return request<ResolvedTargetDto>(
+    `/discovery/vaults/${vaultId}/links/${encodeURIComponent(target)}`,
+  );
+}
+
+export async function getNote(vaultSlug: string, noteId: string): Promise<NoteDetail> {
   const vaultId = await vaultIdOf(vaultSlug);
   const [note, detail] = await Promise.all([
     /**
@@ -162,7 +149,7 @@ export async function getNote(vaultSlug: string, noteSlug: string): Promise<Note
      * cannot check. Taking the DTO is what makes the next divergence a build
      * error instead of a screen that fails.
      */
-    noteByAddress(vaultId, noteSlug),
+    request<NoteDto>(`/knowledge/vaults/${vaultId}/notes/${noteId}`),
     request<VaultDetailDto>(`/knowledge/vaults/${vaultId}`),
   ]);
 
@@ -179,8 +166,13 @@ export async function getNote(vaultSlug: string, noteSlug: string): Promise<Note
   return {
     id: note.noteId,
     vaultSlug,
-    slug: addressOf(note.title),
+    folderId: note.folderId,
     title: note.title,
+    // Which step of the chain answered, which decides who draws the title
+    // (RN-DSC-054). The frontmatter is part of the body, so the interface can
+    // see it without asking: `title:` there is what the chain read first.
+    titleFrom:
+      note.title === null ? null : statedInFrontmatter(note.content) ? 'frontmatter' : 'heading',
     folderNames,
     frontmatter,
     listProperties: [...lists],

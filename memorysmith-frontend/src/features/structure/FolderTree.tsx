@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { FolderNode } from '../../shared/types/api';
+import { noteAddress, noteIdOf } from '../../shared/api/note-address';
 
 interface FolderTreeProps {
   vaultSlug: string;
@@ -23,7 +24,10 @@ function TreeNote({
 }) {
   const { t } = useTranslation();
   const { '*': path } = useParams();
-  const active = path === `${folder.slugPath}/${note.slug}`;
+  const address = noteAddress(vaultSlug, folder.slugPath, note.title, note.id);
+  // The identifier is what decides, because the label is decoration and may be
+  // stale in the address somebody is standing on (RN-DSC-045).
+  const active = noteIdOf(path?.split('/').pop() ?? '') === note.id;
   const ref = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
@@ -32,11 +36,7 @@ function TreeNote({
 
   return (
     <li>
-      <Link
-        ref={ref}
-        className={`tree-note${active ? ' active' : ''}`}
-        to={`/vaults/${vaultSlug}/root/${folder.slugPath}/${note.slug}`}
-      >
+      <Link ref={ref} className={`tree-note${active ? ' active' : ''}`} to={address}>
         {note.title ?? t('note.untitled')}
       </Link>
     </li>

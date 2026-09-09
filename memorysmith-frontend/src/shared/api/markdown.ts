@@ -255,30 +255,43 @@ function displayText(clean: string, label: string | undefined, target: string): 
   return (label ?? target).trim();
 }
 
-/** The longest a slug may be, on both sides. */
-const MAX_SLUG_LENGTH = 80;
+/**
+ * Whether the frontmatter of a body STATES a title, which is the first step of
+ * the chain that reads one (§5.3). It decides who draws the title on the note
+ * page: the frame when the frontmatter stated it, the body when the heading
+ * did (RN-DSC-054).
+ *
+ * It reads the same shape the backend reads — a `title:` with a value on one
+ * line — and nothing else: a list, an empty value or a nested block means the
+ * frontmatter stated none, and the heading answered.
+ */
+export function statedInFrontmatter(body: string): boolean {
+  if (!body.startsWith('---')) return false;
+  const end = body.indexOf('\n---', 3);
+  if (end === -1) return false;
+  return /^title:[ \t]*\S/m.test(body.slice(4, end));
+}
+
+/** The longest a heading key may be, which is what an anchor is matched on. */
+const MAX_KEY_LENGTH = 80;
 
 /**
- * The slug of a note, as the product derives it from the title (profile §5.3).
+ * The key a **heading** is matched by, which is how an anchor finds the
+ * section it names inside a note.
  *
- * **This is the second implementation of one rule**, and the first is
- * `packages/kernel/src/slug.ts`. It is duplicated because the frontend takes
- * types from `@memorysmith/contracts` and nothing else from the backend
- * (`architecture-guide.md` §5.1), and breaking that to share six lines would
- * drag the kernel into the browser bundle. The price of the duplication is
- * that it drifts in silence — it already did, which is #73 — so the two are
- * pinned to the **published conformance cases** rather than to each other.
+ * **It is not the key of a note, and there is no longer one of those.** A link
+ * resolves against the title, literally and case-exact (RN-DSC-041), so the
+ * slug this file used to compute — the second implementation of a rule the
+ * kernel also implemented, and the one that drifted in #73 — is gone. What is
+ * left is this: an anchor and a heading are two spellings of the same phrase,
+ * written by the same person minutes apart, and folding case and punctuation
+ * between them is what makes `#Artigo 75` find `## Artigo 75`.
  *
- * Two of the six steps were missing here, and both matter for exactly the
- * titles these vaults are full of:
- *
- * - A `.` or `,` **between two digits** belongs to the number and not to the
- *   words around it, so `Lei 14.133` is `lei-14133` and never `lei-14-133`.
- *   Without it the reading surface computed a slug the backend had never
- *   stored, failed to find the note, and drew a real edge as a pending link.
- * - The truncation, which decides the slug of any long title.
+ * Nothing outside this comparison reads it. The address of a note carries a
+ * decorative label, computed in `note-address.ts` and never compared with
+ * anything, which is why that one is not called `slugify` either.
  */
-export function slugify(name: string): string {
+export function headingKey(name: string): string {
   return name
     .normalize('NFD')
     .replace(/(\d)[.,](\d)/g, '$1$2')
@@ -286,7 +299,7 @@ export function slugify(name: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, MAX_SLUG_LENGTH)
+    .slice(0, MAX_KEY_LENGTH)
     .replace(/-+$/g, '');
 }
 
