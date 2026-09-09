@@ -156,7 +156,11 @@
   "portability": {
     "download": "Baixar o vault (.vault)",
     "preparing": "Preparando o arquivo…",
-    "failed": "Não foi possível preparar o arquivo"
+    "failed": "Não foi possível preparar o arquivo",
+    "import": "Importar um vault (.vault)",
+    "uploading": "Enviando…",
+    "importing": "Escrevendo o vault…",
+    "importFailed": "Não foi possível importar esse arquivo"
   },
   "graph": {
     "heading": "Grafo do vault",

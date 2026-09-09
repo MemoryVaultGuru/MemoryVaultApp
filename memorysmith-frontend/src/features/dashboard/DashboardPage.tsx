@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { ImportVaultButton } from '../portability/ImportVaultButton';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { listVaults } from '../../shared/api/source';
@@ -31,7 +32,12 @@ export function DashboardPage() {
 
   return (
     <section className="page dashboard">
-      <h2 className="dashboard-section-heading">{t('dashboard.selectVault')}</h2>
+      <div className="dashboard-heading-row">
+        <h2 className="dashboard-section-heading">{t('dashboard.selectVault')}</h2>
+        {/* An import makes a NEW vault, so it belongs where the vaults are
+            listed and not inside one of them (RN-PRT-012). */}
+        <ImportVaultButton />
+      </div>
       {state === 'error' && <p className="status">{t(messageKeyOf(query.error))}</p>}
       {state === 'pending' && <VaultCatalogueSkeleton />}
       <CardCarousel prevLabel={t('dashboard.prevVaults')} nextLabel={t('dashboard.nextVaults')}>

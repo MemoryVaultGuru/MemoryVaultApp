@@ -39,6 +39,7 @@ import {
   type PortabilityRequest,
   type PortabilityUseCases,
 } from '@memorysmith/svc-portability/adapters/http';
+import type { VaultWriter } from '@memorysmith/svc-portability/application/import';
 
 export interface AppDependencies {
   readonly verifier: TokenVerifier;
@@ -57,6 +58,11 @@ export interface AppDependencies {
    * vaults it does not own, so the decision comes from whoever does.
    */
   readonly canReadVault: (request: KnowledgeRequest, vaultId: string) => Promise<boolean>;
+  /**
+   * What an import writes a vault with. It is built here, per request, because
+   * it joins two contexts that may not import each other.
+   */
+  readonly vaultWriterFor: (request: KnowledgeRequest) => VaultWriter;
 }
 
 type Variables = {
@@ -127,8 +133,15 @@ export function createApp(deps: AppDependencies): Hono<{ Variables: Variables }>
         // answered by the context that owns it.
         canRead,
       });
-      // Portability holds no vault either, and asks the same question.
-      c.set('portability', { subscription: resolved.value.subscription, canRead });
+      // Portability holds no vault either, and asks the same question — plus
+      // one more, because an import WRITES: whoever is importing is who every
+      // write of it is attributed to (rule 7).
+      c.set('portability', {
+        subscription: resolved.value.subscription,
+        canRead,
+        authorship: resolved.value.authorship,
+        write: deps.vaultWriterFor(resolved.value),
+      });
       await next();
     },
   );

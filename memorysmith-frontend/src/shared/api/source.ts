@@ -143,6 +143,14 @@ export function notesTitled(vaultSlug: string, target: string): number {
 }
 
 /** The whole vault as a downloadable archive, prepared on demand. */
+export function prepareImport() {
+  return backend.prepareImport();
+}
+
+export function applyImport(uploadKey: string, name: string) {
+  return backend.applyImport(uploadKey, name);
+}
+
 export function exportVault(vaultSlug: string): Promise<ExportJobDto> {
   return backend.exportVault(vaultSlug);
 }

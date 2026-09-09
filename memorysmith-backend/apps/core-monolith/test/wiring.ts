@@ -86,7 +86,10 @@ import {
 import { InMemoryAuditTrail } from '@memorysmith/svc-audit/adapters/trail';
 import type { PortabilityUseCases } from '@memorysmith/svc-portability/adapters/http';
 import { ExportVault } from '@memorysmith/svc-portability/application';
-import { createZip } from '@memorysmith/svc-portability/adapters/zip';
+import { createZip, readZip } from '@memorysmith/svc-portability/adapters/zip';
+import { ImportVault, PrepareImport } from '@memorysmith/svc-portability/application/import';
+import { KnowledgeVaultWriter } from '../src/import-writer.js';
+import { parseVaultDocument } from '../src/composition-root.js';
 import { KnowledgeExportSource } from '../src/export-source.js';
 import {
   GetNoteHistory,
@@ -310,6 +313,17 @@ export function buildTestApp() {
    * the archive it keeps is what the test reads back.
    */
   const archives = new Map<string, Buffer>();
+  /**
+   * The uploads of an import, in memory. The presigned address is a marker
+   * this harness answers to itself: what the tests exercise is what happens
+   * once the bytes are here.
+   */
+  const uploads = new Map<string, Buffer>();
+  const uploadStore = {
+    presignUpload: async (key: string) => `memory://upload/${key}`,
+    read: async (key: string) => uploads.get(key) ?? null,
+    discard: async (key: string) => void uploads.delete(key),
+  };
   const portabilityUseCases: PortabilityUseCases = {
     exportVault: (request) =>
       new ExportVault(
@@ -325,10 +339,34 @@ export function buildTestApp() {
         serializeVaultDocument,
         MARKDOWN_SPEC_VERSION,
       ),
+    prepareImport: (request) =>
+      new PrepareImport(uploadStore, request.subscription.subscriptionId.value),
+    importVault: (request) =>
+      new ImportVault(
+        uploadStore,
+        request.write,
+        readZip,
+        parseVaultDocument,
+        request.subscription.subscriptionId.value,
+      ),
   };
 
   const app = createApp({
     verifier,
+    /** The write side of an import, over the same use cases production uses. */
+    vaultWriterFor: (request) =>
+      new KnowledgeVaultWriter(
+        {
+          createVault: new CreateVault(knowledgeRepos(request.subscription)),
+          putGuidance: new PutGuidance(knowledgeRepos(request.subscription)),
+          createFolder: new CreateFolder(knowledgeRepos(request.subscription)),
+          putTemplate: new PutTemplate(knowledgeRepos(request.subscription)),
+          createNote: new CreateNote(knowledgeRepos(request.subscription)),
+          deleteVault: new DeleteVault(knowledgeRepos(request.subscription)),
+        },
+        request.ctx,
+        request.subscription.subscriptionId,
+      ),
     accessUseCases,
     knowledgeUseCases,
     auditUseCases,
@@ -379,5 +417,6 @@ export function buildTestApp() {
     projectNote,
     projectStructure,
     archives,
+    uploads,
   };
 }

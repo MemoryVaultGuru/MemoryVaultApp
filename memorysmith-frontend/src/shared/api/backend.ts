@@ -232,6 +232,25 @@ export async function getVaultGraph(vaultSlug: string): Promise<VaultGraphDto> {
  * answers with a short-lived link rather than with the bytes, so what comes
  * back here is where to fetch it and until when.
  */
+/** A short-lived address to upload a `.vault` file to (RN-PRT-014). */
+export async function prepareImport(): Promise<{ uploadKey: string; uploadUrl: string }> {
+  return request<{ uploadKey: string; uploadUrl: string }>('/portability/imports', {
+    method: 'POST',
+    body: {},
+  });
+}
+
+/** Reads what was uploaded and writes the vault it describes. */
+export async function applyImport(
+  uploadKey: string,
+  name: string,
+): Promise<{ vaultId: string; noteCount: number; folderCount: number }> {
+  return request<{ vaultId: string; noteCount: number; folderCount: number }>(
+    '/portability/imports/apply',
+    { method: 'POST', body: { uploadKey, name } },
+  );
+}
+
 export async function exportVault(vaultSlug: string): Promise<ExportJobDto> {
   const vaultId = await vaultIdOf(vaultSlug);
   return request<ExportJobDto>(`/portability/vaults/${vaultId}/export`, { method: 'POST' });

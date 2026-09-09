@@ -20,6 +20,7 @@ import {
   VAULT_DOCUMENT_ENTRY,
   vaultDocumentSchema,
 } from '@memorysmith/contracts';
+import type { VaultDocument } from '@memorysmith/svc-portability/domain';
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import type { S3Client } from '@aws-sdk/client-s3';
 import {
@@ -106,6 +107,15 @@ export function serializeVaultDocument(document: unknown): { entry: string; cont
     entry: VAULT_DOCUMENT_ENTRY,
     content: JSON.stringify(vaultDocumentSchema.parse(document), null, 2),
   };
+}
+
+/**
+ * Reads a vault document, validated against the published schema. The mirror
+ * of `serializeVaultDocument`, and here for the same reason: the schema is zod
+ * and neither `domain/` nor `application/` may import it (RN-PRT-014).
+ */
+export function parseVaultDocument(json: string): VaultDocument {
+  return vaultDocumentSchema.parse(JSON.parse(json)) as VaultDocument;
 }
 
 export function buildKnowledge(infra: Infrastructure, context: SubscriptionContext) {

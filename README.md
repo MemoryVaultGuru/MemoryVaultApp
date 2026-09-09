@@ -71,7 +71,7 @@ What changes in practice:
 - **What was written is defensible.** Every revision records who wrote it, when and with which agent, and an opinion issued in March can be demonstrated with the base as it stood in March.
 - **Two people can work on it.** The base lives in a subscription with roles, and concurrent writing is detected instead of overwriting in silence. At this stage, whoever adds somebody to the subscription is platform operations.
 - **Everyone stays in the tool they prefer.** The vault is served over MCP, which is an open standard, so any client that speaks the protocol reaches the same vault, with the same content and under the same role.
-- **It comes out whole whenever you want, and it goes back in.** The export is one open, specified JSON document — every note body plain Markdown, byte for byte — zipped as a `.vault` file, and the product reads it back: a backup that restores, a vault that moves between installations, an account seeded from another.
+- **It comes out whole whenever you want, and it goes back in.** The export is one open, specified JSON document — every note body plain Markdown, byte for byte — zipped as a `.vault` file, and the product **reads it back**: a backup that restores, a vault that moves between installations, an account seeded from another. An import always creates a new vault, so there is nothing to overwrite and nothing to confirm.
 
 ## Two interfaces over the same vault
 

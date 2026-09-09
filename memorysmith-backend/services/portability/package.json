@@ -9,7 +9,8 @@
     "./adapters/s3": "./src/adapters/s3.ts",
     "./adapters/zip": "./src/adapters/zip.ts",
     "./application": "./src/application/ExportVault.ts",
-    "./domain": "./src/domain/VaultDocumentBuilder.ts"
+    "./domain": "./src/domain/VaultDocumentBuilder.ts",
+    "./application/import": "./src/application/ImportVault.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

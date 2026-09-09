@@ -17,9 +17,15 @@
  * for a copy of something we already store.
  */
 
-import { GetObjectCommand, PutObjectCommand, type S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  type S3Client,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { ArchiveStore } from '../application/ExportVault.js';
+import type { UploadStore } from '../application/ImportVault.js';
 
 export const EXPORT_LIFECYCLE_TAG = { key: 'lifecycle', value: 'export' } as const;
 
@@ -59,4 +65,51 @@ export class S3ArchiveStore implements ArchiveStore {
 
 function filenameOf(key: string): string {
   return key.split('/').pop() ?? 'export.zip';
+}
+
+/**
+ * S3UploadStore: where a `.vault` arrives before it becomes a vault.
+ *
+ * It lives under the same subscription prefix as everything else,
+ * `s/{subscriptionId}/imports/`, and it wears the same `lifecycle=export` tag:
+ * an upload is as derived as an export — the vault it describes is either
+ * written or it is not, and either way the file has done its job.
+ *
+ * The bucket blocks public access, so the upload is a pre-signed PUT, issued
+ * for that one key and expiring with the use case that asked for it.
+ */
+export class S3UploadStore implements UploadStore {
+  constructor(
+    private readonly s3: S3Client,
+    private readonly bucket: string,
+  ) {}
+
+  async presignUpload(key: string, expiresInSeconds: number): Promise<string> {
+    return getSignedUrl(
+      this.s3,
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ContentType: 'application/zip',
+        Tagging: `${EXPORT_LIFECYCLE_TAG.key}=${EXPORT_LIFECYCLE_TAG.value}`,
+      }),
+      { expiresIn: expiresInSeconds },
+    );
+  }
+
+  async read(key: string): Promise<Buffer | null> {
+    try {
+      const found = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+      const bytes = await found.Body?.transformToByteArray();
+      return bytes ? Buffer.from(bytes) : null;
+    } catch {
+      // An upload that never happened and one that expired are the same
+      // answer: there is nothing at that key.
+      return null;
+    }
+  }
+
+  async discard(key: string): Promise<void> {
+    await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
 }

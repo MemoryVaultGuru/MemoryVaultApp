@@ -1200,6 +1200,8 @@ The domain returns `Result<T, DomainError>`; **exceptions exist only at the edge
 
 **This is where file names used to come back into existence, and they do not any more.** `GUIDANCE.md`, `TEMPLATE.md`, `STRUCTURE.md`, the numeric prefix, the reserved-name renaming and the link rewriting were all **derivations**, and a derivation on the way out is a second source of truth for what the vault says (RN-PRT-010). What is written is what is held.
 
+**The import is the same door, from the other side.** `POST /imports` answers a short-lived address under `s/{subscriptionId}/imports/`, the client uploads the file there, and `POST /imports/apply` reads it and writes the vault — because a request body has a ceiling a real vault clears easily. Writing belongs to the Knowledge context, which Portability may not import, so the composition root builds a `VaultWriter` over the ordinary use cases and hands it to the request: an import goes through the same quota, the same limits and the same events as any other write, and every one of them carries the `Authorship` of whoever imported.
+
 **The schema lives in the contracts package and the validation happens at the edge.** `domain/` imports only the kernel and a zod schema is not the kernel, so the document is shaped in the domain, and the composition root is what serialises it through `vaultDocumentSchema` — which is what makes "the export writes nothing the schema does not describe" a fact rather than an intention (RN-PRT-011).
 
 ---

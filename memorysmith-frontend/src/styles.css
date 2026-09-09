@@ -2487,3 +2487,13 @@ a:hover {
     display: none;
   }
 }
+
+/* The heading of the vault catalogue, with the one action that belongs beside
+   it rather than inside a vault: importing a `.vault` makes a new one. */
+.dashboard-heading-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}

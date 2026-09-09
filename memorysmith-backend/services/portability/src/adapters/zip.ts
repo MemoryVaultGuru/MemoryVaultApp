@@ -7,7 +7,7 @@
  * compresses well enough at the transport layer that storing is no penalty.
  */
 
-import { deflateRawSync, crc32 } from 'node:zlib';
+import { crc32, deflateRawSync, inflateRawSync } from 'node:zlib';
 
 interface Entry {
   readonly name: string;
@@ -92,4 +92,53 @@ export function createZip(files: Array<{ path: string; content: string }>, now: 
   chunks.push(end);
 
   return Buffer.concat(chunks);
+}
+
+/**
+ * The other side of the door: the entries of an archive, by name.
+ *
+ * It reads the central directory rather than walking the local headers,
+ * because the directory is the authoritative index of a zip and a local header
+ * may declare a size of zero and defer it to a descriptor. Stored and deflated
+ * entries are both read; anything else is refused, since a `.vault` is written
+ * by the function above and a file that is not one has no claim on being read.
+ */
+export function readZip(archive: Buffer): Record<string, string> {
+  const end = findEndOfCentralDirectory(archive);
+  if (end === -1) throw new Error('not a zip archive');
+
+  const count = archive.readUInt16LE(end + 10);
+  let at = archive.readUInt32LE(end + 16);
+  const entries: Record<string, string> = {};
+
+  for (let index = 0; index < count; index++) {
+    if (archive.readUInt32LE(at) !== 0x02014b50) throw new Error('corrupt central directory');
+    const method = archive.readUInt16LE(at + 10);
+    const compressedSize = archive.readUInt32LE(at + 20);
+    const nameLength = archive.readUInt16LE(at + 28);
+    const extraLength = archive.readUInt16LE(at + 30);
+    const commentLength = archive.readUInt16LE(at + 32);
+    const localOffset = archive.readUInt32LE(at + 42);
+    const name = archive.subarray(at + 46, at + 46 + nameLength).toString('utf8');
+
+    const localNameLength = archive.readUInt16LE(localOffset + 26);
+    const localExtraLength = archive.readUInt16LE(localOffset + 28);
+    const dataAt = localOffset + 30 + localNameLength + localExtraLength;
+    const data = archive.subarray(dataAt, dataAt + compressedSize);
+
+    if (method === 0) entries[name] = data.toString('utf8');
+    else if (method === DEFLATED) entries[name] = inflateRawSync(data).toString('utf8');
+    else throw new Error(`unsupported compression method ${method}`);
+
+    at += 46 + nameLength + extraLength + commentLength;
+  }
+  return entries;
+}
+
+/** The record is at the end, after a comment nobody writes and anyone may. */
+function findEndOfCentralDirectory(archive: Buffer): number {
+  for (let at = archive.length - 22; at >= 0; at--) {
+    if (archive.readUInt32LE(at) === 0x06054b50) return at;
+  }
+  return -1;
 }

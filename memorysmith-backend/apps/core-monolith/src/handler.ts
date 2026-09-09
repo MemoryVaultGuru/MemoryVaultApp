@@ -81,8 +81,15 @@ import {
 } from '@memorysmith/svc-discovery/application/queries';
 import type { PortabilityUseCases } from '@memorysmith/svc-portability/adapters/http';
 import { ExportVault } from '@memorysmith/svc-portability/application';
-import { createZip } from '@memorysmith/svc-portability/adapters/zip';
-import { S3ArchiveStore } from '@memorysmith/svc-portability/adapters/s3';
+import { createZip, readZip } from '@memorysmith/svc-portability/adapters/zip';
+import {
+  ImportVault,
+  PrepareImport,
+  type VaultWriter,
+} from '@memorysmith/svc-portability/application/import';
+import { KnowledgeVaultWriter } from './import-writer.js';
+import { parseVaultDocument } from './composition-root.js';
+import { S3ArchiveStore, S3UploadStore } from '@memorysmith/svc-portability/adapters/s3';
 import { createApp } from './app.js';
 import {
   authorshipFor,
@@ -234,6 +241,24 @@ const discoveryUseCases: DiscoveryUseCases = {
  * same content bucket, under the subscription prefix. Nothing new is stored:
  * an export is derived, and the bucket rule expires it by tag.
  */
+
+/** The write side of an import, over the ordinary Knowledge use cases. */
+function vaultWriterFor(request: KnowledgeRequest): VaultWriter {
+  const knowledge = buildKnowledge(infra, request.subscription);
+  return new KnowledgeVaultWriter(
+    {
+      createVault: new CreateVault(knowledge),
+      putGuidance: new PutGuidance(knowledge),
+      createFolder: new CreateFolder(knowledge),
+      putTemplate: new PutTemplate(knowledge),
+      createNote: new CreateNote(knowledge),
+      deleteVault: new DeleteVault(knowledge),
+    },
+    request.ctx,
+    request.subscription.subscriptionId,
+  );
+}
+
 const portabilityUseCases: PortabilityUseCases = {
   exportVault: (request) =>
     new ExportVault(
@@ -243,6 +268,19 @@ const portabilityUseCases: PortabilityUseCases = {
       request.subscription.subscriptionId.value,
       serializeVaultDocument,
       MARKDOWN_SPEC_VERSION,
+    ),
+  prepareImport: (request) =>
+    new PrepareImport(
+      new S3UploadStore(infra.s3, infra.contentBucket),
+      request.subscription.subscriptionId.value,
+    ),
+  importVault: (request) =>
+    new ImportVault(
+      new S3UploadStore(infra.s3, infra.contentBucket),
+      request.write,
+      readZip,
+      parseVaultDocument,
+      request.subscription.subscriptionId.value,
     ),
 };
 
@@ -258,6 +296,7 @@ function discoveryFor(context: SubscriptionContext) {
 
 const app = createApp({
   verifier,
+  vaultWriterFor,
   accessUseCases,
   knowledgeUseCases,
   auditUseCases,

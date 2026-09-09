@@ -357,6 +357,107 @@ describe('Portability answers over the API', () => {
     expect(inside).not.toContain('STRUCTURE.md');
   });
 
+  it('takes a .vault back and writes the vault it describes', async () => {
+    // The round trip is the test (RN-PRT-012): a vault exported and imported
+    // comes back the same in everything the document carries.
+    const { vaultId } = await seed();
+    await call(`/portability/vaults/${vaultId}/export`, { method: 'POST' });
+    const [exportKey] = [...harness.archives.keys()];
+    const archive = harness.archives.get(exportKey ?? '') as Buffer;
+
+    const prepared = (await (await call('/portability/imports', { method: 'POST' })).json()) as {
+      uploadKey: string;
+      uploadUrl: string;
+    };
+    expect(prepared.uploadUrl).toContain(prepared.uploadKey);
+    // Under the subscription prefix, like everything else (rule 1).
+    expect(prepared.uploadKey).toMatch(
+      /^s\/[0-9A-HJKMNP-TV-Z]{26}\/imports\/[0-9A-HJKMNP-TV-Z]{26}\.vault$/,
+    );
+    harness.uploads.set(prepared.uploadKey, archive);
+
+    const job = (await (
+      await call('/portability/imports/apply', {
+        method: 'POST',
+        // The subscription holds each vault name once (RN-KNW-032), and this
+        // document came from this very subscription: naming the copy is what
+        // makes "the same file twice gives two vaults" true without the server
+        // inventing a suffix.
+        body: { uploadKey: prepared.uploadKey, name: 'Normas e Legislacao (copia)' },
+      })
+    ).json()) as { vaultId: string; status: string; folderCount: number; noteCount: number };
+
+    expect(job.status).toBe('imported');
+    expect(job.noteCount).toBe(2);
+    // A new vault, never the one it came from (RN-PRT-012).
+    expect(job.vaultId).not.toBe(vaultId);
+    // And the upload is discarded once the import ends.
+    expect(harness.uploads.has(prepared.uploadKey)).toBe(false);
+
+    const [original, imported] = await Promise.all(
+      [vaultId, job.vaultId].map(
+        async (id) =>
+          (await (await call(`/knowledge/vaults/${id}`)).json()) as {
+            name: string;
+            folders: Array<{ name: string; description: string; hasTemplate: boolean }>;
+            guidance: { content: string } | null;
+          },
+      ),
+    );
+
+    expect(imported?.name).toBe('Normas e Legislacao (copia)');
+    expect(imported?.guidance?.content).toBe(original?.guidance?.content);
+    expect(imported?.folders.map((folder) => [folder.name, folder.description])).toEqual(
+      original?.folders.map((folder) => [folder.name, folder.description]),
+    );
+
+    // Every body byte for byte, in the order the document carried.
+    const bodies = async (id: string): Promise<string[]> => {
+      const notes = (await (await call(`/knowledge/vaults/${id}/notes`)).json()) as Array<{
+        noteId: string;
+      }>;
+      return Promise.all(
+        notes.map(
+          async (note) =>
+            (
+              (await (await call(`/knowledge/vaults/${id}/notes/${note.noteId}`)).json()) as {
+                content: string;
+              }
+            ).content,
+        ),
+      );
+    };
+    expect(await bodies(job.vaultId)).toEqual(await bodies(vaultId));
+  });
+
+  it('refuses a document it cannot read, and creates nothing', async () => {
+    // RN-PRT-014: refused whole, with the reason, before the first write.
+    const before = (await (await call('/knowledge/vaults')).json()) as unknown[];
+
+    const prepared = (await (await call('/portability/imports', { method: 'POST' })).json()) as {
+      uploadKey: string;
+    };
+    harness.uploads.set(prepared.uploadKey, Buffer.from('not a zip at all'));
+
+    const refused = await call('/portability/imports/apply', {
+      method: 'POST',
+      body: { uploadKey: prepared.uploadKey },
+    });
+    expect(refused.status).toBe(400);
+    expect(((await refused.json()) as { message: string }).message).toContain('.vault');
+
+    const after = (await (await call('/knowledge/vaults')).json()) as unknown[];
+    expect(after.length).toBe(before.length);
+  });
+
+  it('answers 404 for an upload of another subscription', async () => {
+    const refused = await call('/portability/imports/apply', {
+      method: 'POST',
+      body: { uploadKey: 's/01JBXR8Z5T7QK9M2N4P6R8S0T2/imports/01JBXR8Z5T7QK9M2N4P6R8S0T2.vault' },
+    });
+    expect(refused.status).toBe(404);
+  });
+
   it('answers 404 for a vault this session cannot read', async () => {
     // A vault that is not ours is indistinguishable from one that does not
     // exist: a 403 here would confirm it exists (rule 9).

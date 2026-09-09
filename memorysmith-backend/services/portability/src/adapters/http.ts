@@ -1,7 +1,9 @@
 /**
  * HTTP surface of svc-portability (architecture-guide.md, sections 14.1, 16):
  *
- *   POST /vaults/:v/export   ->  a ready archive and a short-lived link
+ *   POST /vaults/:v/export     ->  a ready archive and a short-lived link
+ *   POST /imports              ->  a short-lived address to upload a .vault to
+ *   POST /imports/apply        ->  reads what was uploaded and writes the vault
  *
  * The export is answered as a LINK and never as a body. A vault of two
  * thousand notes is megabytes of Markdown, and a synchronous response has a
@@ -15,6 +17,7 @@
 
 import { Hono, type Context } from 'hono';
 import {
+  type Authorship,
   DomainError,
   httpStatusFor,
   Instant,
@@ -22,14 +25,26 @@ import {
   type SubscriptionContext,
 } from '@memorysmith/kernel';
 import type { ExportVault } from '../application/ExportVault.js';
+import type { ImportVault, PrepareImport, VaultWriter } from '../application/ImportVault.js';
 
 export interface PortabilityRequest {
   readonly subscription: SubscriptionContext;
   readonly canRead: (vaultId: string) => Promise<boolean>;
+  /** Who is importing. Every write of an import carries it (rule 7). */
+  readonly authorship: Authorship;
+  /**
+   * What an import writes with. Writing a vault belongs to the Knowledge
+   * context, which this service may not import, so it arrives already built
+   * for this request — the same arrangement `canRead` uses to ask a question
+   * this service cannot answer either.
+   */
+  readonly write: VaultWriter;
 }
 
 export interface PortabilityUseCases {
   readonly exportVault: (request: PortabilityRequest) => ExportVault;
+  readonly prepareImport: (request: PortabilityRequest) => PrepareImport;
+  readonly importVault: (request: PortabilityRequest) => ImportVault;
 }
 
 type Variables = { portability: PortabilityRequest };
@@ -65,6 +80,42 @@ export function createPortabilityRoutes(
       expiresAt: value.expiresAt,
       noteCount: value.noteCount,
       bytes: value.bytes,
+    }));
+  });
+
+  /**
+   * The file is uploaded, not posted. A request body has a ceiling a real
+   * vault clears easily, so the client asks for a place to put the file,
+   * uploads it there, and then asks for it to be applied — the mirror image of
+   * how the export hands an object over by a short-lived URL.
+   */
+  app.post('/imports', async (c) => {
+    const request = c.get('portability');
+    const prepared = await useCases.prepareImport(request).execute();
+    return present(c, prepared, (value) => ({
+      uploadKey: value.uploadKey,
+      uploadUrl: value.uploadUrl,
+      expiresAt: Instant.now().toISOString(),
+    }));
+  });
+
+  app.post('/imports/apply', async (c) => {
+    const request = c.get('portability');
+    const body = (await c.req.json().catch(() => ({}))) as {
+      uploadKey?: string;
+      name?: string;
+    };
+    const job = await useCases.importVault(request).execute({
+      uploadKey: String(body.uploadKey ?? ''),
+      name: typeof body.name === 'string' && body.name.trim() ? body.name.trim() : null,
+      by: request.authorship,
+    });
+    return present(c, job, (value) => ({
+      importId: value.importId,
+      vaultId: value.vaultId,
+      status: value.status,
+      folderCount: value.folderCount,
+      noteCount: value.noteCount,
     }));
   });
 
