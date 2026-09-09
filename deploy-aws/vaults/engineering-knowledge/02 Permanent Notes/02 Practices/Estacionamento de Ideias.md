@@ -1,4 +1,5 @@
 ---
+title: Estacionamento de Ideias
 type: practice
 tags:
   - facilitation

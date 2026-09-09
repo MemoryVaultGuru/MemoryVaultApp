@@ -1,4 +1,5 @@
 ---
+title: Sequenciador de Funcionalidades
 type: practice
 tags: [prioritization, planning]
 maturity: evergreen

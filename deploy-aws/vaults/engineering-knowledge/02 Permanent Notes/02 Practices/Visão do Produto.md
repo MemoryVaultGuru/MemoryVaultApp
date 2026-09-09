@@ -1,4 +1,5 @@
 ---
+title: Visão do Produto
 type: practice
 tags: [strategy, vision, alignment]
 maturity: evergreen

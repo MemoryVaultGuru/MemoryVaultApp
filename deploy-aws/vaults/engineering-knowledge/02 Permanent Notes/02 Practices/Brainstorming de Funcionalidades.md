@@ -1,4 +1,5 @@
 ---
+title: Brainstorming de Funcionalidades
 type: practice
 tags: [ideation, features, solution]
 maturity: evergreen

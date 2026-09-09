@@ -1,4 +1,5 @@
 ---
+title: Lean Inception 02
 chapter: 2
 tags:
   - facilitation

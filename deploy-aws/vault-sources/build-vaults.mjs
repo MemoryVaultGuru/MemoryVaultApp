@@ -580,6 +580,42 @@ function normalizeFrontmatter(raw, vaultSlug) {
   return head + rest;
 }
 
+/**
+ * The title of a note is read from the note: `title:` in the frontmatter
+ * first, and the first level-1 heading when the frontmatter states none. A
+ * tree exported from an editor keyed by file name carries that name nowhere
+ * inside the file, so the name goes in as `title:` where the source states
+ * none — the block is created when there is none, the key is inserted when
+ * there is one, and the body is left byte for byte as it was.
+ *
+ * The frontmatter and not a heading, for the same reason the specification
+ * reads it first: the file name is what the links of that vault were written
+ * against, and injecting a heading would rewrite the top of every note whose
+ * author opened with a paragraph.
+ *
+ * The four characters that address a note come out of the name: a title
+ * carrying one of them is a title no link can name, which is no repair at all.
+ */
+export function stateTitle(raw, fileName) {
+  const title = fileName.replace(/[#[\]|"\\]/g, '').trim() || 'Nota';
+
+  if (!raw.startsWith('---')) return `---\ntitle: ${title}\n---\n\n${raw}`;
+
+  const end = raw.indexOf('\n---', 3);
+  if (end === -1) return `---\ntitle: ${title}\n---\n\n${raw}`;
+
+  const head = raw.slice(4, end);
+  // A `title:` with a value on the same line is a stated title. Anything else
+  // — absent, empty, a list — is not, and falls to the repair.
+  if (/^title:[ \t]*\S/m.test(head)) return raw;
+
+  const withoutEmpty = head
+    .split('\n')
+    .filter((line) => !/^title:[ \t]*$/.test(line))
+    .join('\n');
+  return `---\ntitle: ${title}\n${withoutEmpty}${raw.slice(end)}`;
+}
+
 function collectNoteStats(raw, vault) {
   const head = raw.startsWith('---') ? raw.slice(0, raw.indexOf('\n---', 3)) : '';
   const type = /^type:\s*(\S+)/m.exec(head)?.[1] ?? 'none';
@@ -604,11 +640,14 @@ function copyNotes(srcDir, outDir, vault, counters, depth) {
   if (depth > 6) warnings.push(`depth > 6 at ${outDir}`);
   for (const f of listMd(srcDir)) {
     const title = f.replace(/\.md$/, '');
-    const slug = slugify(title);
-    if (vault.slugs.has(slug))
-      warnings.push(`[${vault.slug}] duplicate note slug "${slug}" (${join(outDir, f)})`);
-    vault.slugs.add(slug);
-    const raw = normalizeFrontmatter(readFileSync(join(srcDir, f), 'utf8'), vault.slug);
+    // Two notes may carry one title, in one folder or in two, and nothing
+    // refuses the second one. What used to be a warning here was reading the
+    // vault against a rule the specification retired.
+    vault.slugs.add(slugify(title));
+    const raw = stateTitle(
+      normalizeFrontmatter(readFileSync(join(srcDir, f), 'utf8'), vault.slug),
+      title,
+    );
     collectNoteStats(raw, vault);
     writeFileSync(join(outDir, f), raw, 'utf8');
     counters.notes += 1;

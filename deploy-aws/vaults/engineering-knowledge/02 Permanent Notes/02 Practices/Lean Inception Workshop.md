@@ -1,4 +1,5 @@
 ---
+title: Lean Inception Workshop
 type: practice
 tags: [workshop, facilitation, alignment]
 maturity: evergreen

@@ -1,4 +1,5 @@
 ---
+title: Sala de Guerra
 type: practice
 tags: [environment, collaboration, setup]
 maturity: evergreen

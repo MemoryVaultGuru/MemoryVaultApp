@@ -1,4 +1,5 @@
 ---
+title: Lean Inception 03
 chapter: 3
 tags:
   - methodology

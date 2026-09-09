@@ -1,4 +1,5 @@
 ---
+title: Personas
 type: concept
 tags: [ux, user-centered-design]
 maturity: evergreen

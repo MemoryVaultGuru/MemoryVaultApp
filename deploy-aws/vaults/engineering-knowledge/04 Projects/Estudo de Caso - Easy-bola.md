@@ -1,4 +1,5 @@
 ---
+title: Estudo de Caso - Easy-bola
 type: project
 tags: [example, mvp-case]
 maturity: evergreen

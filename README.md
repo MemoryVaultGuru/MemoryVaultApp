@@ -406,7 +406,9 @@ The first three are real vaults in use, and they show the product at the size wh
 
 They are **not translations of each other**. The same notations carried by different subject matter, so the pair reads as two vaults and not as one typed twice — and so it can show the thing a single vault cannot: the four reserved keys (`aliases`, `tags`, `created`, `updated`) are written in en-US in **both**, while everything around them, `regiao` and `tipo` and `colhida_em`, is in the language of whoever keeps the vault. That is the language decision of the profile shown instead of stated, and the same evidence that the backend does not interpret content (PP4).
 
-They also carry the half of the profile no other vault will ever show: **the rejections**, each one written where somebody would have reached for it, beside the sentence saying what happens instead. An inline `#tag` that files nothing, a `title:` that renames nothing, a summary in the frontmatter that is discarded, HTML that is not rendered, a subscript that has no notation here.
+They also carry the half of the specification no other vault will ever show: **the rejections**, each one written where somebody would have reached for it, beside the sentence saying what happens instead. An inline `#tag` that files nothing, a summary in the frontmatter that is discarded, HTML that is not rendered, a subscript that has no notation here.
+
+And, since 0.6.0, the cases that decide what a note is **called**: a `title:` that says one thing while the heading says another, a title carrying a `#` that no link can name, two notes under one title where a single link becomes two edges, an alias catching a target no title matched beside the sentence saying a title always wins, and an attachment addressed by its name that appears in no graph.
 
 A test guards them in both directions: every entry of the declared notation appears in each vault, and neither vault demonstrates a notation the profile does not declare. Without it they would be the first thing to age when the notation changes, and they would age while teaching the wrong version to precisely the person who is learning.
 
@@ -426,7 +428,7 @@ The three real vaults are **not** part of the repository: they live on the machi
 node deploy-aws/vault-sources/build-vaults.mjs
 ```
 
-The script validates the product limits (2,000 notes and 200 folders per vault, depth 6, a folder description between 1 and 500 characters), detects a note slug collision within the vault and reports the warnings at the end. Running it without the three real vaults on the machine empties the three corresponding trees, because each output is recreated from zero. If you only want to regenerate the small ones, check `git status` before committing.
+The script validates the product limits (2,000 notes and 200 folders per vault, depth 6, a folder description between 1 and 500 characters) and reports the warnings at the end. It also **writes the file name of a note into its frontmatter as `title:`** where the source states none: the title of a note is read from the note, and a tree exported from an editor keyed by file name carries that name nowhere inside the file. Two notes under one title are no longer a warning, because nothing in a vault is a key. Running it without the three real vaults on the machine empties the three corresponding trees, because each output is recreated from zero. If you only want to regenerate the small ones, check `git status` before committing.
 
 ## Tearing the environment down
 
