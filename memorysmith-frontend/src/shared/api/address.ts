@@ -42,7 +42,14 @@
  * a notation it does not implement.
  */
 
-const ALLOWED_SCHEME = /^(https?|mailto|pending):/i;
+/**
+ * `pending:` and `attachment:` are this surface's own: a wikilink that matched
+ * no note and a reference to a file the vault keeps beside its notes. Neither
+ * leaves the page — `MarkdownAnchor` turns both into text that says what
+ * happened — and they are listed here so the filter does not empty them into
+ * the refusal case, which says something else entirely.
+ */
+const ALLOWED_SCHEME = /^(https?|mailto|pending|attachment):/i;
 
 /** Anything of the shape `word:`, which is what makes an address absolute. */
 const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i;

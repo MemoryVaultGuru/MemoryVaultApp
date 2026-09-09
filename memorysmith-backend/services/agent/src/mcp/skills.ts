@@ -21,10 +21,10 @@
 
 import {
   DECLARED_SILENCE,
-  MARKDOWN_PROFILE_NAME,
-  MARKDOWN_PROFILE_SOURCES,
-  MARKDOWN_PROFILE_URL,
-  MARKDOWN_PROFILE_VERSION,
+  MARKDOWN_SPEC_NAME,
+  MARKDOWN_SPEC_SOURCES,
+  MARKDOWN_SPEC_URL,
+  MARKDOWN_SPEC_VERSION,
   RECOGNISED_NOTATION,
   type RecognisedNotation,
 } from '@memorysmith/contracts';
@@ -131,8 +131,8 @@ avoiding the decision the owner already gave you.
  * that stops being read stops being taught in the same commit.
  *
  * **The whole declaration, the forms inherited from CommonMark included, and
- * that is a decision.** Profile v0.3.0 restated CommonMark and GFM inside
- * `profile.json`, taking the table from 31 rows to 54, and the first reading
+ * that is a decision.** Specification v0.3.0 restated CommonMark and GFM inside
+ * `spec.json`, taking the table from 31 rows to 54, and the first reading
  * was that twenty of them tell an agent that a paragraph is a paragraph. They
  * do not. Each inherited entry states where THIS profile changes what the form
  * means — that a link inside a code span is not extracted, that `![[x]]` is an
@@ -143,7 +143,7 @@ avoiding the decision the owner already gave you.
  * scoped the other way — the reading-surface expectations and the
  * demonstration vaults — were scoped for reasons that do not apply here.
  *
- * The `Read?` column left with profile v0.4.0, and it left because the answer
+ * The `Read?` column left with specification v0.4.0, and it left because the answer
  * stopped being a field: the profile no longer lists what it declines, so what
  * a form does is now the whole of what an entry says. The forms this product
  * is silent about are served below the table instead, from `DECLARED_SILENCE`.
@@ -200,15 +200,15 @@ function silence(): string {
  * about the half of the notation it is most confident in.
  */
 function sources(): string {
-  const cited = MARKDOWN_PROFILE_SOURCES.map((source) =>
+  const cited = MARKDOWN_SPEC_SOURCES.map((source) =>
     source.version
       ? `- **${source.name} ${source.version}** — ${source.url}`
       : `- **${source.name}** — ${source.url}`,
   );
 
   return [
-    `This product implements the **${MARKDOWN_PROFILE_NAME} ${MARKDOWN_PROFILE_VERSION}**, a`,
-    `published specification: ${MARKDOWN_PROFILE_URL}`,
+    `This product implements the **${MARKDOWN_SPEC_NAME} ${MARKDOWN_SPEC_VERSION}**, a`,
+    `published specification: ${MARKDOWN_SPEC_URL}`,
     '',
     'It does not invent the notation. Each form is credited to where it was',
     'established:',

@@ -2,8 +2,10 @@
  * AWS adapters of the Discovery projections, over mv-discovery
  * (architecture-guide.md, sections 11.1 and 11.3):
  *
- *   OUT#{from}#{to}        outgoing edge          IN#{to}#{from}   backlink
- *   PENDING#{slug}#{from}  link waiting for its target to exist
+ *   OUT#{from}#{to}         outgoing edge         IN#{to}#{from}   backlink
+ *   PENDING#{title}#{from}  link waiting for its target to exist
+ *   ALIAS#{title}#{from}#{to}  an edge that exists because an ALIAS matched,
+ *                              and that a note carrying that title takes away
  *   FACET#{noteId}         the portrait of one note
  *   STAT#{facet}#{value}   one counter PER VALUE, never one item per vault
  *   FDEF#{facet}           inferred kind, distinct count, discarded flag
@@ -21,6 +23,7 @@
  * and the vault ceiling of 2.000 notes (RN-KNW-010) keeps the scan bounded.
  */
 
+import { resolveTarget, vaultNames } from '../domain/LinkResolver.js';
 import {
   BatchWriteCommand,
   DeleteCommand,
@@ -143,51 +146,85 @@ export class DynamoLinkGraph implements LinkGraph {
 
     const existing = await this.query(vaultId, `OUT#${note.noteId}#`);
     const pending = await this.query(vaultId, 'PENDING#');
+    const aliasEdges = await this.query(vaultId, 'ALIAS#');
     await this.remove(vaultId, [
       ...existing.map((item) => String(item['SK'])),
       ...existing.map((item) => `IN#${String(item['toNoteId'])}#${note.noteId}`),
       ...pending
         .filter((item) => String(item['fromNoteId']) === note.noteId)
         .map((item) => String(item['SK'])),
+      ...aliasEdges
+        .filter((item) => String(item['fromNoteId']) === note.noteId)
+        .map((item) => String(item['SK'])),
     ]);
 
-    const notes = await this.query(vaultId, 'NOTE#');
-    const bySlug = new Map(notes.map((item) => [String(item['slug']), item]));
+    const names = this.namesOf(await this.query(vaultId, 'NOTE#'));
     const writes: Item[] = [];
 
     for (const link of links) {
-      const target = bySlug.get(link.slug);
-      const targetId = target ? String(target['noteId']) : null;
-      if (targetId && targetId !== note.noteId) {
-        // The edge is written in BOTH directions, so a backlink is a Query
-        // rather than a scan.
-        writes.push(
-          {
-            PK: this.pk(vaultId),
-            SK: `OUT#${note.noteId}#${targetId}`,
-            entity: 'EDGE',
-            fromNoteId: note.noteId,
-            toNoteId: targetId,
-          },
-          {
-            PK: this.pk(vaultId),
-            SK: `IN#${targetId}#${note.noteId}`,
-            entity: 'EDGE',
-            fromNoteId: note.noteId,
-            toNoteId: targetId,
-          },
-        );
-      } else if (!targetId) {
+      const answer = resolveTarget(link.title, names);
+      if (answer.kind === 'note') {
+        // Every note whose title matches becomes an edge (RN-DSC-042), so a
+        // target carried by two notes writes two.
+        for (const targetId of answer.noteIds) {
+          if (targetId === note.noteId) continue;
+          writes.push(...this.edgeItems(vaultId, note.noteId, targetId));
+          // An edge that exists because an ALIAS matched is marked, because a
+          // note written later under that title takes it away (RN-DSC-053).
+          if (answer.by === 'alias') {
+            writes.push({
+              PK: this.pk(vaultId),
+              SK: `ALIAS#${link.title}#${note.noteId}#${targetId}`,
+              entity: 'ALIASEDGE',
+              fromNoteId: note.noteId,
+              toNoteId: targetId,
+              title: link.title,
+            });
+          }
+        }
+      } else if (answer.kind === 'pending') {
         writes.push({
           PK: this.pk(vaultId),
-          SK: `PENDING#${link.slug}#${note.noteId}`,
+          SK: `PENDING#${link.title}#${note.noteId}`,
           entity: 'PENDING',
           fromNoteId: note.noteId,
-          slug: link.slug,
+          title: link.title,
         });
       }
+      // An attachment renders and is never an edge (RN-DSC-044).
     }
     await this.put(writes);
+  }
+
+  /** The edge, written in BOTH directions so a backlink is a Query. */
+  private edgeItems(vaultId: string, fromNoteId: string, toNoteId: string): Item[] {
+    return [
+      {
+        PK: this.pk(vaultId),
+        SK: `OUT#${fromNoteId}#${toNoteId}`,
+        entity: 'EDGE',
+        fromNoteId,
+        toNoteId,
+      },
+      {
+        PK: this.pk(vaultId),
+        SK: `IN#${toNoteId}#${fromNoteId}`,
+        entity: 'EDGE',
+        fromNoteId,
+        toNoteId,
+      },
+    ];
+  }
+
+  /** What the vault answers to, out of the note items it already holds. */
+  private namesOf(items: Item[]) {
+    return vaultNames(
+      items.map((item) => ({
+        noteId: String(item['noteId']),
+        title: item['title'] === undefined ? null : String(item['title']),
+        aliases: Array.isArray(item['aliases']) ? (item['aliases'] as string[]) : [],
+      })),
+    );
   }
 
   async removeNote(vaultId: string, noteId: string): Promise<void> {
@@ -197,7 +234,7 @@ export class DynamoLinkGraph implements LinkGraph {
         Key: { PK: this.pk(vaultId), SK: `NOTE#${noteId}` },
       }),
     );
-    const slug = noteItem.Item ? String(noteItem.Item['slug']) : null;
+    const title = noteItem.Item?.['title'] === undefined ? null : String(noteItem.Item['title']);
 
     const outgoing = await this.query(vaultId, `OUT#${noteId}#`);
     const incoming = await this.query(vaultId, `IN#${noteId}#`);
@@ -210,22 +247,48 @@ export class DynamoLinkGraph implements LinkGraph {
       ...incoming.map((item) => `OUT#${String(item['fromNoteId'])}#${noteId}`),
     ]);
 
-    if (slug) {
-      // The backlinks that pointed here go back to pending (RN-DSC-005).
-      await this.put(
-        incoming.map((item) => ({
-          PK: this.pk(vaultId),
-          SK: `PENDING#${slug}#${String(item['fromNoteId'])}`,
-          entity: 'PENDING',
-          fromNoteId: String(item['fromNoteId']),
-          slug,
-        })),
-      );
+    if (title) {
+      // The backlinks that pointed here go back to pending (RN-DSC-005) —
+      // unless somebody's alias answers that title, in which case the link
+      // lands there, which is the other half of resolution not being
+      // monotonic (RN-DSC-053).
+      const names = this.namesOf(await this.query(vaultId, 'NOTE#'));
+      const answer = resolveTarget(title, names);
+      const writes: Item[] = [];
+
+      for (const item of incoming) {
+        const from = String(item['fromNoteId']);
+        if (answer.kind === 'note') {
+          for (const toNoteId of answer.noteIds) {
+            if (toNoteId === from) continue;
+            writes.push(...this.edgeItems(vaultId, from, toNoteId), {
+              PK: this.pk(vaultId),
+              SK: `ALIAS#${title}#${from}#${toNoteId}`,
+              entity: 'ALIASEDGE',
+              fromNoteId: from,
+              toNoteId,
+              title,
+            });
+          }
+        } else {
+          writes.push({
+            PK: this.pk(vaultId),
+            SK: `PENDING#${title}#${from}`,
+            entity: 'PENDING',
+            fromNoteId: from,
+            title,
+          });
+        }
+      }
+      await this.put(writes);
     }
   }
 
   async resolvePending(vaultId: string, note: NoteRef): Promise<number> {
-    const waiting = await this.query(vaultId, `PENDING#${note.slug}#`);
+    if (note.title.length > 0) await this.takeBackFromAliases(vaultId, note);
+
+    const waiting =
+      note.title.length === 0 ? [] : await this.query(vaultId, `PENDING#${note.title}#`);
     if (waiting.length === 0) return 0;
 
     await this.put(
@@ -257,6 +320,32 @@ export class DynamoLinkGraph implements LinkGraph {
     return waiting.length;
   }
 
+  /**
+   * The edges somebody's alias was holding for this title, moved to the note
+   * that owns it (RN-DSC-053).
+   *
+   * This is the invalidation path resolution stopped being monotonic for: the
+   * edge disappears from a note nobody touched, whose own bytes did not
+   * change, so nothing but this rewrites it.
+   */
+  private async takeBackFromAliases(vaultId: string, note: NoteRef): Promise<void> {
+    const held = await this.query(vaultId, `ALIAS#${note.title}#`);
+    if (held.length === 0) return;
+
+    await this.remove(vaultId, [
+      ...held.map((item) => String(item['SK'])),
+      ...held.map((item) => `OUT#${String(item['fromNoteId'])}#${String(item['toNoteId'])}`),
+      ...held.map((item) => `IN#${String(item['toNoteId'])}#${String(item['fromNoteId'])}`),
+    ]);
+
+    await this.put(
+      held.flatMap((item) => {
+        const from = String(item['fromNoteId']);
+        return from === note.noteId ? [] : this.edgeItems(vaultId, from, note.noteId);
+      }),
+    );
+  }
+
   async dependencyTree(
     vaultId: string,
     rootNoteId: string,
@@ -267,8 +356,8 @@ export class DynamoLinkGraph implements LinkGraph {
         String(item['noteId']),
         {
           noteId: String(item['noteId']),
-          title: String(item['title']),
-          slug: String(item['slug']),
+          title: item['title'] === undefined ? '' : String(item['title']),
+          aliases: Array.isArray(item['aliases']) ? (item['aliases'] as string[]) : [],
           folderId: String(item['folderId']),
         },
       ]),
@@ -308,8 +397,8 @@ export class DynamoLinkGraph implements LinkGraph {
       .filter((item): item is Item => item !== undefined)
       .map((item) => ({
         noteId: String(item['noteId']),
-        title: String(item['title']),
-        slug: String(item['slug']),
+        title: item['title'] === undefined ? '' : String(item['title']),
+        aliases: Array.isArray(item['aliases']) ? (item['aliases'] as string[]) : [],
         folderId: String(item['folderId']),
       }));
   }
@@ -326,15 +415,15 @@ export class DynamoLinkGraph implements LinkGraph {
           ? {
               fromNote: {
                 noteId: String(from['noteId']),
-                title: String(from['title']),
-                slug: String(from['slug']),
+                title: from['title'] === undefined ? '' : String(from['title']),
+                aliases: Array.isArray(from['aliases']) ? (from['aliases'] as string[]) : [],
                 folderId: String(from['folderId']),
               },
-              targetSlug: String(item['slug']),
+              targetTitle: String(item['title']),
             }
           : null;
       })
-      .filter((link): link is BrokenLink => link !== null);
+      .filter((link) => link !== null) as BrokenLink[];
   }
 
   async orphans(vaultId: string, allNotes: NoteRef[]): Promise<NoteRef[]> {
@@ -357,8 +446,8 @@ export class DynamoLinkGraph implements LinkGraph {
 
     const nodes: NoteRef[] = kept.map((item) => ({
       noteId: String(item['noteId']),
-      title: String(item['title']),
-      slug: String(item['slug']),
+      title: item['title'] === undefined ? '' : String(item['title']),
+      aliases: Array.isArray(item['aliases']) ? (item['aliases'] as string[]) : [],
       folderId: String(item['folderId']),
     }));
     const indexOf = new Map(nodes.map((note, index) => [note.noteId, index]));
@@ -372,10 +461,10 @@ export class DynamoLinkGraph implements LinkGraph {
       if (from !== undefined && to !== undefined) edges.push([from, to]);
     }
 
-    const pending: Array<{ from: number; targetSlug: string }> = [];
+    const pending: Array<{ from: number; targetTitle: string }> = [];
     for (const item of await this.query(vaultId, 'PENDING#')) {
       const from = indexOf.get(String(item['fromNoteId']));
-      if (from !== undefined) pending.push({ from, targetSlug: String(item['slug']) });
+      if (from !== undefined) pending.push({ from, targetTitle: String(item['title']) });
     }
 
     return { nodes, edges, pending, truncated };

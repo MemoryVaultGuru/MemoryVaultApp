@@ -2,6 +2,7 @@ import {
   isValidElement,
   type AnchorHTMLAttributes,
   type HTMLAttributes,
+  type ImgHTMLAttributes,
   type ReactNode,
 } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -17,6 +18,7 @@ import {
 } from '../api/remark-memorysmith-ring';
 import { useTranslation } from 'react-i18next';
 import { toUnixNewlines } from '../api/markdown';
+import { readImageAlt } from '../api/image-dimensions';
 import { followable } from '../api/address';
 import { ordinalAt } from '../api/tasklist';
 import { remarkCallouts } from '../api/remark-callouts';
@@ -42,8 +44,38 @@ interface MarkdownProps {
 
 type LiProps = HTMLAttributes<HTMLLIElement> & { node?: unknown };
 
+/**
+ * An image, with the dimensions the specification puts in its alt text
+ * (RN-DSC-048). What precedes the pipe is the description and is never
+ * dropped; what follows it is width, or width and height, in CSS pixels, and
+ * never appears as text. A value that is neither stays part of the
+ * description, because deleting an accessibility label is the worse failure.
+ */
+function MarkdownImage({ alt, ...rest }: ImgHTMLAttributes<HTMLImageElement>) {
+  const read = readImageAlt(alt ?? '');
+  return (
+    <img
+      {...rest}
+      alt={read.description}
+      {...(read.width === null ? {} : { width: read.width })}
+      {...(read.height === null ? {} : { height: read.height })}
+    />
+  );
+}
+
 function MarkdownAnchor({ href, children, ...rest }: AnchorHTMLAttributes<HTMLAnchorElement>) {
   const { t } = useTranslation();
+  // An attachment is a file of the vault that is not a note, and this product
+  // stores none: the reference resolves to nothing, and saying so is what the
+  // specification asks for. Drawing it as a link to a note nobody will ever
+  // write told the reader the wrong thing about their own vault (RN-DSC-049).
+  if (href?.startsWith('attachment:')) {
+    return (
+      <span className="attachment-missing" title={t('note.attachmentMissing')}>
+        {children}
+      </span>
+    );
+  }
   if (href?.startsWith('pending:')) {
     return (
       <span className="wikilink-pending" title={t('note.pendingLink')}>
@@ -241,6 +273,7 @@ export function Markdown({ children, source, onToggleTask, writable = false }: M
         components={{
           a: MarkdownAnchor,
           code: MarkdownCode,
+          img: MarkdownImage,
           li: (props: LiProps) => (
             <TaskItem
               {...props}

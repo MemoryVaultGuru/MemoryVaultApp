@@ -7,7 +7,7 @@
  */
 
 import type { NoteCatalog, NoteRef } from '@memorysmith/svc-discovery/domain';
-import { slugify, VaultId } from '@memorysmith/kernel';
+import { VaultId } from '@memorysmith/kernel';
 
 interface KnowledgeSide {
   readonly vaults: {
@@ -38,11 +38,10 @@ export class KnowledgeNoteCatalog implements NoteCatalog {
     return notes.map((note) => ({
       noteId: note.id.value,
       title: note.title ?? '',
-      // Discovery still keys a link by slug, and it stops doing so in #97,
-      // where a link resolves against the title itself. Until then the slug is
-      // computed here, from the title the chain read, so the graph of the
-      // branch keeps the edges it had.
-      slug: slugify(note.title ?? ''),
+      // The aliases live in the body, which this catalogue does not read: it
+      // answers what Knowledge holds, and the frontmatter is Discovery's to
+      // read through its own projection (RN-DSC-052).
+      aliases: [],
       folderId: note.folderId.value,
       folderName: '',
     }));

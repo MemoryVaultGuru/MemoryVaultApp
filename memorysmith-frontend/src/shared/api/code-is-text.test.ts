@@ -19,7 +19,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveWikilinks } from './markdown';
 import { demoteEmbeds, splitEmbeds } from './transclusion';
 
-const resolve = (slug: string): string | null => (slug === 'target' ? '/v/a/target' : null);
+const resolve = (title: string): string | null => (title === 'Target' ? '/v/a/target' : null);
 
 describe('a wikilink written inside code stays written', () => {
   it('leaves a code span alone and resolves the same link outside it', () => {

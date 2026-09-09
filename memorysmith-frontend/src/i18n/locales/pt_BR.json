@@ -126,7 +126,8 @@
     "copy": "Copiar",
     "copied": "Copiado",
     "copyHint": "Copiar o Markdown da nota para a área de transferência",
-    "untitled": "Nota sem título"
+    "untitled": "Nota sem título",
+    "attachmentMissing": "Este vault não tem arquivo com esse nome. Anexos não são guardados aqui."
   },
   "common": {
     "loading": "Carregando…",

@@ -8,15 +8,24 @@
 
 import type { FacetKind, FacetSnapshot } from './FacetExtractor.js';
 
+/**
+ * A note as the projections address it: what it is called, and what else it
+ * answers to. There is no slug: a link resolves against the title (RN-DSC-041)
+ * and the aliases fill what no title matched (RN-DSC-052), so those two are
+ * what a projection has to carry.
+ */
 export interface NoteRef {
   readonly noteId: string;
+  /** What the chain read out of the content; empty when it read nothing. */
   readonly title: string;
-  readonly slug: string;
+  /** The alternative spellings the frontmatter declares. */
+  readonly aliases: readonly string[];
   readonly folderId: string;
 }
 
 export interface LinkTarget {
-  readonly slug: string;
+  /** The title the author addressed, literal and NFC (RN-DSC-043). */
+  readonly title: string;
   readonly anchor: string | null;
 }
 
@@ -28,7 +37,7 @@ export interface GraphNode {
 
 export interface BrokenLink {
   readonly fromNote: NoteRef;
-  readonly targetSlug: string;
+  readonly targetTitle: string;
 }
 
 /** Depth is capped at 3 and the traversal at 200 nodes (RN-DSC-007). */
@@ -48,7 +57,7 @@ export interface VaultGraph {
   readonly nodes: NoteRef[];
   readonly edges: Array<[number, number]>;
   /** Links whose target does not exist yet, kept so the UI can show them. */
-  readonly pending: Array<{ from: number; targetSlug: string }>;
+  readonly pending: Array<{ from: number; targetTitle: string }>;
   /**
    * Whether `maxVaultNodes` cut the graph short. Never truncate in silence:
    * a partial graph that claims to be whole is worse than no graph.
@@ -74,7 +83,7 @@ export interface AnnotatedVaultGraph {
   readonly nodes: GraphNoteRef[];
   readonly edges: Array<[number, number]>;
   /** Links whose target does not exist yet, kept so the UI can show them. */
-  readonly pending: Array<{ from: number; targetSlug: string }>;
+  readonly pending: Array<{ from: number; targetTitle: string }>;
   /**
    * Whether `maxVaultNodes` cut the graph short. Never truncate in silence:
    * a partial graph that claims to be whole is worse than no graph.
@@ -87,7 +96,12 @@ export interface LinkGraph {
   replaceOutgoing(vaultId: string, note: NoteRef, links: LinkTarget[]): Promise<void>;
   /** Removes the note from the graph and returns its backlinks to pending. */
   removeNote(vaultId: string, noteId: string): Promise<void>;
-  /** Resolves the pending links that were waiting for this slug to exist. */
+  /**
+   * Takes the note into the vault and re-resolves what changed: the pending
+   * links that were waiting for this title, and the edges somebody's alias was
+   * holding for it, which move to the note that owns the title (RN-DSC-053).
+   * Answers how many pending links stopped being pending.
+   */
   resolvePending(vaultId: string, note: NoteRef): Promise<number>;
   dependencyTree(vaultId: string, rootNoteId: string, depth: number): Promise<GraphNode | null>;
   backlinks(vaultId: string, noteId: string): Promise<NoteRef[]>;

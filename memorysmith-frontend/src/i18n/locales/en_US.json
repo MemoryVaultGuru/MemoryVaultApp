@@ -126,7 +126,8 @@
     "copy": "Copy",
     "copied": "Copied",
     "copyHint": "Copy the note's Markdown to the clipboard",
-    "untitled": "Untitled note"
+    "untitled": "Untitled note",
+    "attachmentMissing": "This vault holds no file by that name. Attachments are not stored here."
   },
   "common": {
     "loading": "Loading…",

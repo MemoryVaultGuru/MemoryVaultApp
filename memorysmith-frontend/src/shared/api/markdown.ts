@@ -2,6 +2,8 @@
 // wikilink resolution. The backend never interprets note content (PP4); these
 // helpers exist purely for presentation.
 
+import { isAttachmentName } from './attachment';
+
 export interface SplitDocument {
   frontmatter: Record<string, string>;
   /**
@@ -219,17 +221,38 @@ export function outsideCode(body: string, rewrite: (text: string) => string): st
 
 // Replaces [[wikilinks]] with markdown links. Resolved targets point at the
 // note route; unresolved ones become pending: links styled by the renderer.
-export function resolveWikilinks(body: string, resolve: (slug: string) => string | null): string {
+export function resolveWikilinks(body: string, resolve: (title: string) => string | null): string {
   return outsideCode(body, (text) => resolveWikilinksIn(text, resolve));
 }
 
-function resolveWikilinksIn(body: string, resolve: (slug: string) => string | null): string {
+/**
+ * The target of a wikilink is a TITLE, and it is literal: nothing in it is
+ * decoded, no extension is removed and no path segment is discarded
+ * (RN-DSC-043). It used to be slugified here, which is what made a link differ
+ * from its note over an accent or a capital.
+ */
+function resolveWikilinksIn(body: string, resolve: (title: string) => string | null): string {
   return body.replace(WIKILINK, (_all, target: string, label?: string) => {
-    const clean = target.split('#')[0]?.trim() ?? '';
-    const text = (label ?? target).trim();
-    const url = clean ? resolve(slugify(clean)) : null;
+    const clean = target.split('#')[0]?.trim().replace(/\\$/, '').trim() ?? '';
+    const text = displayText(clean, label, target);
+    if (!clean) return `[${text}](pending:)`;
+    // The pipe is read by WHAT THE TARGET IS: a note takes the alias, an
+    // attachment takes the dimensions, and a target that resolves to neither
+    // takes the alias — because reading it as a dimension would discard text
+    // an author wrote (RN-DSC-049).
+    if (isAttachmentName(clean)) return `[${text}](attachment:${encodeURIComponent(clean)})`;
+    const url = resolve(clean.normalize('NFC'));
     return url ? `[${text}](${url})` : `[${text}](pending:${encodeURIComponent(clean)})`;
   });
+}
+
+/**
+ * What the link shows. The pipe of an attachment carries dimensions and is
+ * never rendered as text, so what is left to show is the name of the file.
+ */
+function displayText(clean: string, label: string | undefined, target: string): string {
+  if (clean && isAttachmentName(clean)) return clean;
+  return (label ?? target).trim();
 }
 
 /** The longest a slug may be, on both sides. */

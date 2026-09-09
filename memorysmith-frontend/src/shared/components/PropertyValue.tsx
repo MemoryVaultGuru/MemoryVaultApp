@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { DRAWN_RESERVED_KEYS, TITLE_KEY } from '@memorysmith/contracts';
 import { resolveNoteUrl } from '../api/source';
-import { slugify } from '../api/markdown';
 
 // Frontmatter values are vault content, so they may carry [[wikilinks]],
 // markdown links and raw URLs. This renderer makes them navigable without
@@ -97,7 +96,7 @@ function renderRich(value: string, vaultSlug: string, pendingHint: string): Reac
     if (wikiTarget) {
       const label = (wikiLabel ?? wikiTarget).trim();
       const target = wikiTarget.split('#')[0]?.trim() ?? '';
-      const url = target ? resolveNoteUrl(vaultSlug, slugify(target)) : null;
+      const url = target ? resolveNoteUrl(vaultSlug, target.normalize('NFC')) : null;
       parts.push(
         url ? (
           <Link key={key++} className="wikilink" to={url}>

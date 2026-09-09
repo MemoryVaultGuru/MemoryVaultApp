@@ -6,7 +6,7 @@ import { handleMcpRequest } from '../src/mcp.js';
 import { SKILLS, skillNamed } from '../src/mcp/skills.js';
 import {
   DECLARED_SILENCE,
-  MARKDOWN_PROFILE_SOURCES,
+  MARKDOWN_SPEC_SOURCES,
   RECOGNISED_NOTATION,
 } from '@memorysmith/contracts';
 import type { VerifiedAgentToken } from '../src/auth.js';
@@ -542,7 +542,7 @@ describe('skills: the method, indexed by whoami', () => {
     // one it believed in, so the list of what does nothing is part of the
     // skill and not an appendix.
     //
-    // It was read off `recognised: false` until profile v0.4.0 stopped
+    // It was read off `recognised: false` until specification v0.4.0 stopped
     // carrying the field, and the assertion below is why that mattered: the
     // list went empty and this test said so instead of passing on nothing.
     expect(DECLARED_SILENCE.length).toBeGreaterThan(0);
@@ -570,7 +570,7 @@ describe('skills: the method, indexed by whoami', () => {
     // Obsidian is credited without a version because it publishes
     // documentation and not a specification. Reading `version` as required is
     // how the skill served `Obsidian undefined`.
-    for (const source of MARKDOWN_PROFILE_SOURCES) {
+    for (const source of MARKDOWN_SPEC_SOURCES) {
       expect(body).toContain(source.name);
       expect(body).toContain(source.url);
     }

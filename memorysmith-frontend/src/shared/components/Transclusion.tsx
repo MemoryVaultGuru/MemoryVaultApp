@@ -25,8 +25,9 @@ export function Transclusion({
   anchor: string | null;
 }) {
   const { t } = useTranslation();
-  const slug = slugify(target);
-  const url = resolveNoteUrl(vaultSlug, slug);
+  const title = target.normalize('NFC');
+  const url = resolveNoteUrl(vaultSlug, title);
+  const slug = slugify(title);
 
   const { data, isPending, isError } = useQuery({
     queryKey: ['note', vaultSlug, slug],

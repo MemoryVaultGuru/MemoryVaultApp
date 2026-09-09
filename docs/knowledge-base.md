@@ -36,7 +36,7 @@ Markdown was created by John Gruber in 2004 as a writing syntax readable in plai
 
 Everything else is a **tool convention**, not part of the format. That matters for any system processing third-party Markdown: only the standardised core is safe to interpret, and the rest may mean different things in each editor.
 
-**Those two are the whole list, and not even their authors stay inside them.** GitHub renders alerts, footnotes and mermaid diagrams, none of which are in the GFM specification it wrote; the desktop vault editors render wikilinks, embeds, callouts and block identifiers, none of which are in any specification at all. So "it works on GitHub" and "it works in my editor" are statements about one renderer, not about the format, and a system that reads third-party Markdown gets no help from either. The only way out of that is for a tool to publish what it means — as prose, as data and as an executable suite — so an author can tell what will happen before writing it. That is what the MemorySmith Markdown Profile is, and what this product implements a version of (`software-vision.md` §11, RN-AGT-022).
+**Those two are the whole list, and not even their authors stay inside them.** GitHub renders alerts, footnotes and mermaid diagrams, none of which are in the GFM specification it wrote; the desktop vault editors render wikilinks, embeds, callouts and block identifiers, none of which are in any specification at all. So "it works on GitHub" and "it works in my editor" are statements about one renderer, not about the format, and a system that reads third-party Markdown gets no help from either. The only way out of that is for a tool to publish what it means — as prose, as data and as an executable suite — so an author can tell what will happen before writing it. That is what the MemorySmith Markdown Specification is, and what this product implements a version of (`software-vision.md` §11, RN-AGT-022).
 
 ### 1.2 Frontmatter
 
@@ -80,6 +80,11 @@ Details any resolver has to decide:
 - **The alias.** `[[note|how it reads in the text]]` separates target from label.
 - **The scope.** The name is unique within what? The folder, the whole base, the system?
 - **A non-existent target.** In the vault editors, a link to a note that does not exist yet is valid and becomes the gesture of creating it. Discarding it impoverishes the graph precisely while the base is being written.
+- **The alternative spellings.** A vault of technical terms lives on acronyms, and a resolver that only matches the full name makes people stop finding things. The editors read `aliases:` from the frontmatter and let a link land on one — which raises the question of what happens when an alias and a name collide, and every resolver has to answer it.
+
+**Resolving an alias is what makes resolution stop being monotonic**, and that is the property worth naming because it is the one that surprises. Where a link matches only names, writing a note can create edges and never destroy one, so any projection that resolves what was pending on a write is complete. Once an alias can catch a target that no name matched, writing a note **under a name somebody else declared as an alias** takes the link away from the note it had landed on — in a third file, which neither end of the link touched, and whose own bytes did not change. The answer the editors converge on is the one that keeps it legible: a **name always wins**, an alias only ever fills an empty, and the change is explained by two lines a reader can find.
+
+**And a name is not a file.** A base that keeps images, spreadsheets and PDFs beside its notes has two kinds of target under one notation: `![[diagram.png]]` names a file and `[[Lei 14.133]]` names a note. What the file is called, extension included, is its whole name, and a tool that treats the first as a note announces a note nobody wrote.
 
 ### 1.4 Why Markdown won for knowledge bases
 

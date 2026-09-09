@@ -19,8 +19,8 @@ import { demoteEmbeds } from './transclusion';
 import { resolveWikilinks } from './markdown';
 
 /** A vault where one note exists and the other does not. */
-const resolve = (slug: string): string | null =>
-  slug === 'cabernet-sauvignon' ? '/vaults/enologia/root/01-castas/cabernet-sauvignon' : null;
+const resolve = (title: string): string | null =>
+  title === 'Cabernet Sauvignon' ? '/vaults/enologia/root/01-castas/cabernet-sauvignon' : null;
 
 const render = (body: string): string => resolveWikilinks(demoteEmbeds(body), resolve);
 

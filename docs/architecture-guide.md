@@ -789,11 +789,11 @@ The frontmatter block and the YAML subset of §6.2 live in the kernel with it, a
 
 ### 11.0 The notation, imported rather than declared
 
-**The list of what the product reads is not written in this repository.** It is the [MemorySmith Markdown Profile](https://github.com/memorysmithapp/markdown-profile), a specification with a version of its own, carrying the same notation as prose (`SPEC.md`), as data (`profile.json`) and as an executable suite (`tests/conformance.json`). This build implements a version of it and says which (RN-AGT-022).
+**The list of what the product reads is not written in this repository.** It is the [MemorySmith Markdown Specification](https://github.com/memorysmithapp/markdown-spec), a specification with a version of its own, carrying the same notation as prose (`SPEC.md`), as data (`spec.json`) and as an executable suite (`tests/conformance.json`). This build implements a version of it and says which (RN-AGT-022).
 
 **How it enters the build.** It is an ordinary dependency, pinned to a git tag, and the version is declared **once**, in the `catalog:` of `pnpm-workspace.yaml`. Two packages consume it from there — `packages/contracts`, which re-exports it, and `memorysmith-frontend`, whose reading surface is proved against the same cases — and a catalog is what keeps them from pinning two versions of one specification. A bump is a deliberate commit whose proof is the suite going green.
 
-`RECOGNISED_NOTATION` in `packages/contracts` is now a **projection of `profile.json`**, not a list beside it, and it lives there for the reason it always did: two contexts need it and may never import each other. Discovery reads the notation, in its two sanctioned extractors; Agent Access teaches it, in the skill, citing the version. The third reader, `noteTitle` in the kernel, reads one form of the same table (§11).
+`RECOGNISED_NOTATION` in `packages/contracts` is now a **projection of `spec.json`**, not a list beside it, and it lives there for the reason it always did: two contexts need it and may never import each other. Discovery reads the notation, in its two sanctioned extractors; Agent Access teaches it, in the skill, citing the version. The third reader, `noteTitle` in the kernel, reads one form of the same table (§11).
 
 **Three layers, and each one is proved by a test of its own kind (RN-AGT-023):**
 
@@ -803,13 +803,13 @@ The frontmatter block and the YAML subset of §6.2 live in the kernel with it, a
 | **The two extractors** | `services/discovery`, §11.1 and §11.3 | `test/notation-conformance.test.ts`, running the **published cases**: a case the extractors fail breaks the build |
 | **The reading surface** | `memorysmith-frontend`, the components | `shared/components/reading-surface-conformance.test.tsx`, running each `reading-surface` entry through the real renderer |
 
-**What each layer is asked for, since profile v0.3.0 restated CommonMark and GFM as data.** The declared notation went from 31 entries to 54, and most of the new ones are forms a base parser already produces. The three layers do not answer that the same way, and the difference is a decision recorded here rather than a filter somebody added quietly:
+**What each layer is asked for, since specification v0.3.0 restated CommonMark and GFM as data.** The declared notation went from 31 entries to 54, and most of the new ones are forms a base parser already produces. The three layers do not answer that the same way, and the difference is a decision recorded here rather than a filter somebody added quietly:
 
 - **The published suite** runs whatever the profile ships. Nothing is scoped: a case is a case.
 - **The reading-surface expectations** and **the two demonstration vaults** are asked for everything the profile **adds** to what a base parser already does. Writing an expectation that emphasis renders as `<em>` asserts that react-markdown works, which is a claim about a library; forcing a setext heading and an indented code block into two hand-written vaults turns them into the list of specimens they exist to not be. CommonMark is the floor every renderer already stands on, and what these two prove is what this profile adds on top of it. GFM stays in: a table, a struck word and a bare address are not universal, and each carries a crossing of its own.
 - **The skill** teaches the whole table, the inherited forms included, and that is the same decision reaching the opposite answer. In this profile an inherited entry does not restate the syntax, it states **where this profile changes what the syntax means** — a link inside a code span is not extracted, `![[x]]` is an embed and not an image, a wikilink in a table cell is an edge like any other. Those crossings are invisible from CommonMark alone and are exactly what an agent gets wrong, so the reader who most needs them is the one reading that table.
 
-**Which forms those are is written in `packages/contracts`, and it used to be a field.** Profile v0.4.0 removed the ring, because an implementation is asked for the notation the document lists and not for a source *in full* — the version of that requirement that can be checked. The decision above survived the field, so `DELEGATED_TO_THE_BASE_PARSER` names the exempt entries and `DECLARED_SILENCE` carries what the product answers about forms the profile no longer describes at all (RN-DSC-033). Both are asserted against the profile rather than trusted: a stale id, a silence the specification started declaring, and an entry landing in neither list all fail the build, which is what the removed fields gave for free.
+**Which forms those are is written in `packages/contracts`, and it used to be a field.** Specification v0.4.0 removed the ring, because an implementation is asked for the notation the document lists and not for a source *in full* — the version of that requirement that can be checked. The decision above survived the field, so `DELEGATED_TO_THE_BASE_PARSER` names the exempt entries and `DECLARED_SILENCE` carries what the product answers about forms the profile no longer describes at all (RN-DSC-033). Both are asserted against the profile rather than trusted: a stale id, a silence the specification started declaring, and an entry landing in neither list all fail the build, which is what the removed fields gave for free.
 
 **A source is a lineage and not a compatibility claim, and the precedence is not uniform.** v0.4.0 names Obsidian as the third source, for the seven notation families that came from it, and states that where the profile and a vault editor differ **the profile governs** — the opposite of the deference CommonMark and GFM hold. The skill states both directions, because an agent that assumes one rule for all three is wrong about the half of the notation it is most confident in. `sources[].version` is optional for the same reason: Obsidian publishes documentation rather than a specification, and reading the field as required is how the skill served `Obsidian undefined`.
 
@@ -832,7 +832,13 @@ The split is not tidiness. A rendering assertion cannot live in a JSON file — 
 
 ### 11.1 The link graph
 
-`LinkExtractor` (§6.6) runs on every `NoteCreated` and `NoteUpdated`. The target is reduced to the **basename without extension** and normalised into a `Slug`; resolution happens within the scope of the vault (RN-DSC-001 to RN-DSC-006).
+`LinkExtractor` (§6.6) runs on every `NoteCreated` and `NoteUpdated`, and it says what a note **points at**; what a note **answers to** comes from two places, so resolving is a step of its own (`LinkResolver.ts`).
+
+**A target is a title, and the two forms reach it differently.** A wikilink target is literal: nothing in it is decoded, no extension is removed and no path segment is discarded (RN-DSC-043). The three tolerances belong to the Markdown form, in the order the specification fixes — split at the first unencoded `#`, then the path, then the extension, then decode. Decoding earlier undoes the escaping it exists for: `C%23%20basics` would split at a `#` its author encoded precisely so it would not be a delimiter.
+
+**Resolution answers three things, and for the first one it counts.** Every note whose title matches becomes an edge (RN-DSC-042); only when none did is the target compared against the `aliases` of the vault (RN-DSC-052); an attachment renders and is never an edge (RN-DSC-044); anything else is pending. The order of title before alias is normative and it is the whole of what keeps the frontmatter out of the graph.
+
+**And that order is what makes resolution stop being monotonic.** An edge that exists by alias disappears the day somebody writes a note carrying that title — in a third note nobody touched, whose own bytes did not change (RN-DSC-053). So the projection carries an `ALIAS#{title}#{from}#{to}` item for every edge it resolved that way, and a note arriving under that title takes them back. The in-memory adapter does not need it: it keeps what each note points at and derives the edges from the vault as it stands, which is the same answer computed rather than maintained, and it is the implementation the DynamoDB one has to agree with.
 
 **An image is not a link (RN-DSC-038).** The extractor matched `[alt](destination)` without looking at the `!` in front of it, so a picture became a note: `![Curve](./curve.png)` produced a pending link called `curve-png`. A public image never showed it, because an address with a scheme is external and dropped by RN-DSC-003 — the relative form is where it bit. The embed keeps its edge: it is read by the wikilink pattern, which requires no parenthesis, and the two patterns never meet.
 
@@ -846,11 +852,12 @@ The split is not tidiness. A rendering assertion cannot live in a JSON file — 
 |---|---|---|
 | Outgoing edge | `S#{s}#VAULT#{v}` | `OUT#{fromNoteId}#{toNoteId}` |
 | Incoming edge (backlink) | `S#{s}#VAULT#{v}` | `IN#{toNoteId}#{fromNoteId}` |
-| Pending link | `S#{s}#VAULT#{v}` | `PENDING#{slug}#{fromNoteId}` |
+| Pending link | `S#{s}#VAULT#{v}` | `PENDING#{title}#{fromNoteId}` |
+| Edge held by an alias | `S#{s}#VAULT#{v}` | `ALIAS#{title}#{fromNoteId}#{toNoteId}` |
 
 The edge is written in both directions: a backlink becomes a `Query`, not a scan. Traversal is BFS with a maximum depth of 3 and a ceiling of 200 nodes, deduplicating cycles (RN-DSC-007).
 
-`NoteMoved` between folders **does not touch the graph**, because an edge is `noteId → noteId` and the folder takes no part in it. `NoteMoved` between vaults prunes the edges of the note in the source vault and re-resolves the outgoing ones against the slugs of the destination.
+`NoteMoved` between folders **does not touch the graph**, because an edge is `noteId → noteId` and the folder takes no part in it. `NoteMoved` between vaults prunes the edges of the note in the source vault and re-resolves the outgoing ones against the titles of the destination.
 
 ### 11.2 Search
 

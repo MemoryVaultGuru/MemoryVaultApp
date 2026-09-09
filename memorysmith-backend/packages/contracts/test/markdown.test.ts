@@ -2,7 +2,7 @@
  * The two lists this repository keeps beside the profile, and the invariants
  * that keep them from becoming lies.
  *
- * Until profile v0.4.0 neither existed: the scope of the two hand-written
+ * Until specification v0.4.0 neither existed: the scope of the two hand-written
  * guards was read from `entry.ring`, and what the product deliberately does
  * not read was read from `entry.recognised`. Both fields are gone, both
  * decisions survived them, and both are now written here — which means both
@@ -17,8 +17,8 @@ import { describe, expect, it } from 'vitest';
 import {
   DECLARED_SILENCE,
   DELEGATED_TO_THE_BASE_PARSER,
-  MARKDOWN_PROFILE_SOURCES,
-  MARKDOWN_PROFILE_VERSION,
+  MARKDOWN_SPEC_SOURCES,
+  MARKDOWN_SPEC_VERSION,
   RECOGNISED_NOTATION,
 } from '../src/markdown.js';
 
@@ -26,7 +26,7 @@ const DECLARED = new Set(RECOGNISED_NOTATION.map((entry) => entry.id));
 
 describe('the profile, as this build reads it', () => {
   it('carries a version, an address and a notation', () => {
-    expect(MARKDOWN_PROFILE_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(MARKDOWN_SPEC_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
     expect(RECOGNISED_NOTATION.length).toBeGreaterThan(0);
   });
 
@@ -34,8 +34,8 @@ describe('the profile, as this build reads it', () => {
     // Obsidian publishes documentation rather than a versioned specification,
     // and the schema made `version` optional in v0.4.0 to say so. Reading it
     // as required is how `Obsidian undefined` reached the skill.
-    expect(MARKDOWN_PROFILE_SOURCES.length).toBeGreaterThan(0);
-    for (const source of MARKDOWN_PROFILE_SOURCES) {
+    expect(MARKDOWN_SPEC_SOURCES.length).toBeGreaterThan(0);
+    for (const source of MARKDOWN_SPEC_SOURCES) {
       expect(source.name, JSON.stringify(source)).toBeTruthy();
       expect(source.url, source.name).toMatch(/^https?:\/\//);
       if (source.version !== undefined) expect(source.version).toBeTruthy();

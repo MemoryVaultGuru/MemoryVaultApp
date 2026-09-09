@@ -7,7 +7,6 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { slugify } from '@memorysmith/kernel';
 import { buildTestApp } from './wiring.js';
 
 type App = ReturnType<typeof buildTestApp>;
@@ -75,13 +74,13 @@ async function drainEvents(): Promise<void> {
       const vaultId = String(payload['vaultId']);
       const known = await harness.discovery.catalog.listNotes(vaultId);
       // The title travels on the event because the write read it from the
-      // content, and the slug is what the catalogue is still keyed by until
-      // #97 keys it by the title itself.
+      // content, and the aliases come from the frontmatter of the same body.
+      // Both are what a link resolves against (RN-DSC-041, RN-DSC-052).
       const title = payload['title'] === null ? '' : String(payload['title']);
       const entry = {
         noteId: String(payload['noteId']),
         title,
-        slug: slugify(title),
+        aliases: [] as string[],
         folderId: String(payload['folderId']),
         folderName: '',
       };
@@ -122,7 +121,7 @@ async function seed(): Promise<{
       body: {
         folderId: folder.folderId,
         content:
-          '---\nmaturity: seed\nreviewed: false\n---\n\n# Achado 12\n\nFundamento: [[lei-14133]].',
+          '---\nmaturity: seed\nreviewed: false\n---\n\n# Achado 12\n\nFundamento: [[Lei 14.133]].',
       },
     })
   ).json()) as { noteId: string };

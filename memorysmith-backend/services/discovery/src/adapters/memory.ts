@@ -19,6 +19,7 @@ import {
   type VaultGraph,
 } from '../domain/ports.js';
 import type { FacetSnapshot } from '../domain/FacetExtractor.js';
+import { resolveTarget, vaultNames, type VaultNames } from '../domain/LinkResolver.js';
 import { facetDelta, valuesOf } from '../domain/FacetExtractor.js';
 import type { StructureProjection, VaultStructure } from '../application/projections.js';
 
@@ -29,101 +30,93 @@ interface Edge {
 
 interface Pending {
   readonly fromNoteId: string;
-  readonly slug: string;
+  readonly title: string;
 }
 
+/**
+ * The reference implementation keeps what each note POINTS AT, and derives the
+ * edges from the vault as it stands.
+ *
+ * That is the shape resolution has since 0.6.0. It stopped being monotonic:
+ * an edge that exists by alias disappears the day somebody writes a note
+ * carrying that title (RN-DSC-053), in a note nobody touched. Materialising
+ * the edges and patching them on every write means an invalidation path per
+ * kind of change and a way to get each one wrong; deriving them means the
+ * graph is always exactly what the vault says, and the cost is a walk over
+ * notes this adapter already holds in a Map.
+ *
+ * The DynamoDB adapter cannot do this — it may not read a vault to answer one
+ * backlink — so it materialises, and it is this class it has to agree with.
+ */
 export class InMemoryLinkGraph implements LinkGraph {
   private readonly notes = new Map<string, Map<string, NoteRef>>();
-  private readonly edges = new Map<string, Edge[]>();
-  private readonly pending = new Map<string, Pending[]>();
+  private readonly outgoing = new Map<string, Map<string, LinkTarget[]>>();
 
   private vault(vaultId: string): {
     notes: Map<string, NoteRef>;
-    edges: Edge[];
-    pending: Pending[];
+    outgoing: Map<string, LinkTarget[]>;
   } {
     if (!this.notes.has(vaultId)) this.notes.set(vaultId, new Map());
-    if (!this.edges.has(vaultId)) this.edges.set(vaultId, []);
-    if (!this.pending.has(vaultId)) this.pending.set(vaultId, []);
+    if (!this.outgoing.has(vaultId)) this.outgoing.set(vaultId, new Map());
     return {
       notes: this.notes.get(vaultId) as Map<string, NoteRef>,
-      edges: this.edges.get(vaultId) as Edge[],
-      pending: this.pending.get(vaultId) as Pending[],
+      outgoing: this.outgoing.get(vaultId) as Map<string, LinkTarget[]>,
     };
+  }
+
+  /** What the vault answers to right now: its titles and then its aliases. */
+  private names(vaultId: string): VaultNames {
+    return vaultNames([...this.vault(vaultId).notes.values()]);
+  }
+
+  /** Every edge of the vault, resolved against the vault as it stands. */
+  private resolved(vaultId: string): { edges: Edge[]; pending: Pending[] } {
+    const state = this.vault(vaultId);
+    const names = this.names(vaultId);
+    const edges: Edge[] = [];
+    const pending: Pending[] = [];
+
+    for (const [fromNoteId, links] of state.outgoing) {
+      if (!state.notes.has(fromNoteId)) continue;
+      for (const link of links) {
+        const answer = resolveTarget(link.title, names);
+        if (answer.kind === 'note') {
+          // Every note whose title matches becomes an edge (RN-DSC-042): two
+          // notes with one title are two edges, never the first one.
+          for (const toNoteId of answer.noteIds) {
+            if (toNoteId !== fromNoteId) edges.push({ fromNoteId, toNoteId });
+          }
+        } else if (answer.kind === 'pending') {
+          // Not discarded: a link whose target does not exist YET is pending,
+          // and it resolves on its own later (RN-DSC-004).
+          pending.push({ fromNoteId, title: link.title });
+        }
+        // An attachment renders and is never an edge (RN-DSC-044).
+      }
+    }
+    return { edges, pending };
   }
 
   async replaceOutgoing(vaultId: string, note: NoteRef, links: LinkTarget[]): Promise<void> {
     const state = this.vault(vaultId);
     state.notes.set(note.noteId, note);
-
-    this.edges.set(
-      vaultId,
-      state.edges.filter((edge) => edge.fromNoteId !== note.noteId),
-    );
-    this.pending.set(
-      vaultId,
-      state.pending.filter((each) => each.fromNoteId !== note.noteId),
-    );
-
-    const bySlug = new Map([...state.notes.values()].map((each) => [each.slug, each]));
-    for (const link of links) {
-      const target = bySlug.get(link.slug);
-      if (target && target.noteId !== note.noteId) {
-        (this.edges.get(vaultId) as Edge[]).push({
-          fromNoteId: note.noteId,
-          toNoteId: target.noteId,
-        });
-      } else if (!target) {
-        // Not discarded: a link whose target does not exist YET is pending,
-        // and it resolves on its own later (RN-DSC-004).
-        (this.pending.get(vaultId) as Pending[]).push({ fromNoteId: note.noteId, slug: link.slug });
-      }
-    }
+    state.outgoing.set(note.noteId, [...links]);
   }
 
   async removeNote(vaultId: string, noteId: string): Promise<void> {
     const state = this.vault(vaultId);
-    const note = state.notes.get(noteId);
     state.notes.delete(noteId);
-
-    // Backlinks that pointed at it go back to pending (RN-DSC-005).
-    const orphanedBacklinks = state.edges.filter((edge) => edge.toNoteId === noteId);
-    this.edges.set(
-      vaultId,
-      state.edges.filter((edge) => edge.fromNoteId !== noteId && edge.toNoteId !== noteId),
-    );
-    if (note) {
-      for (const edge of orphanedBacklinks) {
-        (this.pending.get(vaultId) as Pending[]).push({
-          fromNoteId: edge.fromNoteId,
-          slug: note.slug,
-        });
-      }
-    }
-    this.pending.set(
-      vaultId,
-      (this.pending.get(vaultId) as Pending[]).filter((each) => each.fromNoteId !== noteId),
-    );
+    state.outgoing.delete(noteId);
+    // Nothing else to undo: the backlinks that pointed here are re-resolved
+    // against a vault that no longer carries this title, so they become
+    // pending — or land on the alias that was waiting behind it (RN-DSC-005,
+    // RN-DSC-053).
   }
 
   async resolvePending(vaultId: string, note: NoteRef): Promise<number> {
-    const state = this.vault(vaultId);
-    state.notes.set(note.noteId, note);
-    const waiting = state.pending.filter((each) => each.slug === note.slug);
-    if (waiting.length === 0) return 0;
-
-    this.pending.set(
-      vaultId,
-      state.pending.filter((each) => each.slug !== note.slug),
-    );
-    for (const each of waiting) {
-      if (each.fromNoteId === note.noteId) continue;
-      (this.edges.get(vaultId) as Edge[]).push({
-        fromNoteId: each.fromNoteId,
-        toNoteId: note.noteId,
-      });
-    }
-    return waiting.length;
+    const before = this.resolved(vaultId).pending.length;
+    this.vault(vaultId).notes.set(note.noteId, note);
+    return Math.max(0, before - this.resolved(vaultId).pending.length);
   }
 
   async dependencyTree(
@@ -138,10 +131,11 @@ export class InMemoryLinkGraph implements LinkGraph {
     const seen = new Set<string>([rootNoteId]);
     let budget = GRAPH_LIMITS.maxNodes;
 
+    const edges = this.resolved(vaultId).edges;
     const walk = (note: NoteRef, level: number): GraphNode => {
       if (level >= depth || budget <= 0) return { note, depth: level, children: [] };
       const children: GraphNode[] = [];
-      for (const edge of state.edges.filter((each) => each.fromNoteId === note.noteId)) {
+      for (const edge of edges.filter((each) => each.fromNoteId === note.noteId)) {
         if (seen.has(edge.toNoteId) || budget <= 0) continue;
         const target = state.notes.get(edge.toNoteId);
         if (!target) continue;
@@ -157,46 +151,50 @@ export class InMemoryLinkGraph implements LinkGraph {
 
   async backlinks(vaultId: string, noteId: string): Promise<NoteRef[]> {
     const state = this.vault(vaultId);
-    return state.edges
-      .filter((edge) => edge.toNoteId === noteId)
+    const seen = new Set<string>();
+    return this.resolved(vaultId)
+      .edges.filter((edge) => edge.toNoteId === noteId)
       .map((edge) => state.notes.get(edge.fromNoteId))
-      .filter((note): note is NoteRef => note !== undefined);
+      .filter((note): note is NoteRef => note !== undefined)
+      .filter((note) => (seen.has(note.noteId) ? false : seen.add(note.noteId) !== undefined));
   }
 
   async broken(vaultId: string): Promise<BrokenLink[]> {
     const state = this.vault(vaultId);
-    return state.pending
-      .map((each) => {
+    return this.resolved(vaultId)
+      .pending.map((each) => {
         const from = state.notes.get(each.fromNoteId);
-        return from ? { fromNote: from, targetSlug: each.slug } : null;
+        return from ? { fromNote: from, targetTitle: each.title } : null;
       })
       .filter((link): link is BrokenLink => link !== null);
   }
 
   async orphans(vaultId: string, allNotes: NoteRef[]): Promise<NoteRef[]> {
-    const state = this.vault(vaultId);
-    const linked = new Set(state.edges.flatMap((edge) => [edge.fromNoteId, edge.toNoteId]));
+    const linked = new Set(
+      this.resolved(vaultId).edges.flatMap((edge) => [edge.fromNoteId, edge.toNoteId]),
+    );
     return allNotes.filter((note) => !linked.has(note.noteId));
   }
 
   async wholeGraph(vaultId: string): Promise<VaultGraph> {
     const state = this.vault(vaultId);
+    const resolved = this.resolved(vaultId);
     const all = [...state.notes.values()];
     const truncated = all.length > GRAPH_LIMITS.maxVaultNodes;
     const nodes = truncated ? all.slice(0, GRAPH_LIMITS.maxVaultNodes) : all;
     const indexOf = new Map(nodes.map((note, index) => [note.noteId, index]));
 
     const edges: Array<[number, number]> = [];
-    for (const edge of state.edges) {
+    for (const edge of resolved.edges) {
       const from = indexOf.get(edge.fromNoteId);
       const to = indexOf.get(edge.toNoteId);
       if (from !== undefined && to !== undefined) edges.push([from, to]);
     }
 
-    const pending: Array<{ from: number; targetSlug: string }> = [];
-    for (const link of state.pending) {
+    const pending: Array<{ from: number; targetTitle: string }> = [];
+    for (const link of resolved.pending) {
       const from = indexOf.get(link.fromNoteId);
-      if (from !== undefined) pending.push({ from, targetSlug: link.slug });
+      if (from !== undefined) pending.push({ from, targetTitle: link.title });
     }
 
     return { nodes, edges, pending, truncated };

@@ -30,7 +30,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
-    "@memorysmith/markdown-profile": "catalog:",
+    "@memorysmith/markdown-spec": "catalog:",
     "@types/d3-force": "^3.0.10",
     "@types/hast": "^3.0.5",
     "@types/react": "^19.0.0",

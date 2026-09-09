@@ -12,7 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@memorysmith/markdown-profile": "catalog:",
+    "@memorysmith/markdown-spec": "catalog:",
     "zod": "^4.0.0"
   }
 }

@@ -18,6 +18,7 @@
  * a link and is never dropped, which is what `demoteEmbeds` does.
  */
 
+import { isAttachmentName } from './attachment';
 import {
   codeRegions,
   insideCode,
@@ -56,6 +57,9 @@ export function splitEmbeds(body: string, limit = EMBED_LIMIT): BodySegment[] {
     const at = match.index ?? 0;
     const target = (match[1] ?? '').trim();
     if (!target) continue;
+    // An attachment is not a note, so there is nothing to transclude: it is
+    // left in the text run, where the wikilink pass reports it (RN-DSC-049).
+    if (isAttachmentName(target)) continue;
     // An embed written inside code is an example of the notation, not a use of
     // it: expanding it would replace the very text somebody was showing.
     if (insideCode(code, at)) continue;

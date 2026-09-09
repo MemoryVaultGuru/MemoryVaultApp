@@ -29,7 +29,7 @@ that cannot be found by `RTO` is a page nobody finds.
 
 ## The notation this vault is written in
 
-Everything here is the MemorySmith Markdown Profile, and nothing in this vault
+Everything here is the MemorySmith Markdown Specification, and nothing in this vault
 uses anything outside it. Two habits are worth naming because people arrive
 with them:
 

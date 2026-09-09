@@ -9,10 +9,11 @@
  * the folder tree would invert the arrow.
  */
 
-import { bodyWithoutFrontmatter, noteTitle, slugify } from '@memorysmith/kernel';
+import { bodyWithoutFrontmatter, noteTitle } from '@memorysmith/kernel';
 
 import { extractLinks } from '../domain/LinkExtractor.js';
 import { extractFacets } from '../domain/FacetExtractor.js';
+import { extractFrontmatterAliases } from '../domain/Aliases.js';
 import { normalize } from '../domain/SearchQuery.js';
 import type { ContentIndex, FacetIndex, LinkGraph, NoteRef } from '../domain/ports.js';
 
@@ -83,15 +84,16 @@ export interface NoteEvent {
 }
 
 /**
- * The note as the projections address it. The slug is still what a link is
- * keyed by here, and it stops being that in #97, where a link resolves against
- * the title itself.
+ * The note as the projections address it: what it is called and what else it
+ * answers to. A link resolves against the first (RN-DSC-041) and the second
+ * fills what no title matched (RN-DSC-052), which is why a note points with
+ * its body and answers with both.
  */
-function refOf(event: NoteEvent, title: string): NoteRef {
+function refOf(event: NoteEvent, title: string, aliases: readonly string[]): NoteRef {
   return {
     noteId: event.noteId,
     title,
-    slug: slugify(title),
+    aliases: [...aliases],
     folderId: event.folderId,
   };
 }
@@ -106,14 +108,14 @@ export class ProjectNote {
   async onWritten(event: NoteEvent): Promise<void> {
     const markdown = event.contentRef ? await this.deps.content.read(event.contentRef) : '';
     const title = noteTitle(markdown) ?? '';
-    const note = refOf(event, title);
+    const note = refOf(event, title, extractFrontmatterAliases(markdown));
 
     // 1. Links. A target that does not exist yet becomes PENDING and resolves
     // on its own when the note is created (RN-DSC-004).
     await this.deps.graph.replaceOutgoing(
       event.vaultId,
       note,
-      extractLinks(markdown).map((link) => ({ slug: link.slug, anchor: link.anchor })),
+      extractLinks(markdown).map((link) => ({ title: link.title, anchor: link.anchor })),
     );
     await this.deps.graph.resolvePending(event.vaultId, note);
 

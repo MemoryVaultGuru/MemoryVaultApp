@@ -5,7 +5,7 @@
  * It used to be written here, and it is not any more. The notation is now a
  * published specification with a version of its own — the MemorySmith Markdown
  * Profile — carrying the same list as prose (`SPEC.md`), as data
- * (`profile.json`) and as an executable suite (`tests/conformance.json`). The
+ * (`spec.json`) and as an executable suite (`tests/conformance.json`). The
  * product does not declare the notation; it **implements a version of it**,
  * and says which.
  *
@@ -25,15 +25,15 @@
  * product understands (RN-AGT-017, RN-AGT-022).
  *
  * **Two lists below are ours and not the profile's**, and they are here because
- * profile v0.4.0 stopped carrying the fields they used to be read from. Each
+ * specification v0.4.0 stopped carrying the fields they used to be read from. Each
  * one says what it is for at its own declaration. They are not a transcription
  * of the specification: the first is a decision about what this repository's
  * own guards are asked for, and the second is what this product does with
  * forms the profile deliberately no longer describes.
  */
 
-import profile from '@memorysmith/markdown-profile/profile.json' with { type: 'json' };
-import conformance from '@memorysmith/markdown-profile/conformance.json' with { type: 'json' };
+import spec from '@memorysmith/markdown-spec/spec.json' with { type: 'json' };
+import conformance from '@memorysmith/markdown-spec/conformance.json' with { type: 'json' };
 
 /**
  * Who decides this notation. The first two are the sanctioned extractors of
@@ -56,26 +56,46 @@ export interface RecognisedNotation {
   readonly spec?: string;
 }
 
-/** One case of the published suite. Absent expectations assert nothing. */
+/**
+ * One case of the published suite. Absent expectations assert nothing.
+ *
+ * A case may state four different things, and 0.6.0 added the last two: what
+ * a note is CALLED (`title`), and what a target BECOMES once a vault exists to
+ * resolve it against (`vault` plus `resolution`). The last pair cannot be run
+ * against an extractor alone — it needs the resolver and a vault to give it.
+ */
 export interface ConformanceCase {
   readonly id: string;
   readonly notation: string;
   readonly markdown: string;
-  readonly links?: ReadonlyArray<{ readonly slug: string; readonly anchor: string | null }>;
+  readonly links?: ReadonlyArray<{ readonly title: string; readonly anchor: string | null }>;
   readonly facets?: Readonly<Record<string, { readonly kind: string; readonly values: string[] }>>;
+  /** What the chain reads out of `markdown`, or `null` for no addressable title. */
+  readonly title?: string | null;
+  /** The vault the targets are resolved against: note bodies and attachment names. */
+  readonly vault?: {
+    readonly notes?: readonly string[];
+    readonly attachments?: readonly string[];
+  };
+  /** What each target becomes, and how many edges it produces. */
+  readonly resolution?: ReadonlyArray<{
+    readonly target: string;
+    readonly kind: 'note' | 'attachment' | 'pending';
+    readonly edges: number;
+  }>;
 }
 
 /** The version of the profile this build implements. Cited, never guessed. */
-export const MARKDOWN_PROFILE_VERSION: string = profile.version;
+export const MARKDOWN_SPEC_VERSION: string = spec.version;
 
 /** The name and the address of the specification, for what the product serves. */
-export const MARKDOWN_PROFILE_URL: string = profile.url;
-export const MARKDOWN_PROFILE_NAME: string = profile.profile;
+export const MARKDOWN_SPEC_URL: string = spec.url;
+export const MARKDOWN_SPEC_NAME: string = spec.spec;
 
 /**
  * Where the forms of the profile were established.
  *
- * It was `base` until profile v0.4.0 and it was a list of tiers the profile
+ * It was `base` until specification v0.4.0 and it was a list of tiers the profile
  * was built out of; it is now a list of **sources a form is credited to**, and
  * the difference is not cosmetic. An implementation is no longer asked to
  * support a specification in full — a requirement nobody can check — it is
@@ -93,15 +113,15 @@ export const MARKDOWN_PROFILE_NAME: string = profile.profile;
  * profile and Obsidian disagree, the profile governs. A source is a lineage
  * here, never a compatibility claim.
  */
-export const MARKDOWN_PROFILE_SOURCES: ReadonlyArray<{
+export const MARKDOWN_SPEC_SOURCES: ReadonlyArray<{
   readonly id: string;
   readonly name: string;
   readonly version?: string;
   readonly url: string;
-}> = profile.sources;
+}> = spec.sources;
 
 export const RECOGNISED_NOTATION: readonly RecognisedNotation[] =
-  profile.notations as readonly RecognisedNotation[];
+  spec.notations as readonly RecognisedNotation[];
 
 /**
  * The published cases, run by the conformance tests of both implementations.
@@ -190,7 +210,7 @@ export const DELEGATED_TO_THE_BASE_PARSER: ReadonlySet<string> = new Set([
  * facet, and the reading surface draws it as plain text with no chip and
  * nothing to click (RN-DSC-033, and RN-PRT-007 depends on it). The rule is
  * ours, argued from PP4 and from a survey of the example vaults, and it needs
- * somewhere to live now that it is not a row in `profile.json`.
+ * somewhere to live now that it is not a row in `spec.json`.
  *
  * The guard that watches it is the reason this list is not simply deleted. Of
  * everything the reading surface does, a rejection is the easiest to undo by
@@ -294,26 +314,16 @@ export const DRAWN_RESERVED_KEYS: readonly string[] = RESERVED_FRONTMATTER_KEYS.
  * The cases of the PINNED suite this build deliberately fails, because it
  * implements a decision the specification took in a later version.
  *
- * There is normally no such list, and there must not be one for long. It
- * exists for a single seam: the specification inverted what `title:` does in
- * the frontmatter — v0.4.0 states it is an ordinary attribute and v0.6.0
- * states it produces no attribute at all (§6.5) — and the two decisions cannot
- * both be implemented. The product takes the later one, because it is the one
- * the title of a note is read by (RN-KNW-035, RN-DSC-050), and says so here
- * instead of quietly disagreeing with the suite it runs.
- *
- * **It expires by itself.** The guard asserts that every id here exists in the
- * pinned suite, so the day the pin moves to a version that dropped the case,
- * the build fails until somebody deletes the entry — which is the whole reason
- * this is data and not a skipped test.
+ * **It is empty, and that is the point.** It held exactly one entry for the
+ * length of one cycle: v0.4.0 stated that `title:` is an ordinary attribute
+ * and v0.6.0 states that it produces no attribute at all (§6.5), the product
+ * took the later decision ahead of the pin (RN-DSC-050), and said so here
+ * instead of quietly disagreeing with the suite it runs. The pin moved, the
+ * case that stated the opposite went with it, and the guard below — every id
+ * here exists in the pinned suite — is what made the entry expire on the day
+ * rather than outliving its reason.
  */
 export const SUPERSEDED_BY_A_LATER_SPECIFICATION: ReadonlyArray<{
   readonly id: string;
   readonly reason: string;
-}> = [
-  {
-    id: 'frontmatter/title-is-an-ordinary-attribute',
-    reason:
-      'Specification 0.6.0 §6.5 states the opposite: `title` never becomes an attribute, whatever the shape of its value. This build implements that decision ahead of the pin, because the title of a note is read from that key (RN-DSC-050).',
-  },
-];
+}> = [];

@@ -32,20 +32,28 @@ if (!configuredOrigin) {
 
 export const apiOrigin: string = configuredOrigin;
 
-/** Walks the loaded structure, so a link needs no extra request. */
+/**
+ * Walks the loaded structure, so a link needs no extra request.
+ *
+ * A target is a TITLE, compared after NFC and folded in no other way
+ * (RN-DSC-041): a near miss is a pending link and never a landing. What the
+ * interface does with a title carried by two notes is #98; here the first one
+ * answers, and the address itself is still derived from the title until that
+ * issue replaces it with the identifier.
+ */
 function resolveFromStructure(
   vaultSlug: string,
-  targetSlug: string,
+  target: string,
   structure: VaultStructure | undefined,
 ): string | null {
   if (!structure) return null;
+  const wanted = target.normalize('NFC');
   const walk = (nodes: VaultStructure['folders']): string | null => {
     for (const node of nodes) {
-      if (node.notes.some((note) => note.slug === targetSlug)) {
-        return `/vaults/${vaultSlug}/root/${node.slugPath}/${targetSlug}`;
-      }
-      const found = walk(node.children);
-      if (found) return found;
+      const found = node.notes.find((note) => (note.title ?? '').normalize('NFC') === wanted);
+      if (found) return `/vaults/${vaultSlug}/root/${node.slugPath}/${found.slug}`;
+      const deeper = walk(node.children);
+      if (deeper) return deeper;
     }
     return null;
   };
@@ -78,8 +86,8 @@ export function getTemplate(vaultSlug: string, folderId: string): Promise<Templa
 }
 
 /** Null means the target does not exist yet, which the UI shows as pending. */
-export function resolveNoteUrl(vaultSlug: string, targetSlug: string): string | null {
-  return resolveFromStructure(vaultSlug, targetSlug, loaded.get(vaultSlug));
+export function resolveNoteUrl(vaultSlug: string, target: string): string | null {
+  return resolveFromStructure(vaultSlug, target, loaded.get(vaultSlug));
 }
 
 /** The whole vault as a downloadable archive, prepared on demand. */

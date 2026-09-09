@@ -30,7 +30,7 @@ do arquivo nunca mudam.
 
 ## A notação deste vault
 
-Tudo aqui é o MemorySmith Markdown Profile, e nada neste vault usa nada fora
+Tudo aqui é o MemorySmith Markdown Specification, e nada neste vault usa nada fora
 dele. Dois hábitos merecem ser nomeados porque as pessoas chegam com eles:
 
 - **Um assunto escrito no corpo como `#tinta` não arquiva nada.** É texto
