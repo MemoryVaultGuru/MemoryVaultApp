@@ -1,12 +1,12 @@
 /**
- * The two vaults that show the profile working.
+ * The two vaults that show the specification working.
  *
  * A conformance suite proves the notation is read; a skill teaches it. Neither
  * can be read by a person deciding whether to bring their knowledge here, and
  * neither shows the notation doing its work — a callout that is drawn, a
  * wikilink that resolves, an embed that expands, a facet that filters.
  * `deploy-aws/vaults/continuity-engineering` and `.../enologia` do, and they
- * are the only artefact of the profile that is documentation, demonstration
+ * are the only artefact of the specification that is documentation, demonstration
  * and fixture at once.
  *
  * **They are the first thing to age when a notation changes**, and they age
@@ -14,31 +14,31 @@
  * That is what this test is for, and it asserts both directions:
  *
  * 1. every entry of the declared notation appears in **each** vault, so a
- *    notation cannot be added to the profile and demonstrated nowhere;
- * 2. neither vault demonstrates a notation the profile does **not** declare,
- *    so they cannot teach a reader something this product will not do.
+ *    notation cannot be added to the specification and demonstrated nowhere;
+ * 2. neither vault demonstrates a notation the specification does **not**
+ *    declare, so they cannot teach a reader something this product will not do.
  *
- * **The first direction is asked of everything the profile ADDS to what a base
- * parser already does, and that is a decision, not a filter.** Profile v0.3.0
- * restated CommonMark and GFM inside `profile.json`, so the declared notation
- * went from 31 entries to 54. Demanding all of them here would force a setext
- * heading, an indented code block and a link reference definition into prose
- * that has no use for any of them — which is the list of specimens these
+ * **The first direction is asked of everything the specification ADDS to what
+ * a base parser already does, and that is a decision, not a filter.** Version
+ * 0.3.0 restated CommonMark and GFM inside the document itself, so the declared
+ * notation went from 31 entries to 54. Demanding all of them here would force a
+ * setext heading, an indented code block and a link reference definition into
+ * prose that has no use for any of them — which is the list of specimens these
  * vaults were written to not be. CommonMark is the floor every renderer
  * already stands on; what a reader cannot learn anywhere else is what this
- * profile adds on top of it, and that is what these vaults owe. GFM stays in:
- * a table, a struck word and a bare address are not universal, and each of the
- * three carries a crossing of its own — a wikilink inside a table cell is an
- * edge, a bare address never is.
+ * specification adds on top of it, and that is what these vaults owe. GFM
+ * stays in: a table, a struck word and a bare address are not universal, and
+ * each of the three carries a crossing of its own — a wikilink inside a table
+ * cell is an edge, a bare address never is.
  *
  * Which entries those are is `DELEGATED_TO_THE_BASE_PARSER` in `markdown.ts`.
- * It was a filter on `entry.ring` until profile v0.4.0 removed the field, for
+ * It was a filter on `entry.ring` until version 0.4.0 removed the field, for
  * a reason of its own: an implementation is asked for the notation the
  * document lists and not for a specification in full. The decision above did
  * not change with it.
  *
  * **A third direction, added in the same cycle: the rejections.** They were
- * read off `recognised: false` and the profile stopped carrying them, because
+ * read off `recognised: false` and the specification stopped carrying them, because
  * a catalogue of the forms a specification declines can never be finished.
  * What this product does with `#subject` did not change (RN-DSC-033), so the
  * declaration moved to `DECLARED_SILENCE` and these vaults still owe it — a
@@ -72,10 +72,10 @@ import {
 } from '../src/markdown.js';
 
 /**
- * What the vaults owe: everything the profile adds to what a base parser
+ * What the vaults owe: everything the specification adds to what a base parser
  * already does. The reason is in the preamble.
  *
- * It was a filter on `entry.ring` until profile v0.4.0, which dropped the
+ * It was a filter on `entry.ring` until version 0.4.0, which dropped the
  * field. The scope did not change and the place it is written did: it is now
  * an explicit list in `markdown.ts`, and the second assertion below is what
  * keeps it from quietly absorbing a notation added in a later version, which
@@ -289,7 +289,7 @@ const DETECTS: Record<string, Detector> = {
 };
 
 /**
- * Notations that exist in the ecosystem and are NOT in this profile. A vault
+ * Notations that exist in the ecosystem and are NOT in this specification. A vault
  * carrying one of them would be teaching a reader something this product does
  * not do, which is the failure the second direction of this test guards.
  */
@@ -311,7 +311,7 @@ describe.each(DEMONSTRATION)('%s demonstrates the whole declared notation', (slu
   it.each(DEMANDED.map((entry) => entry.id))('shows %s in context', (id) => {
     const detect = DETECTS[id];
     // A declared notation with no detector here is a failure of this test and
-    // not a gap to find later: the profile cannot grow an entry these vaults
+    // not a gap to find later: the specification cannot grow an entry these vaults
     // are silently not demonstrating.
     expect(detect, `no detector written for the notation "${id}"`).toBeDefined();
     expect(detect?.(notes), `"${id}" is declared and appears nowhere in ${slug}`).toBe(true);
@@ -322,7 +322,7 @@ describe.each(DEMONSTRATION)('%s demonstrates the whole declared notation', (slu
     // sharper reason: a vault written by somebody using the product only ever
     // contains what worked, so this is the one place a reader sees a form that
     // does nothing sitting beside the form that does. They were read off
-    // `recognised: false` until profile v0.4.0 stopped carrying it.
+    // `recognised: false` until version 0.4.0 stopped carrying it.
     const detect = DETECTS[id];
     expect(detect, `no detector written for the silence "${id}"`).toBeDefined();
     expect(detect?.(notes), `"${id}" is a declared silence and appears nowhere in ${slug}`).toBe(
@@ -413,7 +413,7 @@ describe.each(DEMONSTRATION)('%s demonstrates the whole declared notation', (slu
   });
 
   it('teaches the rejections next to what to write instead', () => {
-    // The half of the profile no other vault will ever show: a vault written
+    // The half of the specification no other vault will ever show: a vault written
     // by somebody using the product only contains what worked. Each rejection
     // has to be beside the thing to write in its place, or it is a list of
     // prohibitions and not an explanation.

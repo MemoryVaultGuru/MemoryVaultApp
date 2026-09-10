@@ -456,15 +456,6 @@ function listDirs(dir) {
   );
 }
 
-function slugify(name) {
-  return name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
 // The description of a folder is an attribute of the folder, not a document:
 // it goes into the single STRUCTURE.md of the vault, never into a file of its
 // own inside the folder (RN-PRT-003).
@@ -520,17 +511,21 @@ function writeTemplate(dir, vaultSlug, templateName) {
   writeFileSync(join(dir, 'TEMPLATE.md'), readFileSync(src, 'utf8'), 'utf8');
 }
 
-const WIKILINK = /\[\[([^\]|]+?)(?:\|[^\]]+?)?\]\]/g;
+const WIKILINK_TARGET = /(^|[^!])\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/gm;
 
-function parseTags(head) {
-  const inline = /^tags:\s*\[([^\]]*)\]/m.exec(head);
+/** A link inside code is an example and never an edge. */
+const outsideCode = (body) => body.replace(/```[\s\S]*?```/g, '').replace(/`[^`\n]*`/g, '');
+
+/** A list-valued key of the frontmatter, in its flow form or its block form. */
+function parseList(head, key) {
+  const inline = new RegExp(`^${key}:\\s*\\[([^\\]]*)\\]`, 'm').exec(head);
   if (inline) {
     return inline[1]
       .split(',')
       .map((t) => t.trim().replace(/^["']|["']$/g, ''))
       .filter(Boolean);
   }
-  const block = /^tags:\s*\n((?:[ \t]+-[ \t]+.*\n?)+)/m.exec(head);
+  const block = new RegExp(`^${key}:\\s*\\n((?:[ \\t]+-[ \\t]+.*\\n?)+)`, 'm').exec(head);
   if (!block) return [];
   return block[1]
     .split('\n')
@@ -622,15 +617,25 @@ function collectNoteStats(raw, vault) {
   const maturity = /^maturity:\s*(\S+)/m.exec(head)?.[1] ?? 'none';
   const reviewed = /^reviewed:\s*(\S+)/m.exec(head)?.[1] === 'true';
   const created = /^created:\s*(\d{4}-\d{2}-\d{2})/m.exec(head)?.[1];
-  const tags = parseTags(head);
+  const tags = parseList(head, 'tags');
   vault.stats.byType[type] = (vault.stats.byType[type] ?? 0) + 1;
   vault.stats.byMaturity[maturity] = (vault.stats.byMaturity[maturity] ?? 0) + 1;
   if (reviewed) vault.stats.reviewed += 1;
   if (created) vault.stats.byCreatedDay[created] = (vault.stats.byCreatedDay[created] ?? 0) + 1;
   for (const tag of tags) vault.stats.byTag[tag] = (vault.stats.byTag[tag] ?? 0) + 1;
 
-  for (const m of raw.matchAll(WIKILINK)) {
-    const target = slugify((m[1].split('#')[0] ?? '').trim());
+  // A target resolves against the titles of the vault and then its aliases,
+  // compared case-exact after NFC and folded in no other way — the reading the
+  // guard over these trees makes in demonstration-vaults.test.ts, so the two
+  // report one number.
+  const title = /^title:\s*(.+)$/m.exec(head)?.[1]?.trim();
+  if (title) vault.names.add(title.normalize('NFC'));
+  for (const alias of parseList(head, 'aliases')) vault.names.add(alias.normalize('NFC'));
+
+  for (const m of outsideCode(raw.slice(head.length)).matchAll(WIKILINK_TARGET)) {
+    // Inside a table cell the pipe of an alias is escaped, so the target ends
+    // at the backslash the author wrote in front of it.
+    const target = (m[2] ?? '').trim().replace(/\\$/, '').trim().normalize('NFC');
     if (!target) continue;
     vault.linkTargets.set(target, (vault.linkTargets.get(target) ?? 0) + 1);
   }
@@ -643,7 +648,6 @@ function copyNotes(srcDir, outDir, vault, counters, depth) {
     // Two notes may carry one title, in one folder or in two, and nothing
     // refuses the second one. What used to be a warning here was reading the
     // vault against a rule the specification retired.
-    vault.slugs.add(slugify(title));
     const raw = stateTitle(
       normalizeFrontmatter(readFileSync(join(srcDir, f), 'utf8'), vault.slug),
       title,
@@ -706,7 +710,7 @@ for (const def of VAULTS) {
   const vault = {
     slug: def.slug,
     def,
-    slugs: new Set(),
+    names: new Set(),
     linkTargets: new Map(),
     stats: { byType: {}, byMaturity: {}, byTag: {}, byCreatedDay: {}, reviewed: 0 },
   };
@@ -730,7 +734,7 @@ for (const def of VAULTS) {
   let resolved = 0;
   let pending = 0;
   for (const [target, count] of vault.linkTargets) {
-    if (vault.slugs.has(target)) resolved += count;
+    if (vault.names.has(target)) resolved += count;
     else pending += count;
   }
   stats.push({

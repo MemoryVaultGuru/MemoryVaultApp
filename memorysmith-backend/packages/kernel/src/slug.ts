@@ -1,10 +1,10 @@
 /**
- * Slug: the normalized, URL-safe name a folder or a note is addressed by.
+ * Slug: the normalized, URL-safe name a vault or a folder is addressed by.
  *
- * Note slugs are unique within the vault, not within the folder, because that
- * is how links resolve (RN-KNW-020); folder slugs are unique among siblings
- * (RN-KNW-002). Uniqueness itself is enforced by guard items in DynamoDB; this
- * type only guarantees the shape.
+ * Vault slugs are unique within the subscription (RN-KNW-032); folder slugs are
+ * unique among siblings (RN-KNW-002). A note carries none: it is addressed by
+ * its identifier and named by its title (RN-KNW-035). This type only
+ * guarantees the shape; uniqueness is the repository's to enforce.
  */
 
 import { DomainError } from './errors.js';
@@ -15,8 +15,8 @@ const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**
  * Folds accents, lowercases, and collapses everything that is neither a letter
- * nor a digit into single hyphens. Deterministic: the same title always yields
- * the same slug, which is what makes create_note idempotent (RN-AGT-004).
+ * nor a digit into single hyphens. Deterministic: the same name always yields
+ * the same slug, so two names that fold to one are one address.
  */
 export function slugify(raw: string): string {
   return (
@@ -24,7 +24,7 @@ export function slugify(raw: string): string {
       .normalize('NFD')
       // A dot BETWEEN DIGITS belongs to the number, not to the words around it:
       // "Lei 14.133" has to become "lei-14133", because "lei-14-133" is not what
-      // anyone would type in a link.
+      // anyone would type in an address.
       .replace(/(\d)[.,](\d)/g, '$1$2')
       .replace(/\p{M}/gu, '')
       .toLowerCase()

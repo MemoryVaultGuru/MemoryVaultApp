@@ -37,11 +37,7 @@ function stubApi(notes: Array<Record<string, unknown>> = [SUMMARY]): Call[] {
     });
 
     const answer =
-      path === '/knowledge/vaults'
-        ? [VAULT]
-        : path === '/knowledge/vaults/v1/notes'
-          ? notes
-          : NOTE;
+      path === '/knowledge/vaults' ? [VAULT] : path === '/knowledge/vaults/v1/notes' ? notes : NOTE;
     return Promise.resolve({
       ok: true,
       status: 200,
