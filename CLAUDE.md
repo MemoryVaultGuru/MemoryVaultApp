@@ -120,7 +120,7 @@ are forbidden. They duplicate information already recorded in the git history an
 
 ### Written in en-US
 
-Everything: `docs/*.md`, `README.md`, `CHANGELOG.md`, this file, `SECURITY.md`, the issue templates, the repository labels and the Project field values, commit messages and pull request descriptions, source code (identifiers, comments and docblocks), branch names, configuration files, log and error messages, DynamoDB attribute names, S3 key components, EventBridge event names, API endpoint names, and MCP tool names and descriptions.
+Everything: `docs/*.md`, `README.md`, `CHANGELOG.md`, this file, `SECURITY.md`, the issue templates, the repository labels, commit messages and pull request descriptions, source code (identifiers, comments and docblocks), branch names, configuration files, log and error messages, DynamoDB attribute names, S3 key components, EventBridge event names, API endpoint names, and MCP tool names and descriptions.
 
 The reason is not preference. Everything the product exposes is already en-US: the code, the API, the names and descriptions of the MCP tools, the Vault Context the agent receives, the labels the server writes, the canonical locale of the interface. The repository is public and the product addresses AI tools and whoever integrates them, so a second language in the documentation layer charges a cost precisely at the door somebody from outside comes in through.
 

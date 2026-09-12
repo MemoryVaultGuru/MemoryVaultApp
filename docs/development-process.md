@@ -430,7 +430,7 @@ to point at the merged commit, and the GitHub Release of step 9 is created from 
 - **The branch of a cycle is `release/vX.Y.Z`**, and the version bump commit lands in it,
   not in a separate branch.
 - **When cutting the version**, the issues delivered in the cycle are closed with a
-  reference to the PR, and the ones left behind get the next target version in the Project.
+  reference to the PR, and the ones left behind move to the milestone of the next version.
   An accepted issue that nobody reassessed at the end of the cycle is a silent promise to
   whoever reported it.
 
